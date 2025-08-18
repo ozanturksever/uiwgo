@@ -194,10 +194,19 @@ func watchAndRebuild() {
 			return err
 		}
 		if d.IsDir() {
-			if strings.HasPrefix(path, "./cmd") {
+			if strings.HasPrefix(path, "cmd") {
 				return filepath.SkipDir
 			}
-			if strings.HasPrefix(path, "./.devenv") {
+			if strings.HasPrefix(path, ".direnv") {
+				return filepath.SkipDir
+			}
+			if strings.HasPrefix(path, ".idea") {
+				return filepath.SkipDir
+			}
+			if strings.HasPrefix(path, ".git") {
+				return filepath.SkipDir
+			}
+			if strings.HasPrefix(path, ".devenv") {
 				return filepath.SkipDir
 			}
 			log.Println("👀 Adding watch on:", path)
