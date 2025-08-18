@@ -1165,6 +1165,14 @@ func AllExamplesShowcase() Node {
 				),
 
 				Div(Style("margin-bottom: 15px;"),
+					Strong(Style("color: #667eea; font-size: 14px;"), Text("🔄 LIFECYCLE HOOKS"))),
+				Ul(Style("list-style: none; padding-left: 0; margin: 5px 0 20px 0;"),
+					Li(Style("margin: 8px 0; padding: 8px; background: #f8f9fa; border-radius: 6px; font-size: 13px;"), Text("• Basic Lifecycle Demo")),
+					Li(Style("margin: 8px 0; padding: 8px; background: #f8f9fa; border-radius: 6px; font-size: 13px;"), Text("• Counter with Hooks")),
+					Li(Style("margin: 8px 0; padding: 8px; background: #f8f9fa; border-radius: 6px; font-size: 13px;"), Text("• Cleanup Demo")),
+				),
+
+				Div(Style("margin-bottom: 15px;"),
 					Strong(Style("color: #667eea; font-size: 14px;"), Text("📋 COMPREHENSIVE"))),
 				Ul(Style("list-style: none; padding-left: 0; margin: 5px 0 0 0;"),
 					Li(Style("margin: 8px 0; padding: 8px; background: #f8f9fa; border-radius: 6px; font-size: 13px;"), Text("• Complete Form")),
@@ -1219,6 +1227,17 @@ func AllExamplesShowcase() Node {
 					createCard("Complete Registration Form", ComprehensiveFormDemo()),
 				),
 
+				// Component Lifecycle Hooks Section
+				createSection("🔄 Component Lifecycle Hooks", "OnInit, OnMount, and OnDismount hooks for component lifecycle management",
+					Div(Style("display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 25px;"),
+						createCard("Basic Lifecycle Demo", LifecycleBasicDemo()),
+						createCard("Counter with Lifecycle Hooks", LifecycleCounterDemo()),
+					),
+					Div(Style("margin-top: 25px;"),
+						createCard("Cleanup Demo with Mount/Dismount", LifecycleCleanupDemo()),
+					),
+				),
+
 				// Footer
 				Div(
 					Style("margin-top: 50px; padding: 30px; background: rgba(255,255,255,0.9); border-radius: 12px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.1);"),
@@ -1230,6 +1249,128 @@ func AllExamplesShowcase() Node {
 				),
 			),
 		),
+	)
+}
+
+// ----------------------------------
+// 🔄 Component Lifecycle Demonstrations
+// ----------------------------------
+
+func LifecycleBasicDemo() Node {
+	message := golid.NewSignal("Component not initialized")
+
+	component := golid.WithLifecycle(func() Node {
+		return Div(
+			Style("padding: 20px; border: 2px solid #e0e0e0; border-radius: 8px; margin: 10px 0;"),
+			H4(Text("Basic Lifecycle Demo")),
+			P(golid.BindText(func() string { return message.Get() })),
+		)
+	}).OnInit(func() {
+		message.Set("✅ OnInit: Component initialized!")
+		golid.Log("LifecycleBasicDemo: OnInit called")
+	}).OnMount(func() {
+		message.Set("🚀 OnMount: Component mounted to DOM!")
+		golid.Log("LifecycleBasicDemo: OnMount called")
+	}).OnDismount(func() {
+		golid.Log("LifecycleBasicDemo: OnDismount called - component removed from DOM!")
+	})
+
+	return component.Render()
+}
+
+func LifecycleCounterDemo() Node {
+	counter := golid.NewSignal(0)
+	mountTime := golid.NewSignal("")
+
+	component := golid.WithLifecycle(func() Node {
+		return Div(
+			Style("padding: 20px; border: 2px solid #4CAF50; border-radius: 8px; margin: 10px 0;"),
+			H4(Text("Counter with Lifecycle Hooks")),
+			P(golid.BindText(func() string { return fmt.Sprintf("Count: %d", counter.Get()) })),
+			P(golid.BindText(func() string { return mountTime.Get() })),
+			Button(
+				Text("Increment"),
+				Style("margin: 5px; padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;"),
+				golid.OnClick(func() {
+					counter.Set(counter.Get() + 1)
+				}),
+			),
+			Button(
+				Text("Reset"),
+				Style("margin: 5px; padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;"),
+				golid.OnClick(func() {
+					counter.Set(0)
+				}),
+			),
+		)
+	}).OnInit(func() {
+		golid.Log("LifecycleCounterDemo: OnInit - counter initialized at", counter.Get())
+	}).OnMount(func() {
+		mountTime.Set(fmt.Sprintf("⏰ Mounted at: %d", js.Global().Get("Date").New().Call("getTime").Int()))
+		golid.Log("LifecycleCounterDemo: OnMount - component mounted to DOM")
+	}).OnDismount(func() {
+		golid.Log("LifecycleCounterDemo: OnDismount - cleaning up counter component")
+	})
+
+	return component.Render()
+}
+
+func LifecycleCleanupDemo() Node {
+	isVisible := golid.NewSignal(true)
+	intervalID := golid.NewSignal(0)
+	timestamp := golid.NewSignal("")
+
+	lifecycleComponent := golid.WithLifecycle(func() Node {
+		return Div(
+			Style("padding: 20px; border: 2px solid #FF9800; border-radius: 8px; margin: 10px 0; background: #FFF3E0;"),
+			H4(Text("Cleanup Demo Component")),
+			P(Text("This component updates every second and cleans up on dismount.")),
+			P(golid.BindText(func() string { return timestamp.Get() })),
+		)
+	}).OnInit(func() {
+		golid.Log("LifecycleCleanupDemo child: OnInit called")
+	}).OnMount(func() {
+		golid.Log("LifecycleCleanupDemo child: OnMount - starting interval")
+		// Start an interval that updates timestamp
+		callback := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+			now := js.Global().Get("Date").New()
+			timestamp.Set(fmt.Sprintf("🕒 Current time: %s", now.Call("toLocaleTimeString").String()))
+			return nil
+		})
+		id := js.Global().Call("setInterval", callback, 1000)
+		intervalID.Set(id.Int())
+	}).OnDismount(func() {
+		golid.Log("LifecycleCleanupDemo child: OnDismount - clearing interval", intervalID.Get())
+		if intervalID.Get() > 0 {
+			js.Global().Call("clearInterval", intervalID.Get())
+		}
+	})
+
+	return Div(
+		Style("padding: 20px; border: 2px solid #2196F3; border-radius: 8px; margin: 10px 0;"),
+		H4(Text("Lifecycle Cleanup Demo")),
+		P(Text("Toggle visibility to see mount/dismount lifecycle in action:")),
+		Button(
+			golid.BindText(func() string {
+				if isVisible.Get() {
+					return "Hide Component"
+				}
+				return "Show Component"
+			}),
+			Style("margin: 5px; padding: 8px 16px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;"),
+			golid.OnClick(func() {
+				isVisible.Set(!isVisible.Get())
+			}),
+		),
+		golid.Bind(func() Node {
+			if isVisible.Get() {
+				return lifecycleComponent.Render()
+			}
+			return Div(
+				Style("padding: 20px; border: 2px dashed #ccc; border-radius: 8px; margin: 10px 0; color: #666;"),
+				Text("Component is hidden - dismount hooks should have been called"),
+			)
+		}),
 	)
 }
 

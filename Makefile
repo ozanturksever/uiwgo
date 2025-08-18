@@ -24,7 +24,7 @@ define print_color
 	@printf "$(1)%s$(NC)\n" "$(2)"
 endef
 
-.PHONY: help build dev clean test wasm devserver run setup deps check-deps install-deps
+.PHONY: help build dev clean test wasm-test test-wasm devserver run setup deps check-deps install-deps example-counter example-todo example-router example-conditional example-lifecycle examples-list
 
 # Default target
 all: setup build
@@ -51,6 +51,16 @@ help:
 	@printf "  $(GREEN)check-deps$(NC)     - Check if required dependencies are available\n"
 	@printf "  $(GREEN)clean$(NC)          - Remove build artifacts\n"
 	@printf "  $(GREEN)test$(NC)           - Run tests (non-WASM compatible only)\n"
+	@printf "  $(GREEN)wasm-test$(NC)      - Run WASM tests using wasmbrowsertest\n"
+	@printf "  $(GREEN)test-wasm$(NC)      - Alias for wasm-test\n"
+	@printf "\n"
+	@printf "$(YELLOW)Example targets:$(NC)\n"
+	@printf "  $(GREEN)examples-list$(NC)   - List all available examples\n"
+	@printf "  $(GREEN)example-counter$(NC) - Run counter example (basic signals)\n"
+	@printf "  $(GREEN)example-todo$(NC)    - Run todo list example (list rendering)\n"
+	@printf "  $(GREEN)example-router$(NC)  - Run router example (client-side routing)\n"
+	@printf "  $(GREEN)example-conditional$(NC) - Run conditional rendering example\n"
+	@printf "  $(GREEN)example-lifecycle$(NC) - Run lifecycle example (component lifecycle hooks)\n"
 	@printf "\n"
 	@printf "$(YELLOW)Configuration:$(NC)\n"
 	@printf "  PORT=$(PORT) (development server port)\n"
@@ -121,7 +131,17 @@ test:
 	@printf "$(YELLOW)Running tests...$(NC)\n"
 	@printf "$(YELLOW)Note: WASM-dependent tests will be skipped due to syscall/js constraints$(NC)\n"
 	@go test -v ./golid/... || printf "$(YELLOW)⚠ Some tests skipped due to WASM constraints$(NC)\n"
-	@printf "$(YELLOW)For full testing, use browser-based integration tests$(NC)\n"
+	@printf "$(YELLOW)For full WASM testing, use 'make wasm-test'$(NC)\n"
+
+# Run WASM tests using wasmbrowsertest
+wasm-test:
+	@printf "$(YELLOW)Running WASM tests with wasmbrowsertest...$(NC)\n"
+	@printf "$(YELLOW)This will run tests in a browser environment$(NC)\n"
+	@cd golid && env -i PATH="$(PATH)" HOME="$(HOME)" GOOS=js GOARCH=wasm go test -v
+	@printf "$(GREEN)✓ WASM tests complete$(NC)\n"
+
+# Alias for wasm-test
+test-wasm: wasm-test
 
 # Development workflow helpers
 watch:
@@ -173,3 +193,67 @@ info:
 	@printf "$(YELLOW)Devserver module:$(NC) $$(head -n1 $(DEVSERVER_DIR)/go.mod)\n"
 	@printf "$(YELLOW)Build flags:$(NC) $(GO_BUILD_FLAGS)\n"
 	@printf "$(YELLOW)WASM environment:$(NC) $(WASM_BUILD_ENV)\n"
+
+# Example targets - Individual example development and debugging
+examples-list:
+	@printf "$(GREEN)Available Examples$(NC)\n"
+	@printf "\n"
+	@printf "$(YELLOW)Counter Example:$(NC)\n"
+	@printf "  • Basic signals and reactive updates\n"
+	@printf "  • Increment/decrement buttons\n"
+	@printf "  • Run with: $(GREEN)make example-counter$(NC)\n"
+	@printf "\n"
+	@printf "$(YELLOW)Todo List Example:$(NC)\n"
+	@printf "  • List rendering with ForEach\n"
+	@printf "  • Form handling and input binding\n"
+	@printf "  • Add/remove/toggle todo items\n"
+	@printf "  • Run with: $(GREEN)make example-todo$(NC)\n"
+	@printf "\n"
+	@printf "$(YELLOW)Router Example:$(NC)\n"
+	@printf "  • Client-side routing with multiple pages\n"
+	@printf "  • Route parameters extraction\n"
+	@printf "  • Navigation with RouterLink\n"
+	@printf "  • Run with: $(GREEN)make example-router$(NC)\n"
+	@printf "\n"
+	@printf "$(YELLOW)Conditional Rendering Example:$(NC)\n"
+	@printf "  • Dynamic UI updates based on state\n"
+	@printf "  • Show/hide functionality\n"
+	@printf "  • Conditional styling\n"
+	@printf "  • Run with: $(GREEN)make example-conditional$(NC)\n"
+	@printf "\n"
+	@printf "$(YELLOW)Lifecycle Example:$(NC)\n"
+	@printf "  • Component lifecycle hooks (OnInit, OnMount, OnDismount)\n"
+	@printf "  • Dynamic component creation and destruction\n"
+	@printf "  • Resource cleanup patterns and timer management\n"
+	@printf "  • Real-time lifecycle event logging\n"
+	@printf "  • Run with: $(GREEN)make example-lifecycle$(NC)\n"
+
+example-counter: devserver
+	@printf "$(GREEN)Running Counter Example$(NC)\n"
+	@printf "$(GREEN)Starting development server with counter example on http://localhost:$(PORT)$(NC)\n"
+	@printf "$(YELLOW)Press Ctrl+C to stop$(NC)\n"
+	@./$(DEVSERVER_BIN) --target ./examples/counter/main.go
+
+example-todo: devserver
+	@printf "$(GREEN)Running Todo List Example$(NC)\n"
+	@printf "$(GREEN)Starting development server with todo example on http://localhost:$(PORT)$(NC)\n"
+	@printf "$(YELLOW)Press Ctrl+C to stop$(NC)\n"
+	@./$(DEVSERVER_BIN) --target ./examples/todo/main.go
+
+example-router: devserver
+	@printf "$(GREEN)Running Router Example$(NC)\n"
+	@printf "$(GREEN)Starting development server with router example on http://localhost:$(PORT)$(NC)\n"
+	@printf "$(YELLOW)Press Ctrl+C to stop$(NC)\n"
+	@./$(DEVSERVER_BIN) --target ./examples/router/main.go
+
+example-conditional: devserver
+	@printf "$(GREEN)Running Conditional Rendering Example$(NC)\n"
+	@printf "$(GREEN)Starting development server with conditional example on http://localhost:$(PORT)$(NC)\n"
+	@printf "$(YELLOW)Press Ctrl+C to stop$(NC)\n"
+	@./$(DEVSERVER_BIN) --target ./examples/conditional/main.go
+
+example-lifecycle: devserver
+	@printf "$(GREEN)Running Lifecycle Example$(NC)\n"
+	@printf "$(GREEN)Starting development server with lifecycle example on http://localhost:$(PORT)$(NC)\n"
+	@printf "$(YELLOW)Press Ctrl+C to stop$(NC)\n"
+	@./$(DEVSERVER_BIN) --target ./examples/lifecycle/main.go

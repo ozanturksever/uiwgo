@@ -139,13 +139,18 @@ func (broker *SSEBroker) Broadcast(message string) {
 }
 
 var sseBroker *SSEBroker
+var targetFile string
 
 func main() {
 	port := flag.String("port", "8090", "Port to run the server on")
 	dir := flag.String("dir", ".", "Directory to serve")
 	noWatch := flag.Bool("no-watch", false, "Disable watching for file changes")
 	noBuild := flag.Bool("no-build", false, "Disable rebuild at startup")
+	target := flag.String("target", "./main.go", "Go file to compile to WebAssembly")
 	flag.Parse()
+
+	// Set the global target file
+	targetFile = *target
 
 	// Initialize SSE broker
 	sseBroker = NewSSEBroker()
@@ -154,7 +159,7 @@ func main() {
 	// No longer need to create index.html file since we serve embedded HTML
 
 	if *noBuild && *noWatch {
-		log.Println("⚠️ Warning: both --no-build and --no-watch enabled; make sure main.wasm exists")
+		log.Printf("⚠️ Warning: both --no-build and --no-watch enabled; make sure main.wasm exists (compiled from %s)", targetFile)
 	}
 
 	if !*noBuild {
@@ -272,7 +277,8 @@ func spaHandler(dir string) http.Handler {
 }
 
 func rebuild() {
-	cmd := exec.Command("go", "build", "-o", "main.wasm", "./main.go")
+	log.Printf("🔨 Building WASM from: %s", targetFile)
+	cmd := exec.Command("go", "build", "-o", "main.wasm", targetFile)
 	cmd.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
 	cmd.Stdout = log.Writer()
 	cmd.Stderr = log.Writer()

@@ -84,6 +84,192 @@ func CounterComponent() Node {
     
 ```
 
+## 🔄 Component Lifecycle Hooks
+
+Golid provides a comprehensive component lifecycle system that allows you to hook into key moments of a component's life: initialization, mounting to the DOM, and dismounting from the DOM.
+
+### Lifecycle Hook Types
+
+- **OnInit**: Called immediately when the component is created, before rendering
+- **OnMount**: Called when the component is mounted to the DOM 
+- **OnDismount**: Called when the component is removed from the DOM
+
+### Creating Components with Lifecycle Hooks
+
+```go
+func MyComponent() Node {
+    count := golid.NewSignal(0)
+    
+    component := golid.WithLifecycle(func() Node {
+        return Div(
+            H3(Text("Component with Lifecycle")),
+            P(golid.BindText(func() string {
+                return fmt.Sprintf("Count: %d", count.Get())
+            })),
+            Button(
+                Text("Increment"),
+                golid.OnClick(func() {
+                    count.Set(count.Get() + 1)
+                }),
+            ),
+        )
+    }).OnInit(func() {
+        golid.Log("Component initialized!")
+        count.Set(10) // Set initial value
+    }).OnMount(func() {
+        golid.Log("Component mounted to DOM!")
+    }).OnDismount(func() {
+        golid.Log("Component removed from DOM!")
+        // Cleanup resources here
+    })
+    
+    return component.Render()
+}
+```
+
+### Lifecycle Hook Use Cases
+
+#### OnInit - Initial Setup
+Perfect for initializing state, setting default values, or preparing data:
+
+```go
+component := golid.WithLifecycle(renderFunc).OnInit(func() {
+    // Initialize signals
+    userSignal.Set(fetchCurrentUser())
+    
+    // Set up initial state
+    isLoading.Set(false)
+    
+    // Prepare data
+    setupInitialData()
+})
+```
+
+#### OnMount - DOM Integration
+Ideal for integrating with third-party libraries, starting timers, or DOM manipulation:
+
+```go
+component := golid.WithLifecycle(renderFunc).OnMount(func() {
+    // Start intervals/timers
+    intervalID := js.Global().Call("setInterval", callback, 1000)
+    
+    // Initialize third-party libraries
+    initializeChartLibrary()
+    
+    // Focus elements, measure DOM, etc.
+    focusFirstInput()
+})
+```
+
+#### OnDismount - Cleanup
+Essential for preventing memory leaks by cleaning up resources:
+
+```go
+component := golid.WithLifecycle(renderFunc).OnDismount(func() {
+    // Clear intervals and timeouts
+    if intervalID > 0 {
+        js.Global().Call("clearInterval", intervalID)
+    }
+    
+    // Remove event listeners
+    removeGlobalEventListeners()
+    
+    // Cancel network requests
+    cancelOngoingRequests()
+    
+    // Clean up third-party library instances
+    cleanupChartLibrary()
+})
+```
+
+### Multiple Hooks of the Same Type
+
+You can register multiple hooks of the same type, and they will all be executed:
+
+```go
+component := golid.WithLifecycle(renderFunc).
+    OnInit(func() {
+        golid.Log("First init hook")
+    }).
+    OnInit(func() {
+        golid.Log("Second init hook") 
+    }).
+    OnMount(func() {
+        golid.Log("First mount hook")
+    }).
+    OnMount(func() {
+        golid.Log("Second mount hook")
+    })
+```
+
+### Conditional Component Rendering
+
+Lifecycle hooks work seamlessly with conditional rendering using `golid.Bind()`:
+
+```go
+func ToggleableComponent() Node {
+    isVisible := golid.NewSignal(true)
+    
+    lifecycleComponent := golid.WithLifecycle(func() Node {
+        return Div(
+            Style("padding: 20px; border: 2px solid #4CAF50;"),
+            H4(Text("I have lifecycle hooks!")),
+            P(Text("Check the console for lifecycle messages.")),
+        )
+    }).OnInit(func() {
+        golid.Log("Component initialized")
+    }).OnMount(func() {
+        golid.Log("Component mounted - DOM is ready!")
+    }).OnDismount(func() {
+        golid.Log("Component dismounted - cleanup complete!")
+    })
+    
+    return Div(
+        Button(
+            Text("Toggle Component"),
+            golid.OnClick(func() {
+                isVisible.Set(!isVisible.Get())
+            }),
+        ),
+        golid.Bind(func() Node {
+            if isVisible.Get() {
+                return lifecycleComponent.Render()
+            }
+            return Text("Component is hidden")
+        }),
+    )
+}
+```
+
+### Best Practices
+
+1. **Keep hooks focused**: Each hook should have a single, clear purpose
+2. **Always clean up**: Use OnDismount to prevent memory leaks
+3. **Use OnInit for state setup**: Initialize signals and prepare data in OnInit
+4. **Use OnMount for DOM operations**: Interact with DOM elements in OnMount
+5. **Store cleanup references**: Keep references to intervals, listeners, etc., for cleanup
+6. **Avoid heavy computation in hooks**: Keep hooks lightweight for better performance
+
+### API Reference
+
+#### `golid.WithLifecycle(renderFunc func() Node) *Component`
+Creates a new component with lifecycle hook support.
+
+#### `golid.NewComponent(renderFunc func() Node) *Component`  
+Alternative constructor for creating components with lifecycle hooks.
+
+#### `component.OnInit(hook LifecycleHook) *Component`
+Registers an initialization hook. Returns the component for chaining.
+
+#### `component.OnMount(hook LifecycleHook) *Component`
+Registers a mount hook. Returns the component for chaining.
+
+#### `component.OnDismount(hook LifecycleHook) *Component`
+Registers a dismount hook. Returns the component for chaining.
+
+#### `component.Render() Node`
+Renders the component and sets up lifecycle hooks. Call this to get the actual DOM node.
+
 ## 🧭 Router System
 
 Golid includes a powerful, SolidJS-inspired router system for building Single Page Applications with client-side navigation:

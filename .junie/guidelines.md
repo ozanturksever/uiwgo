@@ -71,7 +71,7 @@ make status            # Check project build status
 #### Advanced Commands
 
 ```bash
-make test              # Run tests (non-WASM compatible only)
+make test              # Run tests (uses wasmbrowsertest)
 make info              # Show build information
 make check-deps        # Verify required tools are available
 ```
@@ -136,13 +136,34 @@ Golid/
 
 ## Testing Information
 
-### Testing Challenges with WASM
+**Test-Driven Development (TDD) is strongly recommended for Golid development.** Always write tests before implementing new features to ensure robust and reliable code.
 
-**Important:** Golid is designed for WebAssembly environments and uses `syscall/js` for DOM manipulation. This creates unique testing challenges:
+### Testing Infrastructure (Updated)
 
-1. **Standard `go test` limitations:** Tests fail on native platforms due to `syscall/js` import constraints
-2. **WASM test execution:** Running tests with `GOOS=js GOARCH=wasm` has environment limitations
-3. **DOM dependency:** Most reactive features require a browser DOM environment
+**Great News:** Golid now has comprehensive testing infrastructure with **wasmbrowsertest** support that resolves previous WASM testing challenges!
+
+- ✅ **Working WASM Tests:** Tests run in actual browser environment using wasmbrowsertest
+- ✅ **Comprehensive Test Suite:** 12+ test functions covering Bind functionality and DOM utilities
+- ✅ **Proper CI/CD Support:** Tests can be automated in development workflow
+- ✅ **Detailed Documentation:** See `golid/TESTING_README.md` for complete testing guide
+
+### Test-First Development Workflow
+
+**Always follow this workflow for new features:**
+
+1. **Write tests first** - Define expected behavior through tests
+2. **Run tests** - Verify they fail initially (red phase)
+3. **Implement code** - Write minimal code to make tests pass (green phase)
+4. **Refactor** - Improve code while keeping tests passing
+5. **Ensure all tests pass** - Never commit code with failing tests
+
+### Testing Challenges with WASM (Legacy Information)
+
+While we now have working test infrastructure, understanding WASM constraints helps with test design:
+
+1. **DOM-dependent vs DOM-independent:** Structure tests work everywhere, reactive behavior needs browser
+2. **Test environment:** Use `wasmbrowsertest` for full WASM functionality testing
+3. **Native vs WASM:** Some tests require browser environment for `syscall/js` APIs
 
 ### Testing Strategies
 
@@ -238,19 +259,37 @@ func TestComponentCreation(t *testing.T) {
 
 ### Running Tests
 
-Due to WASM constraints, testing approaches:
+#### ✅ WASM Tests (Recommended - Now Working!)
 
 ```bash
-# This will fail due to syscall/js constraints
-go test ./...
+# Run all tests with WASM/browser environment
+cd golid && env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v
 
-# Alternative: Test specific non-DOM functions
-# Create separate test files for non-WASM logic
+# Run specific test
+cd golid && env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -run TestBindStructureGeneration
 
-# Integration testing: Use the development server
-./golid-dev
+# Add to Makefile for convenience
+make test              # Run tests (uses wasmbrowsertest)
+```
+
+**Important:** Use `env -i` to clear environment variables to avoid command line limit errors in the browser environment.
+
+#### ❌ Standard Go Tests (Expected to Fail)
+
+```bash
+# This will still fail due to syscall/js constraints in native environment
+go test ./golid -v
+```
+
+#### Integration Testing
+
+```bash
+# Use the development server for manual testing
+make dev
 # Then test manually in browser at http://localhost:8090
 ```
+
+**For detailed testing information, see `golid/TESTING_README.md`**
 
 ## Development Best Practices
 
@@ -377,10 +416,27 @@ tail -f cmd/devserver/server.log
 # - Elements tab for DOM inspection
 ```
 
-#### 3. Adding New Components
+#### 3. Adding New Components (Test-First Approach)
 
 ```go
-// 1. Create component function
+// 1. WRITE TESTS FIRST - Define expected behavior
+func TestNewComponent(t *testing.T) {
+    component := NewComponent()
+    
+    if component == nil {
+        t.Error("Component should not be nil")
+    }
+    
+    html := golid.RenderHTML(component)
+    if !strings.Contains(html, "expected-content") {
+        t.Error("Component should contain expected content")
+    }
+}
+
+// 2. RUN TESTS - Verify they fail initially
+// cd golid && env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v
+
+// 3. IMPLEMENT - Create component function
 func NewComponent() Node {
     signal := golid.NewSignal(initialValue)
     
@@ -389,13 +445,14 @@ func NewComponent() Node {
     )
 }
 
-// 2. Add to router if needed
+// 4. RUN TESTS AGAIN - Ensure they pass
+// 5. Add to router if needed
 router.AddRoute("/new-component", func(params golid.RouteParams) Node {
     return NewComponent()
 })
 
-// 3. Test in browser
-// 4. Add to navigation if needed
+// 6. Test in browser for integration
+// 7. Add to navigation if needed
 ```
 
 ### Common Patterns
