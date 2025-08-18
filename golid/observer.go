@@ -11,6 +11,26 @@ import (
 // 🔍 Global MutationObserver System
 // ---------------------------
 
+// Constants for maxRecursionDepth validation
+const (
+	MinRecursionDepth     = 1    // Minimum allowed recursion depth
+	MaxRecursionDepth     = 1000 // Maximum allowed recursion depth
+	DefaultRecursionDepth = 50   // Default recursion depth if none specified
+)
+
+// validateMaxRecursionDepth validates and returns a safe maxRecursionDepth value
+func validateMaxRecursionDepth(depth int) int {
+	if depth < MinRecursionDepth {
+		Logf("⚠️ Invalid maxRecursionDepth %d (< %d). Using default value %d", depth, MinRecursionDepth, DefaultRecursionDepth)
+		return DefaultRecursionDepth
+	}
+	if depth > MaxRecursionDepth {
+		Logf("⚠️ Invalid maxRecursionDepth %d (> %d). Using default value %d", depth, MaxRecursionDepth, DefaultRecursionDepth)
+		return DefaultRecursionDepth
+	}
+	return depth
+}
+
 // Global observer instance
 var globalObserver *ObserverManager
 
@@ -19,7 +39,7 @@ func init() {
 		callbacks:         make(map[string]ElementCallback),
 		dismountCallbacks: make(map[string][]LifecycleHook),
 		trackedElements:   make(map[string]js.Value),
-		maxRecursionDepth: 50, // Prevent infinite recursion
+		maxRecursionDepth: validateMaxRecursionDepth(DefaultRecursionDepth), // Prevent infinite recursion with validation
 	}
 }
 
@@ -72,6 +92,21 @@ func (om *ObserverManager) UnregisterElement(id string) {
 	}
 }
 
+// SetMaxRecursionDepth sets the maximum recursion depth with validation
+func (om *ObserverManager) SetMaxRecursionDepth(depth int) {
+	validatedDepth := validateMaxRecursionDepth(depth)
+	om.mutex.Lock()
+	om.maxRecursionDepth = validatedDepth
+	om.mutex.Unlock()
+}
+
+// GetMaxRecursionDepth returns the current maximum recursion depth
+func (om *ObserverManager) GetMaxRecursionDepth() int {
+	om.mutex.RLock()
+	defer om.mutex.RUnlock()
+	return om.maxRecursionDepth
+}
+
 // startObserving initializes the MutationObserver
 func (om *ObserverManager) startObserving() {
 	if om.isObserving {
@@ -89,6 +124,7 @@ func (om *ObserverManager) startObserving() {
 		// Check recursion depth to prevent infinite loops
 		if om.recursionDepth >= om.maxRecursionDepth {
 			om.mutex.RUnlock()
+			Logf("⚠️ Observer recursion depth limit reached (%d). Possible infinite loop detected - observer callback execution stopped to prevent stack overflow.", om.maxRecursionDepth)
 			return nil
 		}
 

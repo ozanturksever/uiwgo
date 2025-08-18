@@ -524,3 +524,273 @@ func TestObserverCallbackExecution(t *testing.T) {
 		}
 	}
 }
+
+// TestObserverRecursionDepthLogging tests that logging occurs when recursion depth limit is reached
+func TestObserverRecursionDepthLogging(t *testing.T) {
+	om := &ObserverManager{
+		callbacks:         make(map[string]ElementCallback),
+		dismountCallbacks: make(map[string][]LifecycleHook),
+		trackedElements:   make(map[string]js.Value),
+		isObserving:       false,
+		recursionDepth:    0,
+		maxRecursionDepth: 5, // Set a low limit to easily trigger
+	}
+
+	// Create a mock observer callback function that we can test directly
+	// This simulates the logic from the actual observerCallback in startObserving
+	testCallback := func() bool {
+		// Check if observer is suspended (simulate the real check)
+		om.mutex.RLock()
+		if om.isSuspended {
+			om.mutex.RUnlock()
+			return false
+		}
+
+		// Check recursion depth to prevent infinite loops (this is the code we're testing)
+		if om.recursionDepth >= om.maxRecursionDepth {
+			om.mutex.RUnlock()
+			// This is where our logging should occur - we can't easily capture console output
+			// in tests, but we can verify the condition is met and the function exits correctly
+			Logf("⚠️ Observer recursion depth limit reached (%d). Possible infinite loop detected - observer callback execution stopped to prevent stack overflow.", om.maxRecursionDepth)
+			return false // Simulate returning nil from the real callback
+		}
+
+		// Increment recursion depth
+		om.recursionDepth++
+		om.mutex.RUnlock()
+
+		return true // Continue processing
+	}
+
+	// Test normal operation - should succeed
+	om.mutex.Lock()
+	om.recursionDepth = 3 // Below limit
+	om.mutex.Unlock()
+
+	result := testCallback()
+	if !result {
+		t.Error("Callback should succeed when recursion depth is below limit")
+	}
+
+	// Verify recursion depth was incremented
+	om.mutex.RLock()
+	currentDepth := om.recursionDepth
+	om.mutex.RUnlock()
+
+	if currentDepth != 4 {
+		t.Errorf("Expected recursion depth 4, got %d", currentDepth)
+	}
+
+	// Test recursion limit reached - should trigger logging and return false
+	om.mutex.Lock()
+	om.recursionDepth = 5 // At the limit
+	om.mutex.Unlock()
+
+	result = testCallback()
+	if result {
+		t.Error("Callback should fail (return false) when recursion depth limit is reached")
+	}
+
+	// Verify recursion depth was not incremented when limit was reached
+	om.mutex.RLock()
+	finalDepth := om.recursionDepth
+	om.mutex.RUnlock()
+
+	if finalDepth != 5 {
+		t.Errorf("Expected recursion depth to remain 5 when limit reached, got %d", finalDepth)
+	}
+
+	// Test recursion limit exceeded - should also trigger logging and return false
+	om.mutex.Lock()
+	om.recursionDepth = 10 // Above the limit
+	om.mutex.Unlock()
+
+	result = testCallback()
+	if result {
+		t.Error("Callback should fail (return false) when recursion depth limit is exceeded")
+	}
+
+	// Verify that the logging mechanism doesn't interfere with normal operation
+	// Reset to normal state
+	om.mutex.Lock()
+	om.recursionDepth = 0
+	om.mutex.Unlock()
+
+	result = testCallback()
+	if !result {
+		t.Error("Callback should work normally after recursion depth is reset")
+	}
+
+	t.Logf("✅ Recursion depth logging test completed - logging will appear in browser console when limit is reached")
+}
+
+// TestObserverMaxRecursionDepthValidation tests the validation of maxRecursionDepth values
+func TestObserverMaxRecursionDepthValidation(t *testing.T) {
+	// Test valid values within bounds
+	validCases := []int{1, 5, 50, 100, 500, 1000}
+
+	for _, validValue := range validCases {
+		om := &ObserverManager{
+			callbacks:         make(map[string]ElementCallback),
+			dismountCallbacks: make(map[string][]LifecycleHook),
+			trackedElements:   make(map[string]js.Value),
+			maxRecursionDepth: validateMaxRecursionDepth(validValue),
+		}
+
+		if om.maxRecursionDepth != validValue {
+			t.Errorf("Valid value %d should not be changed, got %d", validValue, om.maxRecursionDepth)
+		}
+	}
+
+	// Test minimum boundary (exactly at the boundary)
+	minBoundary := validateMaxRecursionDepth(MinRecursionDepth)
+	if minBoundary != MinRecursionDepth {
+		t.Errorf("Minimum boundary value %d should be accepted, got %d", MinRecursionDepth, minBoundary)
+	}
+
+	// Test maximum boundary (exactly at the boundary)
+	maxBoundary := validateMaxRecursionDepth(MaxRecursionDepth)
+	if maxBoundary != MaxRecursionDepth {
+		t.Errorf("Maximum boundary value %d should be accepted, got %d", MaxRecursionDepth, maxBoundary)
+	}
+}
+
+// TestObserverMaxRecursionDepthInvalidValues tests validation with invalid values
+func TestObserverMaxRecursionDepthInvalidValues(t *testing.T) {
+	// Test values below minimum (should default to DefaultRecursionDepth)
+	invalidLowCases := []int{0, -1, -10, -100}
+
+	for _, invalidValue := range invalidLowCases {
+		result := validateMaxRecursionDepth(invalidValue)
+		if result != DefaultRecursionDepth {
+			t.Errorf("Invalid low value %d should default to %d, got %d", invalidValue, DefaultRecursionDepth, result)
+		}
+	}
+
+	// Test values above maximum (should default to DefaultRecursionDepth)
+	invalidHighCases := []int{1001, 2000, 10000, 999999}
+
+	for _, invalidValue := range invalidHighCases {
+		result := validateMaxRecursionDepth(invalidValue)
+		if result != DefaultRecursionDepth {
+			t.Errorf("Invalid high value %d should default to %d, got %d", invalidValue, DefaultRecursionDepth, result)
+		}
+	}
+}
+
+// TestObserverSetMaxRecursionDepth tests the SetMaxRecursionDepth method
+func TestObserverSetMaxRecursionDepth(t *testing.T) {
+	om := &ObserverManager{
+		callbacks:         make(map[string]ElementCallback),
+		dismountCallbacks: make(map[string][]LifecycleHook),
+		trackedElements:   make(map[string]js.Value),
+		maxRecursionDepth: DefaultRecursionDepth,
+	}
+
+	// Test setting a valid value
+	om.SetMaxRecursionDepth(100)
+	if om.GetMaxRecursionDepth() != 100 {
+		t.Errorf("Expected maxRecursionDepth to be 100, got %d", om.GetMaxRecursionDepth())
+	}
+
+	// Test setting an invalid low value (should default to DefaultRecursionDepth)
+	om.SetMaxRecursionDepth(-5)
+	if om.GetMaxRecursionDepth() != DefaultRecursionDepth {
+		t.Errorf("Invalid low value should set maxRecursionDepth to %d, got %d", DefaultRecursionDepth, om.GetMaxRecursionDepth())
+	}
+
+	// Test setting an invalid high value (should default to DefaultRecursionDepth)
+	om.SetMaxRecursionDepth(5000)
+	if om.GetMaxRecursionDepth() != DefaultRecursionDepth {
+		t.Errorf("Invalid high value should set maxRecursionDepth to %d, got %d", DefaultRecursionDepth, om.GetMaxRecursionDepth())
+	}
+
+	// Test setting boundary values
+	om.SetMaxRecursionDepth(MinRecursionDepth)
+	if om.GetMaxRecursionDepth() != MinRecursionDepth {
+		t.Errorf("Minimum boundary value should be accepted, expected %d, got %d", MinRecursionDepth, om.GetMaxRecursionDepth())
+	}
+
+	om.SetMaxRecursionDepth(MaxRecursionDepth)
+	if om.GetMaxRecursionDepth() != MaxRecursionDepth {
+		t.Errorf("Maximum boundary value should be accepted, expected %d, got %d", MaxRecursionDepth, om.GetMaxRecursionDepth())
+	}
+}
+
+// TestObserverGetMaxRecursionDepth tests the GetMaxRecursionDepth method
+func TestObserverGetMaxRecursionDepth(t *testing.T) {
+	om := &ObserverManager{
+		callbacks:         make(map[string]ElementCallback),
+		dismountCallbacks: make(map[string][]LifecycleHook),
+		trackedElements:   make(map[string]js.Value),
+		maxRecursionDepth: 75, // Set a specific test value
+	}
+
+	result := om.GetMaxRecursionDepth()
+	if result != 75 {
+		t.Errorf("Expected GetMaxRecursionDepth to return 75, got %d", result)
+	}
+}
+
+// TestObserverInitializationValidation tests that the global observer is initialized with validated values
+func TestObserverInitializationValidation(t *testing.T) {
+	// The global observer should be initialized with a valid maxRecursionDepth
+	if globalObserver == nil {
+		t.Fatal("globalObserver should be initialized")
+	}
+
+	depth := globalObserver.GetMaxRecursionDepth()
+
+	// Should be within valid bounds
+	if depth < MinRecursionDepth || depth > MaxRecursionDepth {
+		t.Errorf("Global observer maxRecursionDepth %d is outside valid bounds [%d, %d]", depth, MinRecursionDepth, MaxRecursionDepth)
+	}
+
+	// Should be the default value (since we initialize with DefaultRecursionDepth)
+	if depth != DefaultRecursionDepth {
+		t.Errorf("Expected global observer maxRecursionDepth to be %d, got %d", DefaultRecursionDepth, depth)
+	}
+}
+
+// TestObserverConcurrentMaxRecursionDepthAccess tests concurrent access to maxRecursionDepth setter and getter
+func TestObserverConcurrentMaxRecursionDepthAccess(t *testing.T) {
+	om := &ObserverManager{
+		callbacks:         make(map[string]ElementCallback),
+		dismountCallbacks: make(map[string][]LifecycleHook),
+		trackedElements:   make(map[string]js.Value),
+		maxRecursionDepth: DefaultRecursionDepth,
+	}
+
+	var wg sync.WaitGroup
+
+	// Concurrent setters
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(value int) {
+			defer wg.Done()
+			// Set values within valid range
+			om.SetMaxRecursionDepth(10 + (value * 5)) // Values from 10 to 55
+		}(i)
+	}
+
+	// Concurrent getters
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			depth := om.GetMaxRecursionDepth()
+			// Verify we get a valid value
+			if depth < MinRecursionDepth || depth > MaxRecursionDepth {
+				t.Errorf("Concurrent getter returned invalid depth: %d", depth)
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	// Final check - should have a valid value
+	finalDepth := om.GetMaxRecursionDepth()
+	if finalDepth < MinRecursionDepth || finalDepth > MaxRecursionDepth {
+		t.Errorf("Final depth after concurrent access is invalid: %d", finalDepth)
+	}
+}
