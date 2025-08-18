@@ -2,5 +2,4 @@ golid-dev
 wasm_exec.js
 main.wasm
 index.html
-Makefile
 .devenv
