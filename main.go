@@ -4,6 +4,7 @@ import (
 	"app/golid"
 	"fmt"
 	"strings"
+	"syscall/js"
 
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
@@ -556,54 +557,108 @@ func DynamicStylingDemo() Node {
 	input3 := golid.NewSignal("")
 	focus3 := golid.NewSignal(false)
 
+	// Generate unique IDs for styling
+	id1 := golid.GenID()
+	id2 := golid.GenID()
+	id3 := golid.GenID()
+
 	return Div(
 		Style("max-width: 600px; margin: 20px; font-family: Arial, sans-serif;"),
 		H2(Text("🎨 Dynamic Styling Demo")),
-
 		// Glowing border effect
 		Div(
 			Style("margin-bottom: 20px;"),
 			Label(Style("display: block; font-weight: bold; margin-bottom: 5px;"), Text("Glowing Border:")),
-			golid.Bind(func() Node {
-				focused := focus1.Get()
-				style := "padding: 12px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; transition: all 0.3s;"
-				if focused {
-					style += " border: 2px solid #2196F3; box-shadow: 0 0 10px rgba(33, 150, 243, 0.3);"
-				} else {
-					style += " border: 2px solid #ddd;"
-				}
-				return golid.BindInputWithFocus(input1, focus1, "Focus me for glow effect...")
-			}),
+			Div(
+				Attr("id", id1),
+				golid.BindInputWithFocus(input1, focus1, "Focus me for glow effect..."),
+				//Dynamic styling applied via JavaScript
+				golid.Bind(func() Node {
+					focused := focus1.Get()
+					style := "padding: 12px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; transition: all 0.3s;"
+					if focused {
+						style += " border: 2px solid #2196F3; box-shadow: 0 0 10px rgba(33, 150, 243, 0.3);"
+					} else {
+						style += " border: 2px solid #ddd;"
+					}
+					// Apply style to the input element via JavaScript
+
+					jsCode := fmt.Sprintf(`
+										(function() {
+											const container = document.getElementById('%s');
+											const input = container ? container.querySelector('input') : null;
+											if (input) {
+												input.style.cssText = '%s';
+											}
+										})();
+									`, id1, style)
+					elem := golid.NodeFromID(id1)
+					if elem.Truthy() {
+						js.Global().Call("eval", jsCode)
+					}
+					return nil
+				}),
+			),
 		),
 
 		// Color changing background
 		Div(
 			Style("margin-bottom: 20px;"),
 			Label(Style("display: block; font-weight: bold; margin-bottom: 5px;"), Text("Color Changing:")),
-			golid.Bind(func() Node {
-				focused := focus2.Get()
-				style := "padding: 12px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; transition: all 0.3s; border: 2px solid #ddd;"
-				if focused {
-					style += " background: linear-gradient(45deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);"
-				} else {
-					style += " background: white;"
-				}
-				return golid.BindInputWithFocus(input2, focus2, "Focus for gradient background...")
-			}),
+			Div(
+				Attr("id", id2),
+				golid.BindInputWithFocus(input2, focus2, "Focus for gradient background..."),
+				golid.Bind(func() Node {
+					focused := focus2.Get()
+					style := "padding: 12px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; transition: all 0.3s; border: 2px solid #ddd;"
+					if focused {
+						style += " background: linear-gradient(45deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);"
+					} else {
+						style += " background: white;"
+					}
+
+					js := fmt.Sprintf(`
+						(function() {
+							const container = document.getElementById('%s');
+							const input = container ? container.querySelector('input') : null;
+							if (input) {
+								input.style.cssText = '%s';
+							}
+						})();
+					`, id2, style)
+
+					return Script(Attr("type", "text/javascript"), Raw(js))
+				}),
+			),
 		),
 
 		// Scale effect
 		Div(
 			Style("margin-bottom: 20px;"),
 			Label(Style("display: block; font-weight: bold; margin-bottom: 5px;"), Text("Scale Effect:")),
-			golid.Bind(func() Node {
-				focused := focus3.Get()
-				style := "padding: 12px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; transition: all 0.3s; border: 2px solid #4caf50;"
-				if focused {
-					style += " transform: scale(1.05); box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);"
-				}
-				return golid.BindInputWithFocus(input3, focus3, "Focus me to scale up...")
-			}),
+			Div(
+				Attr("id", id3),
+				golid.BindInputWithFocus(input3, focus3, "Focus me to scale up..."),
+				golid.Bind(func() Node {
+					focused := focus3.Get()
+					style := "padding: 12px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; transition: all 0.3s; border: 2px solid #4caf50;"
+					if focused {
+						style += " transform: scale(1.05); box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);"
+					}
+
+					js := fmt.Sprintf(`
+						(function() {
+							const container = document.getElementById('%s');
+							const input = container ? container.querySelector('input') : null;
+							if (input) {
+								input.style.cssText = '%s';
+							}
+						})();
+					`, id3, style)
+
+					return Script(Attr("type", "text/javascript"), Raw(js))
+				}),
+			),
 		),
 
 		// Status display
