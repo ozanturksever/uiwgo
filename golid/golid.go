@@ -23,6 +23,139 @@ type JsCallback func(this js.Value, args []js.Value) interface{}
 
 var doc = js.Global().Get("document")
 
+// ---------------------------
+// 🔍 Global MutationObserver System
+// ---------------------------
+
+type ElementCallback func()
+
+type ObserverManager struct {
+	observer    js.Value
+	callbacks   map[string]ElementCallback
+	isObserving bool
+}
+
+var globalObserver *ObserverManager
+
+func init() {
+	globalObserver = &ObserverManager{
+		callbacks: make(map[string]ElementCallback),
+	}
+}
+
+// RegisterElement registers an element ID with a callback to be executed when the element is found
+func (om *ObserverManager) RegisterElement(id string, callback ElementCallback) {
+	// Check if element already exists
+	if NodeFromID(id).Truthy() {
+		callback()
+		return
+	}
+
+	om.callbacks[id] = callback
+
+	// Start observing if not already observing
+	if !om.isObserving {
+		om.startObserving()
+	}
+}
+
+// UnregisterElement removes an element from tracking
+func (om *ObserverManager) UnregisterElement(id string) {
+	delete(om.callbacks, id)
+
+	// Stop observing if no more callbacks
+	if len(om.callbacks) == 0 && om.isObserving {
+		om.stopObserving()
+	}
+}
+
+// startObserving initializes the MutationObserver
+func (om *ObserverManager) startObserving() {
+	if om.isObserving {
+		return
+	}
+
+	observerCallback := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		mutations := args[0]
+		mutationsLength := mutations.Get("length").Int()
+
+		for i := 0; i < mutationsLength; i++ {
+			mutation := mutations.Index(i)
+			if mutation.Get("type").String() == "childList" {
+				addedNodes := mutation.Get("addedNodes")
+				addedNodesLength := addedNodes.Get("length").Int()
+
+				for j := 0; j < addedNodesLength; j++ {
+					node := addedNodes.Index(j)
+					om.checkNodeForTargets(node)
+				}
+			}
+		}
+		return nil
+	})
+
+	om.observer = js.Global().Get("MutationObserver").New(observerCallback)
+
+	config := js.Global().Get("Object").New()
+	config.Set("childList", true)
+	config.Set("subtree", true)
+
+	om.observer.Call("observe", doc.Get("body"), config)
+	om.isObserving = true
+}
+
+// stopObserving disconnects the MutationObserver
+func (om *ObserverManager) stopObserving() {
+	if om.isObserving && om.observer.Truthy() {
+		om.observer.Call("disconnect")
+		om.isObserving = false
+	}
+}
+
+// checkNodeForTargets checks if any registered elements are found in the added node
+func (om *ObserverManager) checkNodeForTargets(node js.Value) {
+	if node.Get("nodeType").Int() != 1 { // Not an element node
+		return
+	}
+
+	var foundIDs []string
+
+	for id, callback := range om.callbacks {
+		if node.Get("id").String() == id {
+			foundIDs = append(foundIDs, id)
+			callback()
+		} else {
+			// Check descendants using getElementById instead of querySelector
+			// to avoid CSS selector syntax issues with UUIDs starting with digits
+			found := doc.Call("getElementById", id)
+			if found.Truthy() {
+				// Verify that the found element is actually a descendant of the node
+				if isDescendantOf(found, node) {
+					foundIDs = append(foundIDs, id)
+					callback()
+				}
+			}
+		}
+	}
+
+	// Remove found elements from callbacks
+	for _, id := range foundIDs {
+		om.UnregisterElement(id)
+	}
+}
+
+// Helper function to check if element is a descendant of node
+func isDescendantOf(element js.Value, ancestor js.Value) bool {
+	current := element.Get("parentNode")
+	for current.Truthy() {
+		if current.Equal(ancestor) {
+			return true
+		}
+		current = current.Get("parentNode")
+	}
+	return false
+}
+
 // ------------------------------------
 // 📦 Reactive Signals (State Handling)
 // ------------------------------------
@@ -97,8 +230,8 @@ func Bind(fn func() Node) Node {
 	id := GenID()
 	placeholder := Span(Attr("id", id))
 
-	var check js.Func
-	check = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	// Register with global observer instead of polling
+	globalObserver.RegisterElement(id, func() {
 		elem := NodeFromID(id)
 		if elem.Truthy() {
 			Watch(func() {
@@ -108,12 +241,8 @@ func Bind(fn func() Node) Node {
 					elem.Set("outerHTML", html)
 				}
 			})
-			return nil
 		}
-		js.Global().Call("setTimeout", check, 10)
-		return nil
 	})
-	js.Global().Call("setTimeout", check, 10)
 
 	return placeholder
 }
@@ -122,91 +251,25 @@ func BindText(fn func() string) Node {
 	id := GenID()
 	span := Span(Attr("id", id), Text(fn()))
 
-	// MutationObserver-based approach for better performance
-	go func() {
-		// Create a callback function for when the element is found
-		var onElementAdded js.Func
-		onElementAdded = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-			elem := NodeFromID(id)
-			if elem.Truthy() {
-				// Set up reactive Watch effect
-				Watch(func() {
-					elem := NodeFromID(id)
-					if elem.Truthy() {
-						currentVal := elem.Get("textContent").String()
-						newVal := fn()
-						if currentVal != newVal {
-							elem.Set("textContent", newVal)
-						}
-					}
-				})
-				onElementAdded.Release()
-			}
-			return nil
-		})
-
-		// Create MutationObserver to watch for DOM additions
-		var observer js.Value
-		var observerCallback js.Func
-		observerCallback = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-			mutations := args[0]
-			mutationsLength := mutations.Get("length").Int()
-
-			for i := 0; i < mutationsLength; i++ {
-				mutation := mutations.Index(i)
-				if mutation.Get("type").String() == "childList" {
-					addedNodes := mutation.Get("addedNodes")
-					addedNodesLength := addedNodes.Get("length").Int()
-
-					for j := 0; j < addedNodesLength; j++ {
-						node := addedNodes.Index(j)
-						// Check if this node or any of its descendants is our target element
-						if checkNodeForTarget(node, id) {
-							onElementAdded.Invoke()
-							observer.Call("disconnect")
-							observerCallback.Release()
-							return nil
-						}
+	// Register with global observer instead of individual MutationObserver
+	globalObserver.RegisterElement(id, func() {
+		elem := NodeFromID(id)
+		if elem.Truthy() {
+			// Set up reactive Watch effect
+			Watch(func() {
+				elem := NodeFromID(id)
+				if elem.Truthy() {
+					currentVal := elem.Get("textContent").String()
+					newVal := fn()
+					if currentVal != newVal {
+						elem.Set("textContent", newVal)
 					}
 				}
-			}
-			return nil
-		})
-
-		// Check if element already exists (immediate check)
-		if NodeFromID(id).Truthy() {
-			onElementAdded.Invoke()
-			observerCallback.Release()
-			return
+			})
 		}
-
-		// Create and configure the MutationObserver
-		observer = js.Global().Get("MutationObserver").New(observerCallback)
-
-		// Start observing the document body for child additions
-		config := js.Global().Get("Object").New()
-		config.Set("childList", true)
-		config.Set("subtree", true)
-
-		observer.Call("observe", doc.Get("body"), config)
-	}()
+	})
 
 	return span
-}
-
-// Helper function to check if a node or its descendants contains our target element
-func checkNodeForTarget(node js.Value, targetID string) bool {
-	// Check if the node itself has the target ID
-	if node.Get("nodeType").Int() == 1 { // Element node
-		if node.Get("id").String() == targetID {
-			return true
-		}
-
-		// Check descendants using querySelector
-		found := node.Call("querySelector", "#"+targetID)
-		return found.Truthy()
-	}
-	return false
 }
 
 // -------------------------
@@ -236,7 +299,7 @@ func OnClick(f func()) Node {
 // ------------------
 
 func GenID() string {
-	return uuid.NewString()
+	return fmt.Sprintf("e_%s", uuid.NewString())
 }
 
 func Append(html string, Element js.Value) {
@@ -348,9 +411,8 @@ func BindInput(sig *Signal[string], placeholder string) Node {
 	id := GenID()
 	isComposing := false
 
-	// Poll until the element exists, then attach listeners and Watch
-	var check js.Func
-	check = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	// Register with global observer instead of polling
+	globalObserver.RegisterElement(id, func() {
 		elem := NodeFromID(id)
 		if elem.Truthy() {
 			// attach listeners
@@ -420,18 +482,8 @@ func BindInput(sig *Signal[string], placeholder string) Node {
 					}
 				}
 			})
-
-			// release the check function to avoid leaking resources
-			check.Release()
-			return nil
 		}
-
-		// not present yet, retry shortly
-		js.Global().Call("setTimeout", check, 10)
-		return nil
 	})
-
-	js.Global().Call("setTimeout", check, 10)
 
 	return Input(
 		Attr("id", id),
@@ -446,8 +498,8 @@ func BindInputWithType(sig *Signal[string], inputType, placeholder string) Node 
 	id := GenID()
 	isComposing := false
 
-	var check js.Func
-	check = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+	// Register with global observer instead of polling
+	globalObserver.RegisterElement(id, func() {
 		elem := NodeFromID(id)
 		if elem.Truthy() {
 			// attach listeners
@@ -517,17 +569,8 @@ func BindInputWithType(sig *Signal[string], inputType, placeholder string) Node 
 					}
 				}
 			})
-
-			// release the check function to avoid leaking resources
-			check.Release()
-			return nil
 		}
-
-		// not present yet, retry shortly
-		js.Global().Call("setTimeout", check, 10)
-		return nil
 	})
-	js.Global().Call("setTimeout", check, 10)
 
 	return Input(
 		Attr("id", id),
@@ -542,94 +585,92 @@ func BindInputWithFocus(sig *Signal[string], focusSig *Signal[bool], placeholder
 	id := GenID()
 	isComposing := false
 
-	go func() {
-		js.Global().Call("setTimeout", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-			elem := NodeFromID(id)
-			if elem.Truthy() {
-				// Input handling
-				elem.Call("addEventListener", "input", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-					if !isComposing {
-						val := elem.Get("value").String()
-						if val != sig.Get() {
-							sig.Set(val)
-						}
+	// Register with global observer instead of polling
+	globalObserver.RegisterElement(id, func() {
+		elem := NodeFromID(id)
+		if elem.Truthy() {
+			// Input handling
+			elem.Call("addEventListener", "input", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+				if !isComposing {
+					val := elem.Get("value").String()
+					if val != sig.Get() {
+						sig.Set(val)
 					}
-					return nil
-				}))
+				}
+				return nil
+			}))
 
-				// Composition handling
-				elem.Call("addEventListener", "compositionstart", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-					isComposing = true
-					return nil
-				}))
+			// Composition handling
+			elem.Call("addEventListener", "compositionstart", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+				isComposing = true
+				return nil
+			}))
 
-				elem.Call("addEventListener", "compositionend", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-					isComposing = false
+			elem.Call("addEventListener", "compositionend", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+				isComposing = false
+				val := elem.Get("value").String()
+				if val != sig.Get() {
+					sig.Set(val)
+				}
+				return nil
+			}))
+
+			// Focus/blur handling
+			elem.Call("addEventListener", "focus", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+				focusSig.Set(true)
+				return nil
+			}))
+
+			elem.Call("addEventListener", "blur", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+				focusSig.Set(false)
+				return nil
+			}))
+
+			// Paste handling
+			elem.Call("addEventListener", "paste", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+				js.Global().Call("setTimeout", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 					val := elem.Get("value").String()
 					if val != sig.Get() {
 						sig.Set(val)
 					}
 					return nil
-				}))
+				}), 0)
+				return nil
+			}))
 
-				// Focus/blur handling
-				elem.Call("addEventListener", "focus", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-					focusSig.Set(true)
-					return nil
-				}))
+			// Now set up the Watch effect after the element is ready
+			Watch(func() {
+				elem := NodeFromID(id)
+				if elem.Truthy() {
+					signalVal := sig.Get()
+					elemVal := elem.Get("value").String()
+					if elemVal != signalVal {
+						selectionStart := elem.Get("selectionStart")
+						selectionEnd := elem.Get("selectionEnd")
 
-				elem.Call("addEventListener", "blur", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-					focusSig.Set(false)
-					return nil
-				}))
+						elem.Set("value", signalVal)
 
-				// Paste handling
-				elem.Call("addEventListener", "paste", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-					js.Global().Call("setTimeout", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-						val := elem.Get("value").String()
-						if val != sig.Get() {
-							sig.Set(val)
-						}
-						return nil
-					}), 0)
-					return nil
-				}))
+						if doc.Get("activeElement").Equal(elem) {
+							if selectionStart.Truthy() && selectionEnd.Truthy() {
+								start := selectionStart.Int()
+								end := selectionEnd.Int()
+								maxPos := len(signalVal)
 
-				// Now set up the Watch effect after the element is ready
-				Watch(func() {
-					elem := NodeFromID(id)
-					if elem.Truthy() {
-						signalVal := sig.Get()
-						elemVal := elem.Get("value").String()
-						if elemVal != signalVal {
-							selectionStart := elem.Get("selectionStart")
-							selectionEnd := elem.Get("selectionEnd")
-
-							elem.Set("value", signalVal)
-
-							if doc.Get("activeElement").Equal(elem) {
-								if selectionStart.Truthy() && selectionEnd.Truthy() {
-									start := selectionStart.Int()
-									end := selectionEnd.Int()
-									maxPos := len(signalVal)
-
-									if start > maxPos {
-										start = maxPos
-									}
-									if end > maxPos {
-										end = maxPos
-									}
-
-									elem.Call("setSelectionRange", start, end)
+								if start > maxPos {
+									start = maxPos
 								}
+								if end > maxPos {
+									end = maxPos
+								}
+
+								elem.Call("setSelectionRange", start, end)
 							}
 						}
 					}
-				})
-			}
-			return nil
-		}), 0)
-	}()
+				}
+			})
+		}
+	})
 
 	return Input(
 		Attr("id", id),

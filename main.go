@@ -22,14 +22,14 @@ func main() {
 	// app := TextCopyDemo3()
 
 	// BindInputWithType examples
-	app := InputTypesDemo()
+	//app := InputTypesDemo()
 	// app := NumberInputDemo()
 	// app := EmailPasswordDemo()
 
 	// BindInputWithFocus examples
 	// app := FocusStateDemo()
 	// app := ValidationDemo()
-	// app := DynamicStylingDemo()
+	app := DynamicStylingDemo()
 
 	// Combined examples
 	// app := ComprehensiveFormDemo()
