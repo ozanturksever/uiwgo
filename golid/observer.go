@@ -19,6 +19,7 @@ func init() {
 		callbacks:         make(map[string]ElementCallback),
 		dismountCallbacks: make(map[string][]LifecycleHook),
 		trackedElements:   make(map[string]js.Value),
+		maxRecursionDepth: 50, // Prevent infinite recursion
 	}
 }
 
@@ -78,6 +79,30 @@ func (om *ObserverManager) startObserving() {
 	}
 
 	observerCallback := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		// Check if observer is suspended to prevent infinite loops
+		om.mutex.RLock()
+		if om.isSuspended {
+			om.mutex.RUnlock()
+			return nil
+		}
+
+		// Check recursion depth to prevent infinite loops
+		if om.recursionDepth >= om.maxRecursionDepth {
+			om.mutex.RUnlock()
+			return nil
+		}
+
+		// Increment recursion depth
+		om.recursionDepth++
+		om.mutex.RUnlock()
+
+		defer func() {
+			// Decrement recursion depth when done
+			om.mutex.Lock()
+			om.recursionDepth--
+			om.mutex.Unlock()
+		}()
+
 		mutations := args[0]
 		mutationsLength := mutations.Get("length").Int()
 
@@ -178,10 +203,20 @@ func (om *ObserverManager) checkNodeForTargets(node js.Value) {
 		}
 		om.mutex.Unlock()
 
+		// Suspend observer to prevent infinite loops from callback-triggered DOM changes
+		om.mutex.Lock()
+		om.isSuspended = true
+		om.mutex.Unlock()
+
 		// Call callbacks outside of lock
 		for _, found := range foundElements {
 			found.callback()
 		}
+
+		// Resume observer after callbacks complete
+		om.mutex.Lock()
+		om.isSuspended = false
+		om.mutex.Unlock()
 	}
 }
 
@@ -230,12 +265,22 @@ func (om *ObserverManager) checkNodeForDismount(node js.Value) {
 		}
 		om.mutex.Unlock()
 
+		// Suspend observer to prevent infinite loops from callback-triggered DOM changes
+		om.mutex.Lock()
+		om.isSuspended = true
+		om.mutex.Unlock()
+
 		// Call callbacks outside of lock
 		for _, dismounted := range dismountedElements {
 			for _, callback := range dismounted.callbacks {
 				callback()
 			}
 		}
+
+		// Resume observer after callbacks complete
+		om.mutex.Lock()
+		om.isSuspended = false
+		om.mutex.Unlock()
 	}
 }
 

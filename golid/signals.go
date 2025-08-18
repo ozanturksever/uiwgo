@@ -9,6 +9,8 @@ package golid
 
 // Global effect tracking
 var currentEffect *effect
+var effectDepth int
+var maxEffectDepth = 50 // Prevent infinite effect cascades
 
 // NewSignal creates a new reactive signal with an initial value
 func NewSignal[T any](initial T) *Signal[T] {
@@ -51,6 +53,17 @@ func Watch(fn func()) {
 
 // runEffect executes an effect and tracks its dependencies
 func runEffect(e *effect) {
+	// Prevent infinite effect cascades
+	if effectDepth >= maxEffectDepth {
+		return
+	}
+
+	// Increment depth
+	effectDepth++
+	defer func() {
+		effectDepth--
+	}()
+
 	// Clean up old dependencies
 	for dep := range e.deps {
 		if s, ok := dep.(hasWatchers); ok {

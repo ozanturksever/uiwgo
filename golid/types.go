@@ -51,6 +51,9 @@ type ObserverManager struct {
 	dismountCallbacks map[string][]LifecycleHook
 	trackedElements   map[string]js.Value
 	isObserving       bool
+	isSuspended       bool
+	recursionDepth    int
+	maxRecursionDepth int
 	mutex             sync.RWMutex
 }
 
