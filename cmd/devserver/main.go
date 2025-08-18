@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -9,7 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
+	"sync"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/go-chi/chi/v5"
@@ -31,19 +32,113 @@ const defaultIndexHTML = `<!DOCTYPE html>
             go.run(result.instance);
         });
 
-        setInterval(() => {
-            fetch('/reload-check').then(res => res.text()).then(flag => {
-                if (flag.trim() === 'reload') {
-                    console.log('🔄 Reloading page...');
-                    window.location.reload();
-                }
-            });
-        }, 1000);
+        // Use Server-Sent Events for hot reload
+        const eventSource = new EventSource('/events');
+        eventSource.onmessage = function(event) {
+            if (event.data === 'reload') {
+                console.log('🔄 Reloading page...');
+                window.location.reload();
+            }
+        };
+        
+        eventSource.onerror = function(event) {
+            console.log('SSE connection error, will reconnect automatically');
+        };
     </script>
 </body>
 </html>`
 
-var reloadNeeded atomic.Bool
+// SSE connection management
+type SSEBroker struct {
+	clients    map[chan string]bool
+	newClients chan chan string
+	closeChan  chan chan string
+	messages   chan string
+	mutex      sync.RWMutex
+}
+
+func NewSSEBroker() *SSEBroker {
+	broker := &SSEBroker{
+		clients:    make(map[chan string]bool),
+		newClients: make(chan chan string),
+		closeChan:  make(chan chan string),
+		messages:   make(chan string),
+	}
+	go broker.listen()
+	return broker
+}
+
+func (broker *SSEBroker) listen() {
+	for {
+		select {
+		case s := <-broker.newClients:
+			broker.mutex.Lock()
+			broker.clients[s] = true
+			broker.mutex.Unlock()
+			log.Printf("Client added. %d registered clients", len(broker.clients))
+
+		case s := <-broker.closeChan:
+			broker.mutex.Lock()
+			delete(broker.clients, s)
+			broker.mutex.Unlock()
+			log.Printf("Removed client. %d registered clients", len(broker.clients))
+
+		case event := <-broker.messages:
+			broker.mutex.RLock()
+			for clientMessageChan := range broker.clients {
+				select {
+				case clientMessageChan <- event:
+				default:
+					close(clientMessageChan)
+					delete(broker.clients, clientMessageChan)
+				}
+			}
+			broker.mutex.RUnlock()
+		}
+	}
+}
+
+func (broker *SSEBroker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	messageChan := make(chan string)
+	broker.newClients <- messageChan
+
+	defer func() {
+		broker.closeChan <- messageChan
+	}()
+
+	notify := r.Context().Done()
+	go func() {
+		<-notify
+		broker.closeChan <- messageChan
+	}()
+
+	for {
+		select {
+		case msg := <-messageChan:
+			fmt.Fprintf(w, "data: %s\n\n", msg)
+			flusher.Flush()
+		case <-r.Context().Done():
+			return
+		}
+	}
+}
+
+func (broker *SSEBroker) Broadcast(message string) {
+	broker.messages <- message
+}
+
+var sseBroker *SSEBroker
 
 func main() {
 	port := flag.String("port", "8090", "Port to run the server on")
@@ -52,8 +147,11 @@ func main() {
 	noBuild := flag.Bool("no-build", false, "Disable rebuild at startup")
 	flag.Parse()
 
+	// Initialize SSE broker
+	sseBroker = NewSSEBroker()
+
 	ensureWasmExec()
-	ensureFileExists("index.html", defaultIndexHTML)
+	// No longer need to create index.html file since we serve embedded HTML
 
 	if *noBuild && *noWatch {
 		log.Println("⚠️ Warning: both --no-build and --no-watch enabled; make sure main.wasm exists")
@@ -71,14 +169,8 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	r.Get("/reload-check", func(w http.ResponseWriter, r *http.Request) {
-		if reloadNeeded.Load() {
-			reloadNeeded.Store(false)
-			w.Write([]byte("reload"))
-		} else {
-			w.Write([]byte("noop"))
-		}
-	})
+	// SSE endpoint for hot reload events
+	r.Handle("/events", sseBroker)
 
 	// SPA-aware file server that falls back to index.html for routes
 	r.Handle("/*", spaHandler(*dir))
@@ -103,6 +195,9 @@ func watchAndRebuild() {
 		}
 		if d.IsDir() {
 			if strings.HasPrefix(path, "./cmd") {
+				return filepath.SkipDir
+			}
+			if strings.HasPrefix(path, "./.devenv") {
 				return filepath.SkipDir
 			}
 			log.Println("👀 Adding watch on:", path)
@@ -147,6 +242,14 @@ func spaHandler(dir string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := filepath.Join(dir, r.URL.Path)
 
+		// Check if requesting index.html specifically or a SPA route
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" || filepath.Ext(r.URL.Path) == "" {
+			// Serve embedded HTML for root, index.html, or SPA routes
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write([]byte(defaultIndexHTML))
+			return
+		}
+
 		// Check if the requested path is a file that exists
 		if info, err := os.Stat(path); err == nil && !info.IsDir() {
 			// File exists, serve it normally
@@ -154,24 +257,8 @@ func spaHandler(dir string) http.Handler {
 			return
 		}
 
-		// Check if path has a file extension (likely a static asset that doesn't exist)
-		if filepath.Ext(r.URL.Path) != "" {
-			// Has extension but file doesn't exist, return 404
-			http.NotFound(w, r)
-			return
-		}
-
-		// No file extension and no existing file - this is likely a SPA route
-		// Serve index.html instead
-		indexPath := filepath.Join(dir, "index.html")
-		if _, err := os.Stat(indexPath); err != nil {
-			// index.html doesn't exist, return 404
-			http.NotFound(w, r)
-			return
-		}
-
-		// Serve index.html for SPA routing
-		http.ServeFile(w, r, indexPath)
+		// File with extension doesn't exist, return 404
+		http.NotFound(w, r)
 	})
 }
 
@@ -185,7 +272,10 @@ func rebuild() {
 		log.Println("❌ Build failed:", err)
 	} else {
 		log.Println("✅ Build succeeded")
-		reloadNeeded.Store(true)
+		// Broadcast reload event to all SSE clients
+		if sseBroker != nil {
+			sseBroker.Broadcast("reload")
+		}
 	}
 }
 
