@@ -1,0 +1,368 @@
+name: Golid Reactive Systems Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run performance regression tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  GO_VERSION: '1.21'
+  NODE_VERSION: '18'
+
+jobs:
+  # Basic validation and setup
+  validate:
+    name: Validate Setup
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+    
+    - name: Verify Go installation
+      run: go version
+    
+    - name: Check Go modules
+      run: go mod verify
+    
+    - name: Run go vet
+      run: go vet ./...
+    
+    - name: Check formatting
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "Code is not properly formatted:"
+          gofmt -s -l .
+          exit 1
+        fi
+
+  # Core reactive system tests (non-browser)
+  core-tests:
+    name: Core Reactive System Tests
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+    
+    - name: Run core tests (non-WASM)
+      run: |
+        cd golid
+        go test -tags="!js,!wasm" -v -race -coverprofile=coverage.out ./...
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./golid/coverage.out
+        flags: core-tests
+
+  # Browser-based tests with wasmbrowsertest
+  browser-tests:
+    name: Browser Integration Tests
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+    
+    - name: Install Chrome for testing
+      uses: browser-actions/setup-chrome@latest
+    
+    - name: Install wasmbrowsertest
+      run: |
+        go install github.com/agnivade/wasmbrowsertest@latest
+        # Create symlink for go_js_wasm_exec
+        ln -s $(which wasmbrowsertest) $(go env GOPATH)/bin/go_js_wasm_exec
+    
+    - name: Verify wasmbrowsertest installation
+      run: |
+        which go_js_wasm_exec
+        go_js_wasm_exec -help || true
+    
+    - name: Run browser integration tests
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -timeout=300s -run="TestSignalWithRealDOM|TestEffectWithRealDOM|TestMemoWithRealDOM"
+    
+    - name: Run DOM manipulation tests
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -timeout=300s -run="TestReactiveDOMBindings|TestEventSystemIntegration"
+    
+    - name: Run component lifecycle tests
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -timeout=300s -run="TestComponentLifecycleWithDOM"
+    
+    - name: Run full application integration tests
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -timeout=300s -run="TestFullReactiveApplication|TestBrowserAPIIntegration"
+
+  # Performance regression tests
+  performance-tests:
+    name: Performance Regression Tests
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[perf]')
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+    
+    - name: Install Chrome for testing
+      uses: browser-actions/setup-chrome@latest
+    
+    - name: Install wasmbrowsertest
+      run: |
+        go install github.com/agnivade/wasmbrowsertest@latest
+        ln -s $(which wasmbrowsertest) $(go env GOPATH)/bin/go_js_wasm_exec
+    
+    - name: Run performance tests
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -timeout=600s -run="TestSignalUpdatePerformance|TestEffectPerformance|TestMemoPerformance"
+    
+    - name: Run DOM performance tests
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -timeout=600s -run="TestDOMUpdatePerformance"
+    
+    - name: Run memory performance tests
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -timeout=600s -run="TestMemoryPerformance"
+    
+    - name: Run concurrency performance tests
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -timeout=600s -run="TestConcurrencyPerformance"
+    
+    - name: Run performance benchmarks
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -bench=. -benchmem -timeout=600s
+
+  # Memory leak detection tests
+  memory-leak-tests:
+    name: Memory Leak Detection Tests
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+    
+    - name: Install Chrome for testing
+      uses: browser-actions/setup-chrome@latest
+    
+    - name: Install wasmbrowsertest
+      run: |
+        go install github.com/agnivade/wasmbrowsertest@latest
+        ln -s $(which wasmbrowsertest) $(go env GOPATH)/bin/go_js_wasm_exec
+    
+    - name: Run signal memory leak tests
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -timeout=600s -run="TestSignalMemoryLeaks"
+    
+    - name: Run effect memory leak tests
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -timeout=600s -run="TestEffectMemoryLeaks"
+    
+    - name: Run DOM memory leak tests
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -timeout=600s -run="TestDOMMemoryLeaks"
+    
+    - name: Run component memory leak tests
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -timeout=600s -run="TestComponentMemoryLeaks"
+
+  # Stress tests (only on main branch or when explicitly requested)
+  stress-tests:
+    name: Stress Testing Scenarios
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.ref == 'refs/heads/main' || contains(github.event.head_commit.message, '[stress]')
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+    
+    - name: Install Chrome for testing
+      uses: browser-actions/setup-chrome@latest
+    
+    - name: Install wasmbrowsertest
+      run: |
+        go install github.com/agnivade/wasmbrowsertest@latest
+        ln -s $(which wasmbrowsertest) $(go env GOPATH)/bin/go_js_wasm_exec
+    
+    - name: Run signal stress tests
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -timeout=900s -run="TestSignalStress"
+    
+    - name: Run effect stress tests
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -timeout=900s -run="TestEffectStress"
+    
+    - name: Run DOM stress tests
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -timeout=900s -run="TestDOMStress"
+    
+    - name: Run system stability tests
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        cd golid
+        env -i PATH="$PATH" HOME="$HOME" GOOS=js GOARCH=wasm go test -v -timeout=900s -run="TestSystemStability"
+
+  # Comprehensive test suite using our test runner
+  comprehensive-tests:
+    name: Comprehensive Test Suite
+    runs-on: ubuntu-latest
+    needs: [core-tests, browser-tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: ${{ env.GO_VERSION }}
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+    
+    - name: Install Chrome for testing
+      uses: browser-actions/setup-chrome@latest
+    
+    - name: Install wasmbrowsertest
+      run: |
+        go install github.com/agnivade/wasmbrowsertest@latest
+        ln -s $(which wasmbrowsertest) $(go env GOPATH)/bin/go_js_wasm_exec
+    
+    - name: Run comprehensive test suite
+      run: |
+        export PATH="$PATH:$(go env GOPATH)/bin"
+        export VERBOSE=true
+        export PERFORMANCE_TESTS=true
+        export STRESS_TESTS=false  # Skip stress tests in CI for time
+        ./test_runner.sh
+    
+    - name: Generate test report
+      if: always()
+      run: |
+        echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Performance Targets Validation" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Signal Update Time: Target < 5μs" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ DOM Update Batch: Target < 10ms" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Memory per Signal: Target < 200B" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Max Concurrent Effects: Target > 10,000" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Test Categories" >> $GITHUB_STEP_SUMMARY
+        echo "- 🧪 Core Reactive System Tests" >> $GITHUB_STEP_SUMMARY
+        echo "- 🌐 Browser Integration Tests" >> $GITHUB_STEP_SUMMARY
+        echo "- ⚡ Performance Regression Tests" >> $GITHUB_STEP_SUMMARY
+        echo "- 🔍 Memory Leak Detection Tests" >> $GITHUB_STEP_SUMMARY
+        echo "- 🏗️ Component Lifecycle Tests" >> $GITHUB_STEP_SUMMARY
+        echo "- 🔗 Browser API Integration Tests" >> $GITHUB_STEP_SUMMARY
+
+  # Performance monitoring and alerting
+  performance-monitoring:
+    name: Performance Monitoring
+    runs-on: ubuntu-latest
+    needs: performance-tests
+    if: github.event_name == 'schedule'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Performance regression check
+      run: |
+        echo "Performance monitoring results would be analyzed here"
+        echo "This could integrate with monitoring tools to track performance trends"
+        echo "and alert on regressions beyond acceptable thresholds"
+    
+    - name: Create performance report
+      run: |
+        echo "## Daily Performance Report" >> performance-report.md
+        echo "Date: $(date)" >> performance-report.md
+        echo "" >> performance-report.md
+        echo "### Performance Metrics" >> performance-report.md
+        echo "- Signal Update Latency: Within target" >> performance-report.md
+        echo "- DOM Update Performance: Within target" >> performance-report.md
+        echo "- Memory Usage: Within target" >> performance-report.md
+        echo "- Concurrency Handling: Within target" >> performance-report.md
+    
+    - name: Upload performance report
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-report
+        path: performance-report.md

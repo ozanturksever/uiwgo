@@ -24,7 +24,7 @@ define print_color
 	@printf "$(1)%s$(NC)\n" "$(2)"
 endef
 
-.PHONY: help build dev clean test wasm-test test-wasm devserver run setup deps check-deps install-deps example-counter example-todo example-router example-conditional example-lifecycle examples-list
+.PHONY: help build dev clean test wasm-test test-wasm devserver run setup deps check-deps install-deps examples-list example-counter example-todo example-router example-conditional example-lifecycle example-component-hierarchy example-direct-dom example-error-handling example-event-system example-lazy-loading example-reactivity example-store-action
 
 # Default target
 all: setup build
@@ -55,12 +55,25 @@ help:
 	@printf "  $(GREEN)test-wasm$(NC)      - Alias for wasm-test\n"
 	@printf "\n"
 	@printf "$(YELLOW)Example targets:$(NC)\n"
-	@printf "  $(GREEN)examples-list$(NC)   - List all available examples\n"
-	@printf "  $(GREEN)example-counter$(NC) - Run counter example (basic signals)\n"
-	@printf "  $(GREEN)example-todo$(NC)    - Run todo list example (list rendering)\n"
-	@printf "  $(GREEN)example-router$(NC)  - Run router example (client-side routing)\n"
-	@printf "  $(GREEN)example-conditional$(NC) - Run conditional rendering example\n"
-	@printf "  $(GREEN)example-lifecycle$(NC) - Run lifecycle example (component lifecycle hooks)\n"
+	@printf "  $(GREEN)examples-list$(NC)          - List all available examples\n"
+	@printf "\n"
+	@printf "$(YELLOW)Basic Examples:$(NC)\n"
+	@printf "  $(GREEN)example-counter$(NC)        - Run counter example (basic signals)\n"
+	@printf "  $(GREEN)example-todo$(NC)           - Run todo list example (list rendering)\n"
+	@printf "  $(GREEN)example-conditional$(NC)    - Run conditional rendering example\n"
+	@printf "\n"
+	@printf "$(YELLOW)Advanced Examples:$(NC)\n"
+	@printf "  $(GREEN)example-router$(NC)         - Run router example (client-side routing)\n"
+	@printf "  $(GREEN)example-lifecycle$(NC)      - Run lifecycle example (component lifecycle hooks)\n"
+	@printf "  $(GREEN)example-component-hierarchy$(NC) - Run component hierarchy demo\n"
+	@printf "  $(GREEN)example-reactivity$(NC)     - Run reactivity system demo\n"
+	@printf "  $(GREEN)example-store-action$(NC)   - Run store and action demo\n"
+	@printf "\n"
+	@printf "$(YELLOW)System Examples:$(NC)\n"
+	@printf "  $(GREEN)example-direct-dom$(NC)     - Run direct DOM manipulation demo\n"
+	@printf "  $(GREEN)example-error-handling$(NC) - Run error handling demo\n"
+	@printf "  $(GREEN)example-event-system$(NC)   - Run event system demo\n"
+	@printf "  $(GREEN)example-lazy-loading$(NC)   - Run lazy loading demo\n"
 	@printf "\n"
 	@printf "$(YELLOW)Configuration:$(NC)\n"
 	@printf "  PORT=$(PORT) (development server port)\n"
@@ -198,6 +211,8 @@ info:
 examples-list:
 	@printf "$(GREEN)Available Examples$(NC)\n"
 	@printf "\n"
+	@printf "$(YELLOW)=== BASIC EXAMPLES ====$(NC)\n"
+	@printf "\n"
 	@printf "$(YELLOW)Counter Example:$(NC)\n"
 	@printf "  • Basic signals and reactive updates\n"
 	@printf "  • Increment/decrement buttons\n"
@@ -209,17 +224,19 @@ examples-list:
 	@printf "  • Add/remove/toggle todo items\n"
 	@printf "  • Run with: $(GREEN)make example-todo$(NC)\n"
 	@printf "\n"
-	@printf "$(YELLOW)Router Example:$(NC)\n"
-	@printf "  • Client-side routing with multiple pages\n"
-	@printf "  • Route parameters extraction\n"
-	@printf "  • Navigation with RouterLink\n"
-	@printf "  • Run with: $(GREEN)make example-router$(NC)\n"
-	@printf "\n"
 	@printf "$(YELLOW)Conditional Rendering Example:$(NC)\n"
 	@printf "  • Dynamic UI updates based on state\n"
 	@printf "  • Show/hide functionality\n"
 	@printf "  • Conditional styling\n"
 	@printf "  • Run with: $(GREEN)make example-conditional$(NC)\n"
+	@printf "\n"
+	@printf "$(YELLOW)=== ADVANCED EXAMPLES ====$(NC)\n"
+	@printf "\n"
+	@printf "$(YELLOW)Router Example:$(NC)\n"
+	@printf "  • Client-side routing with multiple pages\n"
+	@printf "  • Route parameters extraction\n"
+	@printf "  • Navigation with RouterLink\n"
+	@printf "  • Run with: $(GREEN)make example-router$(NC)\n"
 	@printf "\n"
 	@printf "$(YELLOW)Lifecycle Example:$(NC)\n"
 	@printf "  • Component lifecycle hooks (OnInit, OnMount, OnDismount)\n"
@@ -227,6 +244,50 @@ examples-list:
 	@printf "  • Resource cleanup patterns and timer management\n"
 	@printf "  • Real-time lifecycle event logging\n"
 	@printf "  • Run with: $(GREEN)make example-lifecycle$(NC)\n"
+	@printf "\n"
+	@printf "$(YELLOW)Component Hierarchy Demo:$(NC)\n"
+	@printf "  • Parent-child component relationships\n"
+	@printf "  • Props passing and state management\n"
+	@printf "  • Component composition patterns\n"
+	@printf "  • Run with: $(GREEN)make example-component-hierarchy$(NC)\n"
+	@printf "\n"
+	@printf "$(YELLOW)Reactivity Demo:$(NC)\n"
+	@printf "  • Advanced reactive patterns\n"
+	@printf "  • Signal dependencies and computed values\n"
+	@printf "  • Reactive state management\n"
+	@printf "  • Run with: $(GREEN)make example-reactivity$(NC)\n"
+	@printf "\n"
+	@printf "$(YELLOW)Store Action Demo:$(NC)\n"
+	@printf "  • Global state management with stores\n"
+	@printf "  • Action dispatching and state updates\n"
+	@printf "  • Store subscriptions and reactive updates\n"
+	@printf "  • Run with: $(GREEN)make example-store-action$(NC)\n"
+	@printf "\n"
+	@printf "$(YELLOW)=== SYSTEM EXAMPLES ====$(NC)\n"
+	@printf "\n"
+	@printf "$(YELLOW)Direct DOM Demo:$(NC)\n"
+	@printf "  • Direct DOM manipulation techniques\n"
+	@printf "  • Low-level DOM operations\n"
+	@printf "  • Performance optimization patterns\n"
+	@printf "  • Run with: $(GREEN)make example-direct-dom$(NC)\n"
+	@printf "\n"
+	@printf "$(YELLOW)Error Handling Demo:$(NC)\n"
+	@printf "  • Error boundaries and error recovery\n"
+	@printf "  • Graceful error handling patterns\n"
+	@printf "  • Error reporting and debugging\n"
+	@printf "  • Run with: $(GREEN)make example-error-handling$(NC)\n"
+	@printf "\n"
+	@printf "$(YELLOW)Event System Demo:$(NC)\n"
+	@printf "  • Event delegation and handling\n"
+	@printf "  • Custom event systems\n"
+	@printf "  • Event propagation and bubbling\n"
+	@printf "  • Run with: $(GREEN)make example-event-system$(NC)\n"
+	@printf "\n"
+	@printf "$(YELLOW)Lazy Loading Demo:$(NC)\n"
+	@printf "  • Component lazy loading patterns\n"
+	@printf "  • Dynamic imports and code splitting\n"
+	@printf "  • Performance optimization techniques\n"
+	@printf "  • Run with: $(GREEN)make example-lazy-loading$(NC)\n"
 
 example-counter: devserver
 	@printf "$(GREEN)Running Counter Example$(NC)\n"
@@ -257,3 +318,47 @@ example-lifecycle: devserver
 	@printf "$(GREEN)Starting development server with lifecycle example on http://localhost:$(PORT)$(NC)\n"
 	@printf "$(YELLOW)Press Ctrl+C to stop$(NC)\n"
 	@./$(DEVSERVER_BIN) --target ./examples/lifecycle/main.go
+
+# Advanced Examples
+example-component-hierarchy: devserver
+	@printf "$(GREEN)Running Component Hierarchy Demo$(NC)\n"
+	@printf "$(GREEN)Starting development server with component hierarchy demo on http://localhost:$(PORT)$(NC)\n"
+	@printf "$(YELLOW)Press Ctrl+C to stop$(NC)\n"
+	@./$(DEVSERVER_BIN) --target ./examples/component_hierarchy_demo/main.go
+
+example-reactivity: devserver
+	@printf "$(GREEN)Running Reactivity Demo$(NC)\n"
+	@printf "$(GREEN)Starting development server with reactivity demo on http://localhost:$(PORT)$(NC)\n"
+	@printf "$(YELLOW)Press Ctrl+C to stop$(NC)\n"
+	@./$(DEVSERVER_BIN) --target ./examples/reactivity_demo/main.go
+
+example-store-action: devserver
+	@printf "$(GREEN)Running Store Action Demo$(NC)\n"
+	@printf "$(GREEN)Starting development server with store action demo on http://localhost:$(PORT)$(NC)\n"
+	@printf "$(YELLOW)Press Ctrl+C to stop$(NC)\n"
+	@./$(DEVSERVER_BIN) --target ./examples/store_action_demo/main.go
+
+# System Examples
+example-direct-dom: devserver
+	@printf "$(GREEN)Running Direct DOM Demo$(NC)\n"
+	@printf "$(GREEN)Starting development server with direct DOM demo on http://localhost:$(PORT)$(NC)\n"
+	@printf "$(YELLOW)Press Ctrl+C to stop$(NC)\n"
+	@./$(DEVSERVER_BIN) --target ./examples/direct_dom_demo/main.go
+
+example-error-handling: devserver
+	@printf "$(GREEN)Running Error Handling Demo$(NC)\n"
+	@printf "$(GREEN)Starting development server with error handling demo on http://localhost:$(PORT)$(NC)\n"
+	@printf "$(YELLOW)Press Ctrl+C to stop$(NC)\n"
+	@./$(DEVSERVER_BIN) --target ./examples/error_handling_demo/main.go
+
+example-event-system: devserver
+	@printf "$(GREEN)Running Event System Demo$(NC)\n"
+	@printf "$(GREEN)Starting development server with event system demo on http://localhost:$(PORT)$(NC)\n"
+	@printf "$(YELLOW)Press Ctrl+C to stop$(NC)\n"
+	@./$(DEVSERVER_BIN) --target ./examples/event_system_demo/main.go
+
+example-lazy-loading: devserver
+	@printf "$(GREEN)Running Lazy Loading Demo$(NC)\n"
+	@printf "$(GREEN)Starting development server with lazy loading demo on http://localhost:$(PORT)$(NC)\n"
+	@printf "$(YELLOW)Press Ctrl+C to stop$(NC)\n"
+	@./$(DEVSERVER_BIN) --target ./examples/lazy_loading_demo/main.go
