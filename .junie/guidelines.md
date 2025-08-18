@@ -16,54 +16,106 @@ Golid is a Go-native frontend framework for WebAssembly applications that provid
 ### Prerequisites
 
 1. **Go 1.23.0+** - Required for generics support in Signal system
-2. **Optional: TinyGo** - For smaller WASM bundles (configured in devenv.nix)
+2. **Optional: TinyGo** - For smaller WASM bundles (recommended for production)
 3. **Optional: devenv** - For reproducible development environment
 
-### Development Setup
+### Quick Start (Recommended)
 
-#### Method 1: Using devenv (Recommended)
+The easiest way to get started with Golid development:
+
+```bash
+# Clone and setup (one-time)
+git clone <repository-url>
+cd Golid
+
+# Setup development environment (installs deps, builds devserver)
+make setup
+
+# Start development server with hot reload
+make dev
+```
+
+Server will be available at **http://localhost:8090** with automatic WASM rebuilding on file changes.
+
+### Using the Makefile
+
+Golid includes a comprehensive Makefile for streamlined development. View all available commands:
+
+```bash
+make help
+```
+
+#### Essential Commands
+
+```bash
+# Setup everything for first-time development
+make setup              # Install dependencies and build devserver
+
+# Development workflow
+make dev               # Start development server (with hot reload)
+make run               # Alias for 'make dev'
+
+# Building
+make build             # Build devserver and WASM
+make devserver         # Build only the development server
+make wasm              # Compile only WebAssembly
+make wasm-tiny         # Compile WASM with TinyGo (smaller bundle)
+
+# Maintenance
+make clean             # Remove build artifacts
+make rebuild           # Clean and rebuild everything
+make deps              # Update dependencies
+make status            # Check project build status
+```
+
+#### Advanced Commands
+
+```bash
+make test              # Run tests (non-WASM compatible only)
+make info              # Show build information
+make check-deps        # Verify required tools are available
+```
+
+### Alternative Setup Methods
+
+#### Method 1: Using devenv (Advanced Users)
 ```bash
 # If you have devenv installed
 devenv shell
+# Then run: make setup
 ```
 
-#### Method 2: Manual Setup
+#### Method 2: Manual Setup (Not Recommended)
 ```bash
 # Ensure Go 1.23.0+ is installed
 go version
 
-# Clone and setup
-git clone <repository-url>
-cd Golid
-```
+# Install dependencies manually
+go mod tidy
+cd cmd/devserver && go mod tidy && cd ../..
 
-### Building the Development Server
-
-```bash
-# Build the development CLI tool
+# Build development server manually
 cd cmd/devserver
-go build -o ../../golid-dev .
+go build -ldflags="-s -w" -o ../../golid-dev .
 cd ../..
-```
 
-### Running the Development Server
-
-```bash
-# Start development server with hot reload
+# Start development server
 ./golid-dev
-
-# Server will be available at http://localhost:8090
-# Automatically rebuilds WASM when Go files change
-# Serves SPA routes correctly
 ```
 
 ### Manual WASM Compilation
 
-```bash
-# Compile main.go to WASM
-GOOS=js GOARCH=wasm go build -o main.wasm ./main.go
+While the development server handles WASM compilation automatically, you can compile manually:
 
-# The development server handles this automatically
+```bash
+# Standard Go compilation
+GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o main.wasm ./main.go
+
+# Or use the Makefile
+make wasm
+
+# For production (smaller bundle with TinyGo)
+make wasm-tiny
 ```
 
 ### Project Structure
@@ -306,7 +358,7 @@ func handleFormSubmit(form *FormData) func() {
 
 ```bash
 # Start development server
-./golid-dev
+make dev
 
 # Edit Go files - server auto-rebuilds WASM
 # Refresh browser to see changes
