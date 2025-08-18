@@ -80,8 +80,8 @@ func main() {
 		}
 	})
 
-	fileServer := http.FileServer(http.Dir(*dir))
-	r.Handle("/*", fileServer)
+	// SPA-aware file server that falls back to index.html for routes
+	r.Handle("/*", spaHandler(*dir))
 
 	log.Printf("🚀 Golid dev server running at http://localhost:%s (serving from %s)", *port, *dir)
 	err := http.ListenAndServe(":"+*port, r)
@@ -137,6 +137,42 @@ func watchAndRebuild() {
 
 func hasGoExtension(name string) bool {
 	return strings.HasSuffix(name, ".go")
+}
+
+// spaHandler creates an HTTP handler that serves static files when they exist,
+// and falls back to serving index.html for SPA routes
+func spaHandler(dir string) http.Handler {
+	fileServer := http.FileServer(http.Dir(dir))
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := filepath.Join(dir, r.URL.Path)
+
+		// Check if the requested path is a file that exists
+		if info, err := os.Stat(path); err == nil && !info.IsDir() {
+			// File exists, serve it normally
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+
+		// Check if path has a file extension (likely a static asset that doesn't exist)
+		if filepath.Ext(r.URL.Path) != "" {
+			// Has extension but file doesn't exist, return 404
+			http.NotFound(w, r)
+			return
+		}
+
+		// No file extension and no existing file - this is likely a SPA route
+		// Serve index.html instead
+		indexPath := filepath.Join(dir, "index.html")
+		if _, err := os.Stat(indexPath); err != nil {
+			// index.html doesn't exist, return 404
+			http.NotFound(w, r)
+			return
+		}
+
+		// Serve index.html for SPA routing
+		http.ServeFile(w, r, indexPath)
+	})
 }
 
 func rebuild() {

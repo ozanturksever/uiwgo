@@ -11,35 +11,238 @@ import (
 )
 
 func main() {
+	// Initialize the router
+	router := golid.NewRouter()
+	golid.SetGlobalRouter(router)
 
-	// ---Uncomment one of the following examples to run it ---
+	// Define routes for each demo
+	router.AddRoute("/", func(params golid.RouteParams) Node {
+		return HomePage()
+	})
 
-	//app := CounterComponent()
-	//app := List1()
-	//app := List2()
-	// app := TextCopyDemo()
-	// app := TextCopyDemo1()
-	//app := TextCopyDemo2()
-	// app := TextCopyDemo3()
+	// Basic Components
+	router.AddRoute("/counter", func(params golid.RouteParams) Node {
+		return DemoPage("Counter Component", "A simple counter with increment/decrement buttons", CounterComponent())
+	})
+	router.AddRoute("/list1", func(params golid.RouteParams) Node {
+		return DemoPage("Static List", "A basic static list rendering", List1())
+	})
+	router.AddRoute("/list2", func(params golid.RouteParams) Node {
+		return DemoPage("Interactive List", "A list with clickable items", List2())
+	})
 
-	// BindInputWithType examples
-	//app := InputTypesDemo()
-	// app := NumberInputDemo()
-	// app := EmailPasswordDemo()
+	// Text Input Examples
+	router.AddRoute("/text-copy", func(params golid.RouteParams) Node {
+		return DemoPage("Text Copier", "Manual text copying with OnInput", TextCopyDemo())
+	})
+	router.AddRoute("/text-copy1", func(params golid.RouteParams) Node {
+		return DemoPage("Live Mirror", "Real-time text mirroring", TextCopyDemo1())
+	})
+	router.AddRoute("/text-copy2", func(params golid.RouteParams) Node {
+		return DemoPage("Twin Mirror (Manual)", "Two-way binding manual approach", TextCopyDemo2())
+	})
+	router.AddRoute("/text-copy3", func(params golid.RouteParams) Node {
+		return DemoPage("Twin Mirror (BindInput)", "Two-way binding with BindInput", TextCopyDemo3())
+	})
 
-	// BindInputWithFocus examples
-	// app := FocusStateDemo()
-	// app := ValidationDemo()
-	app := DynamicStylingDemo()
+	// Input Types Examples
+	router.AddRoute("/input-types", func(params golid.RouteParams) Node {
+		return DemoPage("Various Input Types", "Different HTML input types showcase", InputTypesDemo())
+	})
+	router.AddRoute("/number-input", func(params golid.RouteParams) Node {
+		return DemoPage("Number & Range Inputs", "Numeric input handling", NumberInputDemo())
+	})
+	router.AddRoute("/email-password", func(params golid.RouteParams) Node {
+		return DemoPage("Email & Password Form", "Form validation example", EmailPasswordDemo())
+	})
 
-	// Combined examples
-	// app := ComprehensiveFormDemo()
+	// Focus State Examples
+	router.AddRoute("/focus-state", func(params golid.RouteParams) Node {
+		return DemoPage("Focus State Demo", "Input focus state tracking", FocusStateDemo())
+	})
+	router.AddRoute("/validation", func(params golid.RouteParams) Node {
+		return DemoPage("Live Validation", "Real-time form validation", ValidationDemo())
+	})
+	router.AddRoute("/dynamic-styling", func(params golid.RouteParams) Node {
+		return DemoPage("Dynamic Styling", "CSS styling based on state", DynamicStylingDemo())
+	})
 
-	// 🎯 ALL EXAMPLES IN ONE PAGE
-	//app := AllExamplesShowcase()
+	// Comprehensive Examples
+	router.AddRoute("/comprehensive", func(params golid.RouteParams) Node {
+		return DemoPage("Complete Registration Form", "All features combined", ComprehensiveFormDemo())
+	})
+	router.AddRoute("/showcase", func(params golid.RouteParams) Node {
+		return DemoPage("All Examples Showcase", "All demos in one page", AllExamplesShowcase())
+	})
 
-	golid.Render(app)
+	// Render the router-based app
+	golid.Render(RouterApp())
 	golid.Run()
+}
+
+// RouterApp is the main application component with router outlet
+func RouterApp() Node {
+	return Div(
+		Style("font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"),
+		NavigationBar(),
+		golid.RouterOutlet(),
+	)
+}
+
+// NavigationBar provides navigation between routes
+func NavigationBar() Node {
+	return Div(
+		Style("background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); padding: 15px 20px; box-shadow: 0 2px 20px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100;"),
+		Div(
+			Style("max-width: 1200px; margin: 0 auto; display: flex; align-items: center; gap: 30px;"),
+
+			// Logo/Title
+			golid.RouterLink("/",
+				H1(Style("margin: 0; color: #333; font-size: 1.8em; font-weight: 600; text-decoration: none;"), Text("🚀 Golid Router Demo")),
+			),
+
+			// Navigation Menu
+			Nav(
+				Style("flex: 1; display: flex; gap: 20px; flex-wrap: wrap;"),
+
+				// Basic Components
+				Div(
+					Style("display: flex; flex-direction: column; gap: 5px;"),
+					Strong(Style("color: #667eea; font-size: 12px; text-transform: uppercase;"), Text("Basic")),
+					Div(
+						Style("display: flex; gap: 10px;"),
+						golid.RouterLink("/counter", Text("Counter")),
+						golid.RouterLink("/list1", Text("List1")),
+						golid.RouterLink("/list2", Text("List2")),
+					),
+				),
+
+				// Text Inputs
+				Div(
+					Style("display: flex; flex-direction: column; gap: 5px;"),
+					Strong(Style("color: #667eea; font-size: 12px; text-transform: uppercase;"), Text("Text")),
+					Div(
+						Style("display: flex; gap: 10px;"),
+						golid.RouterLink("/text-copy", Text("Copy")),
+						golid.RouterLink("/text-copy1", Text("Mirror1")),
+						golid.RouterLink("/text-copy2", Text("Mirror2")),
+						golid.RouterLink("/text-copy3", Text("Mirror3")),
+					),
+				),
+
+				// Input Types
+				Div(
+					Style("display: flex; flex-direction: column; gap: 5px;"),
+					Strong(Style("color: #667eea; font-size: 12px; text-transform: uppercase;"), Text("Inputs")),
+					Div(
+						Style("display: flex; gap: 10px;"),
+						golid.RouterLink("/input-types", Text("Types")),
+						golid.RouterLink("/number-input", Text("Numbers")),
+						golid.RouterLink("/email-password", Text("Forms")),
+					),
+				),
+
+				// Focus Features
+				Div(
+					Style("display: flex; flex-direction: column; gap: 5px;"),
+					Strong(Style("color: #667eea; font-size: 12px; text-transform: uppercase;"), Text("Focus")),
+					Div(
+						Style("display: flex; gap: 10px;"),
+						golid.RouterLink("/focus-state", Text("States")),
+						golid.RouterLink("/validation", Text("Validation")),
+						golid.RouterLink("/dynamic-styling", Text("Styling")),
+					),
+				),
+
+				// Advanced
+				Div(
+					Style("display: flex; flex-direction: column; gap: 5px;"),
+					Strong(Style("color: #667eea; font-size: 12px; text-transform: uppercase;"), Text("Advanced")),
+					Div(
+						Style("display: flex; gap: 10px;"),
+						golid.RouterLink("/comprehensive", Text("Complete")),
+						golid.RouterLink("/showcase", Text("All")),
+					),
+				),
+			),
+		),
+	)
+}
+
+// HomePage is the landing page
+func HomePage() Node {
+	return Div(
+		Style("max-width: 1000px; margin: 0 auto; padding: 40px 20px;"),
+
+		// Hero Section
+		Div(
+			Style("text-align: center; background: rgba(255,255,255,0.95); border-radius: 16px; padding: 50px 30px; margin-bottom: 40px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);"),
+			H1(Style("margin: 0 0 20px 0; color: #333; font-size: 3em; font-weight: 300;"), Text("🚀 Golid Router Demo")),
+			P(Style("margin: 0 0 30px 0; color: #666; font-size: 1.3em; line-height: 1.6;"),
+				Text("Explore the power of reactive UI components built with Go and WebAssembly. "),
+				Text("Navigate through different demos to see signals, bindings, and interactive components in action.")),
+
+			golid.RouterLink("/counter",
+				Button(
+					Style("background: linear-gradient(45deg, #667eea, #764ba2); color: white; border: none; padding: 15px 30px; font-size: 1.1em; border-radius: 8px; cursor: pointer; transition: transform 0.2s; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);"),
+					Text("🎯 Start Exploring"),
+				),
+			),
+		),
+
+		// Feature Grid
+		Div(
+			Style("display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px;"),
+
+			createFeatureCard("🧮 Basic Components", "Counter, lists, and fundamental reactive patterns", "/counter"),
+			createFeatureCard("📝 Text Handling", "Input binding, live mirroring, and text manipulation", "/text-copy"),
+			createFeatureCard("🔤 Input Types", "Various HTML input types with reactive binding", "/input-types"),
+			createFeatureCard("🎯 Focus Features", "Advanced input handling with focus states", "/focus-state"),
+			createFeatureCard("📋 Complete Forms", "Comprehensive examples combining all features", "/comprehensive"),
+			createFeatureCard("🎨 All-in-One", "Complete showcase of every demo", "/showcase"),
+		),
+
+		// Footer
+		Div(
+			Style("margin-top: 60px; text-align: center; background: rgba(255,255,255,0.9); border-radius: 12px; padding: 30px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);"),
+			H3(Style("margin: 0 0 15px 0; color: #333;"), Text("🌟 About Golid")),
+			P(Style("color: #666; line-height: 1.6; margin: 0;"),
+				Text("Golid is a reactive UI framework that brings modern frontend patterns to Go. "),
+				Text("With signals for state management, reactive bindings for DOM updates, and WebAssembly for performance, "),
+				Text("Golid enables you to build interactive web applications using familiar Go syntax.")),
+		),
+	)
+}
+
+// DemoPage creates a consistent layout for demo pages
+func DemoPage(title, description string, content Node) Node {
+	return Div(
+		Style("max-width: 1000px; margin: 0 auto; padding: 20px;"),
+
+		// Page Header
+		Div(
+			Style("background: rgba(255,255,255,0.95); border-radius: 16px; padding: 30px; margin-bottom: 30px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);"),
+			H1(Style("margin: 0 0 15px 0; color: #333; font-size: 2.5em;"), Text(title)),
+			P(Style("margin: 0; color: #666; font-size: 1.2em; line-height: 1.6;"), Text(description)),
+		),
+
+		// Demo Content
+		Div(
+			Style("background: rgba(255,255,255,0.95); border-radius: 16px; padding: 30px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);"),
+			content,
+		),
+	)
+}
+
+// Helper function to create feature cards on the home page
+func createFeatureCard(title, description, href string) Node {
+	return golid.RouterLink(href,
+		Div(
+			Style("background: rgba(255,255,255,0.95); border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; text-decoration: none; color: inherit; display: block; height: 100%;"),
+			H3(Style("margin: 0 0 15px 0; color: #333; font-size: 1.3em;"), Text(title)),
+			P(Style("margin: 0; color: #666; line-height: 1.5;"), Text(description)),
+		),
+	)
 }
 
 func CounterComponent() Node {
