@@ -122,14 +122,91 @@ func BindText(fn func() string) Node {
 	id := GenID()
 	span := Span(Attr("id", id), Text(fn()))
 
-	Watch(func() {
-		elem := NodeFromID(id)
-		if elem.Truthy() {
-			elem.Set("textContent", fn())
+	// MutationObserver-based approach for better performance
+	go func() {
+		// Create a callback function for when the element is found
+		var onElementAdded js.Func
+		onElementAdded = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+			elem := NodeFromID(id)
+			if elem.Truthy() {
+				// Set up reactive Watch effect
+				Watch(func() {
+					elem := NodeFromID(id)
+					if elem.Truthy() {
+						currentVal := elem.Get("textContent").String()
+						newVal := fn()
+						if currentVal != newVal {
+							elem.Set("textContent", newVal)
+						}
+					}
+				})
+				onElementAdded.Release()
+			}
+			return nil
+		})
+
+		// Create MutationObserver to watch for DOM additions
+		var observer js.Value
+		var observerCallback js.Func
+		observerCallback = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+			mutations := args[0]
+			mutationsLength := mutations.Get("length").Int()
+
+			for i := 0; i < mutationsLength; i++ {
+				mutation := mutations.Index(i)
+				if mutation.Get("type").String() == "childList" {
+					addedNodes := mutation.Get("addedNodes")
+					addedNodesLength := addedNodes.Get("length").Int()
+
+					for j := 0; j < addedNodesLength; j++ {
+						node := addedNodes.Index(j)
+						// Check if this node or any of its descendants is our target element
+						if checkNodeForTarget(node, id) {
+							onElementAdded.Invoke()
+							observer.Call("disconnect")
+							observerCallback.Release()
+							return nil
+						}
+					}
+				}
+			}
+			return nil
+		})
+
+		// Check if element already exists (immediate check)
+		if NodeFromID(id).Truthy() {
+			onElementAdded.Invoke()
+			observerCallback.Release()
+			return
 		}
-	})
+
+		// Create and configure the MutationObserver
+		observer = js.Global().Get("MutationObserver").New(observerCallback)
+
+		// Start observing the document body for child additions
+		config := js.Global().Get("Object").New()
+		config.Set("childList", true)
+		config.Set("subtree", true)
+
+		observer.Call("observe", doc.Get("body"), config)
+	}()
 
 	return span
+}
+
+// Helper function to check if a node or its descendants contains our target element
+func checkNodeForTarget(node js.Value, targetID string) bool {
+	// Check if the node itself has the target ID
+	if node.Get("nodeType").Int() == 1 { // Element node
+		if node.Get("id").String() == targetID {
+			return true
+		}
+
+		// Check descendants using querySelector
+		found := node.Call("querySelector", "#"+targetID)
+		return found.Truthy()
+	}
+	return false
 }
 
 // -------------------------
@@ -269,41 +346,295 @@ func OnInput(handler func(string)) Node {
 
 func BindInput(sig *Signal[string], placeholder string) Node {
 	id := GenID()
+	isComposing := false
 
-	// Add listener for user input
+	// Poll until the element exists, then attach listeners and Watch
+	var check js.Func
+	check = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		elem := NodeFromID(id)
+		if elem.Truthy() {
+			// attach listeners
+			elem.Call("addEventListener", "input", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+				if !isComposing {
+					val := this.Get("value").String()
+					if val != sig.Get() {
+						sig.Set(val)
+					}
+				}
+				return nil
+			}))
+
+			elem.Call("addEventListener", "compositionstart", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+				isComposing = true
+				return nil
+			}))
+
+			elem.Call("addEventListener", "compositionend", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+				isComposing = false
+				val := this.Get("value").String()
+				if val != sig.Get() {
+					sig.Set(val)
+				}
+				return nil
+			}))
+
+			elem.Call("addEventListener", "paste", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+				js.Global().Call("setTimeout", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+					val := elem.Get("value").String()
+					if val != sig.Get() {
+						sig.Set(val)
+					}
+					return nil
+				}), 0)
+				return nil
+			}))
+
+			// Now set up the Watch effect after the element is ready
+			Watch(func() {
+				elem := NodeFromID(id)
+				if elem.Truthy() {
+					signalVal := sig.Get()
+					elemVal := elem.Get("value").String()
+					if elemVal != signalVal {
+						selectionStart := elem.Get("selectionStart")
+						selectionEnd := elem.Get("selectionEnd")
+
+						elem.Set("value", signalVal)
+
+						if doc.Get("activeElement").Equal(elem) {
+							if selectionStart.Truthy() && selectionEnd.Truthy() {
+								start := selectionStart.Int()
+								end := selectionEnd.Int()
+								maxPos := len(signalVal)
+
+								if start > maxPos {
+									start = maxPos
+								}
+								if end > maxPos {
+									end = maxPos
+								}
+
+								elem.Call("setSelectionRange", start, end)
+							}
+						}
+					}
+				}
+			})
+
+			// release the check function to avoid leaking resources
+			check.Release()
+			return nil
+		}
+
+		// not present yet, retry shortly
+		js.Global().Call("setTimeout", check, 10)
+		return nil
+	})
+
+	js.Global().Call("setTimeout", check, 10)
+
+	return Input(
+		Attr("id", id),
+		Type("text"),
+		Placeholder(placeholder),
+		Value(sig.Get()), // initial value
+	)
+}
+
+// Enhanced input binding with type support
+func BindInputWithType(sig *Signal[string], inputType, placeholder string) Node {
+	id := GenID()
+	isComposing := false
+
+	var check js.Func
+	check = js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+		elem := NodeFromID(id)
+		if elem.Truthy() {
+			// attach listeners
+			elem.Call("addEventListener", "input", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+				if !isComposing {
+					val := this.Get("value").String()
+					if val != sig.Get() {
+						sig.Set(val)
+					}
+				}
+				return nil
+			}))
+
+			elem.Call("addEventListener", "compositionstart", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+				isComposing = true
+				return nil
+			}))
+
+			elem.Call("addEventListener", "compositionend", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+				isComposing = false
+				val := this.Get("value").String()
+				if val != sig.Get() {
+					sig.Set(val)
+				}
+				return nil
+			}))
+
+			elem.Call("addEventListener", "paste", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+				js.Global().Call("setTimeout", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+					val := elem.Get("value").String()
+					if val != sig.Get() {
+						sig.Set(val)
+					}
+					return nil
+				}), 0)
+				return nil
+			}))
+
+			// Now set up the Watch effect after the element is ready
+			Watch(func() {
+				elem := NodeFromID(id)
+				if elem.Truthy() {
+					signalVal := sig.Get()
+					elemVal := elem.Get("value").String()
+					if elemVal != signalVal {
+						selectionStart := elem.Get("selectionStart")
+						selectionEnd := elem.Get("selectionEnd")
+
+						elem.Set("value", signalVal)
+
+						if doc.Get("activeElement").Equal(elem) {
+							if selectionStart.Truthy() && selectionEnd.Truthy() {
+								start := selectionStart.Int()
+								end := selectionEnd.Int()
+								maxPos := len(signalVal)
+
+								if start > maxPos {
+									start = maxPos
+								}
+								if end > maxPos {
+									end = maxPos
+								}
+
+								elem.Call("setSelectionRange", start, end)
+							}
+						}
+					}
+				}
+			})
+
+			// release the check function to avoid leaking resources
+			check.Release()
+			return nil
+		}
+
+		// not present yet, retry shortly
+		js.Global().Call("setTimeout", check, 10)
+		return nil
+	})
+	js.Global().Call("setTimeout", check, 10)
+
+	return Input(
+		Attr("id", id),
+		Type(inputType),
+		Placeholder(placeholder),
+		Value(sig.Get()),
+	)
+}
+
+// Bind input with focus state tracking
+func BindInputWithFocus(sig *Signal[string], focusSig *Signal[bool], placeholder string) Node {
+	id := GenID()
+	isComposing := false
+
 	go func() {
 		js.Global().Call("setTimeout", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
 			elem := NodeFromID(id)
 			if elem.Truthy() {
+				// Input handling
 				elem.Call("addEventListener", "input", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+					if !isComposing {
+						val := elem.Get("value").String()
+						if val != sig.Get() {
+							sig.Set(val)
+						}
+					}
+					return nil
+				}))
+
+				// Composition handling
+				elem.Call("addEventListener", "compositionstart", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+					isComposing = true
+					return nil
+				}))
+
+				elem.Call("addEventListener", "compositionend", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+					isComposing = false
 					val := elem.Get("value").String()
 					if val != sig.Get() {
 						sig.Set(val)
 					}
 					return nil
 				}))
+
+				// Focus/blur handling
+				elem.Call("addEventListener", "focus", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+					focusSig.Set(true)
+					return nil
+				}))
+
+				elem.Call("addEventListener", "blur", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+					focusSig.Set(false)
+					return nil
+				}))
+
+				// Paste handling
+				elem.Call("addEventListener", "paste", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+					js.Global().Call("setTimeout", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+						val := elem.Get("value").String()
+						if val != sig.Get() {
+							sig.Set(val)
+						}
+						return nil
+					}), 0)
+					return nil
+				}))
+
+				// Now set up the Watch effect after the element is ready
+				Watch(func() {
+					elem := NodeFromID(id)
+					if elem.Truthy() {
+						signalVal := sig.Get()
+						elemVal := elem.Get("value").String()
+						if elemVal != signalVal {
+							selectionStart := elem.Get("selectionStart")
+							selectionEnd := elem.Get("selectionEnd")
+
+							elem.Set("value", signalVal)
+
+							if doc.Get("activeElement").Equal(elem) {
+								if selectionStart.Truthy() && selectionEnd.Truthy() {
+									start := selectionStart.Int()
+									end := selectionEnd.Int()
+									maxPos := len(signalVal)
+
+									if start > maxPos {
+										start = maxPos
+									}
+									if end > maxPos {
+										end = maxPos
+									}
+
+									elem.Call("setSelectionRange", start, end)
+								}
+							}
+						}
+					}
+				})
 			}
 			return nil
 		}), 0)
 	}()
 
-	// When the signal changes, update DOM input's `.value`
-	Watch(func() {
-		elem := NodeFromID(id)
-		if elem.Truthy() {
-			signalVal := sig.Get()
-			elemVal := elem.Get("value").String()
-			if elemVal != signalVal {
-				elem.Set("value", signalVal)
-			}
-		}
-	})
-
-	// Return static node that will stay in the DOM
 	return Input(
 		Attr("id", id),
 		Type("text"),
 		Placeholder(placeholder),
-		Value(sig.Get()), // initial value
+		Value(sig.Get()),
 	)
 }
