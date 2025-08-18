@@ -12,7 +12,7 @@ PORT = 8090
 # Go build flags
 GO_BUILD_FLAGS = -ldflags="-s -w"
 WASM_BUILD_ENV = GOOS=js GOARCH=wasm
-
+#WASM_HEADLESS=off
 # Colors for output
 GREEN = \033[0;32m
 YELLOW = \033[1;33m
