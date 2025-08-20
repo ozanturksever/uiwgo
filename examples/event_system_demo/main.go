@@ -23,8 +23,15 @@ func main() {
 	// Create the main application
 	app := CreateEventSystemDemo()
 
-	// Mount to DOM
-	golid.Mount("app", app)
+	// Mount to DOM using V2 API
+	_, cleanup := golid.CreateRoot(func() interface{} {
+		container := golid.NodeFromID("app")
+		if container.Truthy() {
+			golid.RenderTo(app, container)
+		}
+		return nil
+	})
+	defer cleanup()
 
 	// Keep the application running
 	select {}
@@ -141,7 +148,7 @@ func createBasicEventsSection(clickCount func() int, setClickCount func(int), ad
 			Style("display: flex; gap: 15px; align-items: center; margin: 15px 0;"),
 
 			Button(
-				golid.OnClickV2(func() {
+				golid.OnClickReactive(func() {
 					newCount := clickCount() + 1
 					setClickCount(newCount)
 					addToLog(fmt.Sprintf("Button clicked! Count: %d", newCount))
@@ -167,9 +174,9 @@ func createBasicEventsSection(clickCount func() int, setClickCount func(int), ad
 					font-size: 18px;
 					font-weight: bold;
 				`),
-				golid.TextSignal(golid.CreateMemo(func() string {
+				Text(golid.CreateMemo(func() string {
 					return fmt.Sprintf("Clicks: %d", clickCount())
-				}, nil)),
+				}, nil)()),
 			),
 		),
 
@@ -178,7 +185,7 @@ func createBasicEventsSection(clickCount func() int, setClickCount func(int), ad
 			Style("display: flex; gap: 10px; flex-wrap: wrap;"),
 
 			Button(
-				golid.OnClickV2(func() {
+				golid.OnClickReactive(func() {
 					setClickCount(0)
 					addToLog("Counter reset!")
 				}),
@@ -194,7 +201,7 @@ func createBasicEventsSection(clickCount func() int, setClickCount func(int), ad
 			),
 
 			Button(
-				golid.OnClickV2(func() {
+				golid.OnClickReactive(func() {
 					newCount := clickCount() + 10
 					setClickCount(newCount)
 					addToLog(fmt.Sprintf("Added 10! Count: %d", newCount))
@@ -211,7 +218,7 @@ func createBasicEventsSection(clickCount func() int, setClickCount func(int), ad
 			),
 
 			Button(
-				golid.OnClickV2(func() {
+				golid.OnClickReactive(func() {
 					newCount := clickCount() - 5
 					if newCount < 0 {
 						newCount = 0
@@ -260,7 +267,7 @@ func createInputSection(inputValue func() string, setInputValue func(string), ad
 			Input(
 				Type("text"),
 				Placeholder("Start typing..."),
-				golid.OnInputV2(func(value string) {
+				golid.OnInputReactive(func(value string) {
 					setInputValue(value)
 					addToLog(fmt.Sprintf("Input changed: '%s'", value))
 				}),
@@ -299,13 +306,13 @@ func createInputSection(inputValue func() string, setInputValue func(string), ad
 					border-radius: 6px;
 					min-height: 24px;
 				`),
-				golid.TextSignal(golid.CreateMemo(func() string {
+				Text(golid.CreateMemo(func() string {
 					value := inputValue()
 					if value == "" {
 						return "(empty)"
 					}
 					return fmt.Sprintf("'%s' (%d characters)", value, len(value))
-				}, nil)),
+				}, nil)()),
 			),
 		),
 	)
@@ -373,7 +380,7 @@ func createMouseEventsSection(mousePosition func() string, setMousePosition func
 				`),
 
 				Text("Position: "),
-				golid.TextSignal(mousePosition),
+				Text(mousePosition()),
 			),
 		),
 	)
@@ -513,17 +520,22 @@ func createEventLogSection(eventLog func() []string) Node {
 				border: 1px solid rgba(255, 255, 255, 0.2);
 			`),
 
-			golid.ForEachSignal(golid.CreateMemo(func() []string {
+			golid.Bind(func() Node {
 				log := eventLog()
 				if len(log) == 0 {
-					return []string{"No events yet..."}
+					return Div(
+						Style("padding: 10px; text-align: center; color: rgba(255, 255, 255, 0.6);"),
+						Text("No events yet..."),
+					)
 				}
-				return log
-			}, nil), func(entry string) Node {
-				return Div(
-					Style("padding: 2px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);"),
-					Text(entry),
-				)
+				var entries []Node
+				for _, entry := range log {
+					entries = append(entries, Div(
+						Style("padding: 2px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.1);"),
+						Text(entry),
+					))
+				}
+				return Group(entries)
 			}),
 		),
 	)
@@ -546,7 +558,7 @@ func createControlsSection(addToLog func(string)) Node {
 			Style("display: flex; gap: 15px; flex-wrap: wrap;"),
 
 			Button(
-				golid.OnClickV2(func() {
+				golid.OnClickReactive(func() {
 					stats := golid.GetEventSystemStats()
 					addToLog(fmt.Sprintf("Event system stats: %d subscriptions", stats["subscriptions"]))
 				}),
@@ -562,7 +574,7 @@ func createControlsSection(addToLog func(string)) Node {
 			),
 
 			Button(
-				golid.OnClickV2(func() {
+				golid.OnClickReactive(func() {
 					// Simulate memory cleanup
 					addToLog("Manual cleanup triggered")
 					// Note: In a real app, you might call golid.CleanupEventSystem()
@@ -579,12 +591,12 @@ func createControlsSection(addToLog func(string)) Node {
 			),
 
 			Button(
-				golid.OnClickV2(func() {
+				golid.OnClickReactive(func() {
 					addToLog("Performance test started...")
 					// Create and immediately cleanup many event handlers
 					start := time.Now()
 					for i := 0; i < 100; i++ {
-						cleanup := golid.Subscribe(js.Global().Get("document"), "click", func(e js.Value) {
+						cleanup := golid.SubscribeReactive(js.Global().Get("document"), "click", func(e js.Value) {
 							// Do nothing
 						})
 						cleanup() // Immediate cleanup

@@ -1,0 +1,458 @@
+<golid_common_patterns>
+  <reactive_primitives>
+    <pattern name="signal_creation">
+      <description>Creating reactive signals for state management</description>
+      <solidjs_equivalent>const [count, setCount] = createSignal(0)</solidjs_equivalent>
+      <go_implementation><![CDATA[
+// Basic signal pattern
+count := CreateSignal(0)
+
+// With type safety
+type CountSignal = Signal[int]
+count := CreateSignal[int](0)
+
+// Complex state signal
+type UserState struct {
+    Name  string
+    Email string
+}
+user := CreateSignal(UserState{Name: "John", Email: "john@example.com"})
+      ]]></go_implementation>
+      <usage_notes>
+        <note>Prefer specific typed signals over interface{} for better performance</note>
+        <note>Keep signals focused on single concerns for better reactivity granularity</note>
+      </usage_notes>
+    </pattern>
+
+    <pattern name="effect_creation">
+      <description>Creating effects that respond to signal changes</description>
+      <solidjs_equivalent>createEffect(() => console.log(count()))</solidjs_equivalent>
+      <go_implementation><![CDATA[
+// Basic effect pattern
+CreateEffect(func() {
+    fmt.Printf("Count is now: %d\n", count.Get())
+})
+
+// DOM manipulation effect
+CreateEffect(func() {
+    element := dom.GetElementById("counter")
+    element.Set("textContent", strconv.Itoa(count.Get()))
+})
+
+// Cleanup effect with context
+ctx := context.Background()
+CreateEffectWithContext(ctx, func(ctx context.Context) {
+    // Effect with cancellation support
+    select {
+    case <-ctx.Done():
+        return
+    default:
+        updateDOM(count.Get())
+    }
+})
+      ]]></go_implementation>
+      <usage_notes>
+        <note>Effects should be pure and deterministic when possible</note>
+        <note>Use context for cancellation in long-running effects</note>
+      </usage_notes>
+    </pattern>
+
+    <pattern name="memo_creation">
+      <description>Creating memoized computed values</description>
+      <solidjs_equivalent>const doubled = createMemo(() => count() * 2)</solidjs_equivalent>
+      <go_implementation><![CDATA[
+// Basic memo pattern
+doubled := CreateMemo(func() int {
+    return count.Get() * 2
+})
+
+// Complex computation memo
+expensiveResult := CreateMemo(func() *ComputeResult {
+    // Only recomputes when dependencies change
+    return expensiveComputation(input1.Get(), input2.Get())
+})
+
+// Conditional memo
+conditionalValue := CreateMemo(func() string {
+    if condition.Get() {
+        return complexComputation(data.Get())
+    }
+    return "default"
+})
+      ]]></go_implementation>
+      <usage_notes>
+        <note>Memos cache results until dependencies change</note>
+        <note>Use for expensive computations that depend on reactive state</note>
+      </usage_notes>
+    </pattern>
+  </reactive_primitives>
+
+  <dom_binding_patterns>
+    <pattern name="text_content_binding">
+      <description>Binding signal values to DOM text content</description>
+      <implementation><![CDATA[
+// Direct text binding
+func bindTextContent(element js.Value, signal Signal[string]) {
+    CreateEffect(func() {
+        element.Set("textContent", signal.Get())
+    })
+}
+
+// Formatted text binding
+func bindFormattedText(element js.Value, count Signal[int]) {
+    CreateEffect(func() {
+        text := fmt.Sprintf("Count: %d", count.Get())
+        element.Set("textContent", text)
+    })
+}
+
+// Conditional text binding
+func bindConditionalText(element js.Value, condition Signal[bool], trueText, falseText string) {
+    CreateEffect(func() {
+        text := falseText
+        if condition.Get() {
+            text = trueText
+        }
+        element.Set("textContent", text)
+    })
+}
+      ]]></implementation>
+    </pattern>
+
+    <pattern name="attribute_binding">
+      <description>Binding signal values to DOM attributes</description>
+      <implementation><![CDATA[
+// Basic attribute binding
+func bindAttribute(element js.Value, attrName string, signal Signal[string]) {
+    CreateEffect(func() {
+        element.Call("setAttribute", attrName, signal.Get())
+    })
+}
+
+// Class binding
+func bindClass(element js.Value, className string, condition Signal[bool]) {
+    CreateEffect(func() {
+        classList := element.Get("classList")
+        if condition.Get() {
+            classList.Call("add", className)
+        } else {
+            classList.Call("remove", className)
+        }
+    })
+}
+
+// Style binding
+func bindStyle(element js.Value, property string, signal Signal[string]) {
+    CreateEffect(func() {
+        element.Get("style").Set(property, signal.Get())
+    })
+}
+      ]]></implementation>
+    </pattern>
+
+    <pattern name="event_handling">
+      <description>Handling DOM events with reactive updates</description>
+      <implementation><![CDATA[
+// Click handler with signal update
+func setupClickHandler(element js.Value, counter Signal[int]) {
+    element.Call("addEventListener", "click", js.FuncOf(func(this js.Value, args []js.Value) any {
+        counter.Set(counter.Get() + 1)
+        return nil
+    }))
+}
+
+// Input handler with two-way binding
+func setupInputBinding(input js.Value, signal Signal[string]) {
+    // DOM -> Signal
+    input.Call("addEventListener", "input", js.FuncOf(func(this js.Value, args []js.Value) any {
+        value := input.Get("value").String()
+        signal.Set(value)
+        return nil
+    }))
+    
+    // Signal -> DOM
+    CreateEffect(func() {
+        input.Set("value", signal.Get())
+    })
+}
+
+// Form submission with validation
+func setupFormHandler(form js.Value, formData Signal[FormData], onSubmit func(FormData)) {
+    form.Call("addEventListener", "submit", js.FuncOf(func(this js.Value, args []js.Value) any {
+        args[0].Call("preventDefault")
+        if validateForm(formData.Get()) {
+            onSubmit(formData.Get())
+        }
+        return nil
+    }))
+}
+      ]]></implementation>
+    </pattern>
+  </dom_binding_patterns>
+
+  <component_patterns>
+    <pattern name="functional_component">
+      <description>Creating functional components with reactive props</description>
+      <implementation><![CDATA[
+// Basic functional component
+type CounterProps struct {
+    InitialValue int
+    OnChange     func(int)
+}
+
+func Counter(props CounterProps) js.Value {
+    count := CreateSignal(props.InitialValue)
+    
+    // Create DOM structure
+    container := dom.CreateElement("div")
+    button := dom.CreateElement("button")
+    display := dom.CreateElement("span")
+    
+    // Setup reactivity
+    CreateEffect(func() {
+        display.Set("textContent", strconv.Itoa(count.Get()))
+        if props.OnChange != nil {
+            props.OnChange(count.Get())
+        }
+    })
+    
+    // Setup interactions
+    button.Call("addEventListener", "click", js.FuncOf(func(this js.Value, args []js.Value) any {
+        count.Set(count.Get() + 1)
+        return nil
+    }))
+    
+    container.Call("appendChild", display)
+    container.Call("appendChild", button)
+    return container
+}
+      ]]></implementation>
+    </pattern>
+
+    <pattern name="component_with_children">
+      <description>Components that accept and render children</description>
+      <implementation><![CDATA[
+type ContainerProps struct {
+    Class    string
+    Children []js.Value
+}
+
+func Container(props ContainerProps) js.Value {
+    element := dom.CreateElement("div")
+    
+    // Apply class if provided
+    if props.Class != "" {
+        element.Set("className", props.Class)
+    }
+    
+    // Append children
+    for _, child := range props.Children {
+        element.Call("appendChild", child)
+    }
+    
+    return element
+}
+
+// Usage
+content := Container(ContainerProps{
+    Class: "main-container",
+    Children: []js.Value{
+        Counter(CounterProps{InitialValue: 0}),
+        Counter(CounterProps{InitialValue: 10}),
+    },
+})
+      ]]></implementation>
+    </pattern>
+
+    <pattern name="context_provider">
+      <description>Providing context to child components</description>
+      <implementation><![CDATA[
+// Context type
+type ThemeContext struct {
+    Theme       Signal[string]
+    SetTheme    func(string)
+}
+
+var currentThemeContext *ThemeContext
+
+// Provider component
+func ThemeProvider(initialTheme string, children []js.Value) js.Value {
+    theme := CreateSignal(initialTheme)
+    
+    ctx := &ThemeContext{
+        Theme:    theme,
+        SetTheme: theme.Set,
+    }
+    
+    // Store context (in real implementation, use proper context management)
+    currentThemeContext = ctx
+    
+    container := dom.CreateElement("div")
+    
+    // Apply theme class
+    CreateEffect(func() {
+        container.Set("className", "theme-"+theme.Get())
+    })
+    
+    // Render children
+    for _, child := range children {
+        container.Call("appendChild", child)
+    }
+    
+    return container
+}
+
+// Consumer function
+func useTheme() *ThemeContext {
+    return currentThemeContext
+}
+      ]]></implementation>
+    </pattern>
+  </component_patterns>
+
+  <performance_patterns>
+    <pattern name="batched_updates">
+      <description>Batching multiple signal updates for efficiency</description>
+      <implementation><![CDATA[
+// Batch multiple updates
+func BatchUpdates(updates func()) {
+    startBatch()
+    defer endBatch()
+    updates()
+}
+
+// Usage
+BatchUpdates(func() {
+    firstName.Set("John")
+    lastName.Set("Doe") 
+    email.Set("john.doe@example.com")
+    // All effects will run once after the batch
+})
+
+// Async batch updates
+func BatchUpdatesAsync(updates func()) {
+    go func() {
+        BatchUpdates(updates)
+    }()
+}
+      ]]></implementation>
+    </pattern>
+
+    <pattern name="lazy_computation">
+      <description>Deferring expensive computations until needed</description>
+      <implementation><![CDATA[
+// Lazy memo that only computes when accessed
+func CreateLazyMemo[T any](compute func() T) func() T {
+    var cached T
+    var computed bool
+    
+    return func() T {
+        if !computed {
+            cached = compute()
+            computed = true
+        }
+        return cached
+    }
+}
+
+// Usage
+expensiveValue := CreateLazyMemo(func() *BigData {
+    return performExpensiveComputation()
+})
+
+// Only computed when first accessed
+CreateEffect(func() {
+    if shouldShowData.Get() {
+        data := expensiveValue()
+        displayData(data)
+    }
+})
+      ]]></implementation>
+    </pattern>
+
+    <pattern name="resource_cleanup">
+      <description>Proper cleanup of resources and subscriptions</description>
+      <implementation><![CDATA[
+// Effect with cleanup
+func CreateEffectWithCleanup(effect func() func()) {
+    var cleanup func()
+    
+    CreateEffect(func() {
+        if cleanup != nil {
+            cleanup()
+        }
+        cleanup = effect()
+    })
+}
+
+// Usage
+CreateEffectWithCleanup(func() func() {
+    // Setup subscription
+    subscription := subscribe(signal.Get())
+    
+    // Return cleanup function
+    return func() {
+        subscription.Unsubscribe()
+    }
+})
+
+// Component cleanup pattern
+type Component struct {
+    cleanupFns []func()
+}
+
+func (c *Component) AddCleanup(fn func()) {
+    c.cleanupFns = append(c.cleanupFns, fn)
+}
+
+func (c *Component) Cleanup() {
+    for _, fn := range c.cleanupFns {
+        fn()
+    }
+    c.cleanupFns = nil
+}
+      ]]></implementation>
+    </pattern>
+  </performance_patterns>
+
+  <testing_patterns>
+    <pattern name="signal_testing">
+      <description>Testing reactive signals and effects</description>
+      <implementation><![CDATA[
+func TestSignal(t *testing.T) {
+    // Test signal creation and updates
+    signal := CreateSignal(0)
+    
+    if signal.Get() != 0 {
+        t.Errorf("Expected 0, got %d", signal.Get())
+    }
+    
+    signal.Set(42)
+    if signal.Get() != 42 {
+        t.Errorf("Expected 42, got %d", signal.Get())
+    }
+}
+
+func TestEffect(t *testing.T) {
+    signal := CreateSignal(0)
+    var effectResult int
+    
+    CreateEffect(func() {
+        effectResult = signal.Get() * 2
+    })
+    
+    // Effect should run immediately
+    if effectResult != 0 {
+        t.Errorf("Expected 0, got %d", effectResult)
+    }
+    
+    signal.Set(5)
+    // Effect should run again
+    if effectResult != 10 {
+        t.Errorf("Expected 10, got %d", effectResult)
+    }
+}
+      ]]></implementation>
+    </pattern>
+  </testing_patterns>
+</golid_common_patterns>

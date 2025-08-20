@@ -235,6 +235,13 @@ func FilterStore[T any](store *Store[T], filter func(T) bool, options ...StoreOp
 	var lastValue T
 	var hasValue bool
 
+	// Check if initial value passes filter
+	initial := store.Get()
+	if filter(initial) {
+		lastValue = initial
+		hasValue = true
+	}
+
 	return CreateDerivedStore(func() T {
 		current := store.Get()
 		if filter(current) {
@@ -242,7 +249,9 @@ func FilterStore[T any](store *Store[T], filter func(T) bool, options ...StoreOp
 			hasValue = true
 		}
 		if !hasValue {
-			panic("FilterStore accessed before any value passed filter")
+			// Return zero value if no value has passed filter yet
+			var zero T
+			return zero
 		}
 		return lastValue
 	}, options...)

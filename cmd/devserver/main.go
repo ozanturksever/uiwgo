@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/go-chi/chi/v5"
@@ -80,6 +81,7 @@ func (broker *SSEBroker) listen() {
 		case s := <-broker.closeChan:
 			broker.mutex.Lock()
 			delete(broker.clients, s)
+			close(s)
 			broker.mutex.Unlock()
 			log.Printf("Removed client. %d registered clients", len(broker.clients))
 
@@ -89,8 +91,8 @@ func (broker *SSEBroker) listen() {
 				select {
 				case clientMessageChan <- event:
 				default:
-					close(clientMessageChan)
-					delete(broker.clients, clientMessageChan)
+					// Client channel is full, skip this client
+					// Let the client's context handle cleanup naturally
 				}
 			}
 			broker.mutex.RUnlock()
@@ -110,6 +112,10 @@ func (broker *SSEBroker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
+	// Send initial connection message
+	fmt.Fprintf(w, "data: connected\n\n")
+	flusher.Flush()
+
 	messageChan := make(chan string)
 	broker.newClients <- messageChan
 
@@ -117,16 +123,18 @@ func (broker *SSEBroker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		broker.closeChan <- messageChan
 	}()
 
-	notify := r.Context().Done()
-	go func() {
-		<-notify
-		broker.closeChan <- messageChan
-	}()
+	// Keep-alive ticker to prevent connection timeout
+	keepAliveTicker := time.NewTicker(30 * time.Second)
+	defer keepAliveTicker.Stop()
 
 	for {
 		select {
 		case msg := <-messageChan:
 			fmt.Fprintf(w, "data: %s\n\n", msg)
+			flusher.Flush()
+		case <-keepAliveTicker.C:
+			// Send keep-alive ping
+			fmt.Fprintf(w, ": keep-alive\n\n")
 			flusher.Flush()
 		case <-r.Context().Done():
 			return

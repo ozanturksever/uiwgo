@@ -1,0 +1,213 @@
+<golid_best_practices>
+  <general_principles>
+    <principle priority="highest">
+      <name>SolidJS-First Architecture</name>
+      <description>
+        Always implement fine-grained reactivity patterns inspired by SolidJS.
+        Avoid VDOM reconciliation approaches at all costs.
+      </description>
+      <rationale>
+        SolidJS's fine-grained reactivity eliminates unnecessary computations and DOM updates,
+        providing superior performance and predictable behavior compared to VDOM-based frameworks.
+      </rationale>
+      <example>
+        <scenario>When implementing reactive state</scenario>
+        <good>Use signals that directly trigger specific DOM updates</good>
+        <bad>Implement component re-rendering with virtual DOM diffing</bad>
+      </example>
+    </principle>
+
+    <principle priority="high">
+      <name>Performance-First Design</name>
+      <description>
+        Every design decision must prioritize runtime performance and memory efficiency.
+        Profile early and often, especially for WASM compilation.
+      </description>
+      <rationale>
+        Go's performance advantages can be negated by poor architecture choices.
+        WASM introduces additional constraints that require careful consideration.
+      </rationale>
+      <example>
+        <scenario>When designing signal updates</scenario>
+        <good>Batch DOM updates and minimize allocations</good>
+        <bad>Trigger immediate DOM updates for each signal change</bad>
+      </example>
+    </principle>
+
+    <principle priority="high">
+      <name>Idiomatic Go Patterns</name>
+      <description>
+        Translate JavaScript reactive patterns to idiomatic Go code that feels natural
+        to Go developers while maintaining reactive principles.
+      </description>
+      <rationale>
+        The framework should feel like Go, not like JavaScript translated to Go.
+        This improves adoption and maintainability.
+      </rationale>
+      <example>
+        <scenario>When implementing effects</scenario>
+        <good>Use channels and goroutines for async effects</good>
+        <bad>Directly port JavaScript Promise patterns</bad>
+      </example>
+    </principle>
+  </general_principles>
+
+  <reactive_architecture_conventions>
+    <convention category="signals">
+      <rule>Signals should be minimal and focused on single values</rule>
+      <implementation>
+        <code_pattern>
+          // Good: Focused signal
+          count := CreateSignal(0)
+          
+          // Bad: Complex state object
+          state := CreateSignal(ComplexState{...})
+        </code_pattern>
+      </implementation>
+    </convention>
+
+    <convention category="effects">
+      <rule>Effects should be pure and deterministic where possible</rule>
+      <implementation>
+        <code_pattern>
+          // Good: Pure effect
+          CreateEffect(func() {
+              dom.SetTextContent(element, count.Get())
+          })
+          
+          // Bad: Side effects without clear dependencies
+          CreateEffect(func() {
+              // Multiple unrelated side effects
+          })
+        </code_pattern>
+      </implementation>
+    </convention>
+
+    <convention category="dom_bindings">
+      <rule>Use direct DOM manipulation, never virtual DOM</rule>
+      <implementation>
+        <code_pattern>
+          // Good: Direct DOM binding
+          CreateEffect(func() {
+              element.Set("textContent", value.Get())
+          })
+          
+          // Bad: Virtual DOM approach
+          render := func() VNode { return h("div", value.Get()) }
+        </code_pattern>
+      </implementation>
+    </convention>
+  </reactive_architecture_conventions>
+
+  <performance_guidelines>
+    <guideline category="memory_management">
+      <rule>Minimize allocations in hot paths</rule>
+      <techniques>
+        <technique>Use object pooling for frequently created/destroyed objects</technique>
+        <technique>Prefer value types over pointers where appropriate</technique>
+        <technique>Cache DOM elements and reuse them</technique>
+        <technique>Batch DOM operations to minimize syscall/js overhead</technique>
+      </techniques>
+    </guideline>
+
+    <guideline category="wasm_optimization">
+      <rule>Optimize for WASM compilation and runtime</rule>
+      <techniques>
+        <technique>Minimize syscall/js calls through batching</technique>
+        <technique>Use efficient data structures for WASM environment</technique>
+        <technique>Avoid deep call stacks that can impact WASM performance</technique>
+        <technique>Profile WASM binary size and optimize imports</technique>
+      </techniques>
+    </guideline>
+
+    <guideline category="reactivity_optimization">
+      <rule>Optimize signal graph traversal and updates</rule>
+      <techniques>
+        <technique>Use topological ordering for effect execution</technique>
+        <technique>Implement efficient dependency tracking</technique>
+        <technique>Batch related updates to minimize DOM thrashing</technique>
+        <technique>Use weak references where appropriate to prevent memory leaks</technique>
+      </techniques>
+    </guideline>
+  </performance_guidelines>
+
+  <common_pitfalls>
+    <pitfall>
+      <description>Implementing VDOM-like reconciliation patterns</description>
+      <why_problematic>
+        Defeats the performance advantages of fine-grained reactivity and introduces
+        unnecessary complexity and computational overhead
+      </why_problematic>
+      <correct_approach>
+        Design direct DOM bindings that update only when specific signals change,
+        following SolidJS's compilation model
+      </correct_approach>
+    </pitfall>
+
+    <pitfall>
+      <description>Over-allocating in reactive hot paths</description>
+      <why_problematic>
+        Reactive systems can trigger frequently, making memory allocation patterns
+        critical for performance
+      </why_problematic>
+      <correct_approach>
+        Use pre-allocated buffers, object pools, and minimize garbage collection
+        pressure in signal/effect execution paths
+      </correct_approach>
+    </pitfall>
+
+    <pitfall>
+      <description>Synchronous DOM updates without batching</description>
+      <why_problematic>
+        Each DOM update requires expensive syscall/js calls and can cause layout thrashing
+      </why_problematic>
+      <correct_approach>
+        Implement update batching and scheduling to minimize DOM manipulation frequency
+        while maintaining reactive semantics
+      </correct_approach>
+    </pitfall>
+  </common_pitfalls>
+
+  <code_quality_checklist>
+    <category name="before_implementation">
+      <item>Understand the SolidJS pattern being translated</item>
+      <item>Design for zero unnecessary DOM updates</item>
+      <item>Plan memory allocation strategy</item>
+      <item>Consider WASM compilation implications</item>
+    </category>
+
+    <category name="during_implementation">
+      <item>Use direct DOM manipulation APIs</item>
+      <item>Implement proper dependency tracking</item>
+      <item>Optimize for minimal allocations</item>
+      <item>Follow Go idioms and conventions</item>
+      <item>Add comprehensive performance monitoring</item>
+    </category>
+
+    <category name="before_completion">
+      <item>Profile memory usage and allocation patterns</item>
+      <item>Benchmark against equivalent JavaScript implementations</item>
+      <item>Verify no VDOM-like patterns were introduced</item>
+      <item>Test with realistic component hierarchies</item>
+      <item>Validate WASM binary size and startup performance</item>
+    </category>
+  </code_quality_checklist>
+
+  <framework_comparison_guidelines>
+    <comparison_criteria>
+      <criterion>Runtime performance (update speed, memory usage)</criterion>
+      <criterion>Predictability (deterministic update behavior)</criterion>
+      <criterion>Developer experience (API ergonomics, debugging)</criterion>
+      <criterion>Bundle size (for WASM, binary size)</criterion>
+      <criterion>Compilation speed and development iteration</criterion>
+    </comparison_criteria>
+
+    <solidjs_advantages_to_maintain>
+      <advantage>Fine-grained updates without component re-rendering</advantage>
+      <advantage>Compile-time optimizations for reactive dependencies</advantage>
+      <advantage>Predictable performance characteristics</advantage>
+      <advantage>Minimal runtime overhead</advantage>
+      <advantage>Direct DOM manipulation without abstraction layers</advantage>
+    </solidjs_advantages_to_maintain>
+  </framework_comparison_guidelines>
+</golid_best_practices>

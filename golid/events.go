@@ -68,8 +68,8 @@ func OnClickV2(f func()) Node {
 	globalObserver.RegisterElement(id, func() {
 		elem := NodeFromID(id)
 		if elem.Truthy() {
-			// Use new event system with delegation and automatic cleanup
-			Subscribe(elem, "click", func(e js.Value) {
+			// Use reactive event system with delegation and automatic cleanup
+			SubscribeReactive(elem, "click", func(e js.Value) {
 				f()
 			}, EventOptions{
 				Delegate: true,
@@ -89,8 +89,8 @@ func OnInputV2(handler func(string)) Node {
 	globalObserver.RegisterElement(id, func() {
 		elem := NodeFromID(id)
 		if elem.Truthy() {
-			// Use new event system with delegation and automatic cleanup
-			Subscribe(elem, "input", func(e js.Value) {
+			// Use reactive event system with delegation and automatic cleanup
+			SubscribeReactive(elem, "input", func(e js.Value) {
 				value := e.Get("target").Get("value").String()
 				handler(value)
 			}, EventOptions{
@@ -111,7 +111,7 @@ func OnChangeV2(handler func(string)) Node {
 	globalObserver.RegisterElement(id, func() {
 		elem := NodeFromID(id)
 		if elem.Truthy() {
-			Subscribe(elem, "change", func(e js.Value) {
+			SubscribeReactive(elem, "change", func(e js.Value) {
 				value := e.Get("target").Get("value").String()
 				handler(value)
 			}, EventOptions{
@@ -131,7 +131,7 @@ func OnSubmitV2(handler func(js.Value)) Node {
 	globalObserver.RegisterElement(id, func() {
 		elem := NodeFromID(id)
 		if elem.Truthy() {
-			Subscribe(elem, "submit", func(e js.Value) {
+			SubscribeReactive(elem, "submit", func(e js.Value) {
 				e.Call("preventDefault") // Prevent default form submission
 				handler(e)
 			}, EventOptions{
@@ -151,7 +151,7 @@ func OnKeyDownV2(handler func(string)) Node {
 	globalObserver.RegisterElement(id, func() {
 		elem := NodeFromID(id)
 		if elem.Truthy() {
-			Subscribe(elem, "keydown", func(e js.Value) {
+			SubscribeReactive(elem, "keydown", func(e js.Value) {
 				key := e.Get("key").String()
 				handler(key)
 			}, EventOptions{
@@ -171,7 +171,7 @@ func OnMouseEnterV2(handler func()) Node {
 	globalObserver.RegisterElement(id, func() {
 		elem := NodeFromID(id)
 		if elem.Truthy() {
-			Subscribe(elem, "mouseenter", func(e js.Value) {
+			SubscribeReactive(elem, "mouseenter", func(e js.Value) {
 				handler()
 			}, EventOptions{
 				Delegate: false, // mouseenter doesn't bubble, use direct binding
@@ -190,7 +190,7 @@ func OnMouseLeaveV2(handler func()) Node {
 	globalObserver.RegisterElement(id, func() {
 		elem := NodeFromID(id)
 		if elem.Truthy() {
-			Subscribe(elem, "mouseleave", func(e js.Value) {
+			SubscribeReactive(elem, "mouseleave", func(e js.Value) {
 				handler()
 			}, EventOptions{
 				Delegate: false, // mouseleave doesn't bubble, use direct binding

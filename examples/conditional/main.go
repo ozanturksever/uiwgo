@@ -9,7 +9,13 @@ import (
 )
 
 func main() {
-	golid.Render(ConditionalApp())
+	_, cleanup := golid.CreateRoot(func() interface{} {
+		app := ConditionalApp()
+		golid.Render(app)
+		return nil
+	})
+
+	defer cleanup()
 	golid.Run()
 }
 
@@ -27,9 +33,9 @@ func ConditionalApp() Node {
 
 func ConditionalComponent() Node {
 	// State signals
-	showDetails := golid.NewSignal(false)
-	userType := golid.NewSignal("guest")
-	count := golid.NewSignal(0)
+	showDetails, setShowDetails := golid.CreateSignal(false)
+	userType, setUserType := golid.CreateSignal("guest")
+	count, setCount := golid.CreateSignal(0)
 
 	return Div(
 		// Basic show/hide toggle
@@ -38,18 +44,18 @@ func ConditionalComponent() Node {
 			H3(Text("Show/Hide Toggle")),
 			Button(
 				Style("padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;"),
-				golid.BindText(func() string {
-					if showDetails.Get() {
-						return "Hide Details"
+				golid.Bind(func() Node {
+					if showDetails() {
+						return Text("Hide Details")
 					}
-					return "Show Details"
+					return Text("Show Details")
 				}),
 				golid.OnClickV2(func() {
-					showDetails.Set(!showDetails.Get())
+					setShowDetails(!showDetails())
 				}),
 			),
 			golid.Bind(func() Node {
-				if showDetails.Get() {
+				if showDetails() {
 					return Div(
 						Style("margin-top: 15px; padding: 15px; background-color: #f8f9fa; border-radius: 5px;"),
 						Text("🎉 Here are the details you requested!"),
@@ -68,21 +74,21 @@ func ConditionalComponent() Node {
 				Button(
 					Style("padding: 8px 15px; background-color: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; margin-right: 10px;"),
 					Text("Guest"),
-					golid.OnClickV2(func() { userType.Set("guest") }),
+					golid.OnClickV2(func() { setUserType("guest") }),
 				),
 				Button(
 					Style("padding: 8px 15px; background-color: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer; margin-right: 10px;"),
 					Text("User"),
-					golid.OnClickV2(func() { userType.Set("user") }),
+					golid.OnClickV2(func() { setUserType("user") }),
 				),
 				Button(
 					Style("padding: 8px 15px; background-color: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer;"),
 					Text("Admin"),
-					golid.OnClickV2(func() { userType.Set("admin") }),
+					golid.OnClickV2(func() { setUserType("admin") }),
 				),
 			),
 			golid.Bind(func() Node {
-				switch userType.Get() {
+				switch userType() {
 				case "guest":
 					return Div(
 						Style("padding: 10px; background-color: #e7f3ff; border-radius: 5px;"),
@@ -113,16 +119,16 @@ func ConditionalComponent() Node {
 				Button(
 					Style("padding: 8px 15px; background-color: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; margin-right: 10px;"),
 					Text("+"),
-					golid.OnClickV2(func() { count.Set(count.Get() + 1) }),
+					golid.OnClickV2(func() { setCount(count() + 1) }),
 				),
 				Button(
 					Style("padding: 8px 15px; background-color: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer;"),
 					Text("-"),
-					golid.OnClickV2(func() { count.Set(count.Get() - 1) }),
+					golid.OnClickV2(func() { setCount(count() - 1) }),
 				),
 			),
 			golid.Bind(func() Node {
-				c := count.Get()
+				c := count()
 				var bgColor, textColor, message string
 
 				if c > 5 {

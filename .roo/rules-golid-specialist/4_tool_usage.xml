@@ -1,0 +1,311 @@
+<golid_tool_usage_guide>
+  <tool_priorities>
+    <priority level="1">
+      <tool>codebase_search</tool>
+      <when>Always use first to find reactive implementations, signals, effects, or any SolidJS-related patterns</when>
+      <why>Semantic search excels at finding reactive patterns and architectural components across the codebase</why>
+      <examples>
+        <example query="signal implementation">Find signal creation and management code</example>
+        <example query="effect scheduling">Locate effect execution and batching logic</example>
+        <example query="DOM manipulation">Find direct DOM update patterns</example>
+        <example query="reactive context">Discover context and provider patterns</example>
+      </examples>
+    </priority>
+
+    <priority level="2">
+      <tool>read_file</tool>
+      <when>After codebase_search identifies relevant files, read them for detailed analysis</when>
+      <why>Essential for understanding implementation details, performance patterns, and API design</why>
+      <focus_files>
+        <file>golid/signals*.go - Core reactive primitives</file>
+        <file>golid/scheduler*.go - Effect scheduling and batching</file>
+        <file>golid/dom*.go - DOM manipulation and bindings</file>
+        <file>golid/reactive*.go - Reactive context and lifecycle</file>
+        <file>examples/* - Usage patterns and real-world implementations</file>
+      </focus_files>
+    </priority>
+
+    <priority level="3">
+      <tool>list_code_definition_names</tool>
+      <when>To understand the structure of reactive components and identify entry points</when>
+      <why>Provides overview of available APIs and helps identify missing functionality</why>
+    </priority>
+  </tool_priorities>
+
+  <tool_specific_guidance>
+    <tool name="codebase_search">
+      <reactive_search_patterns>
+        <pattern>
+          <query>createSignal OR CreateSignal</query>
+          <purpose>Find signal creation patterns and implementations</purpose>
+        </pattern>
+        <pattern>
+          <query>createEffect OR CreateEffect</query>
+          <purpose>Locate effect creation and management</purpose>
+        </pattern>
+        <pattern>
+          <query>createMemo OR CreateMemo</query>
+          <purpose>Find memoization and computed value patterns</purpose>
+        </pattern>
+        <pattern>
+          <query>DOM manipulation direct</query>
+          <purpose>Find direct DOM update patterns (avoiding VDOM)</purpose>
+        </pattern>
+        <pattern>
+          <query>WASM performance optimization</query>
+          <purpose>Locate WebAssembly-specific optimizations</purpose>
+        </pattern>
+        <pattern>
+          <query>batching OR scheduling effects</query>
+          <purpose>Find effect batching and scheduling implementations</purpose>
+        </pattern>
+      </reactive_search_patterns>
+
+      <performance_search_patterns>
+        <pattern>
+          <query>memory allocation optimization</query>
+          <purpose>Find memory management and allocation strategies</purpose>
+        </pattern>
+        <pattern>
+          <query>syscall js DOM binding</query>
+          <purpose>Locate WASM DOM interaction optimizations</purpose>
+        </pattern>
+        <pattern>
+          <query>garbage collection OR GC pressure</query>
+          <purpose>Find GC optimization patterns</purpose>
+        </pattern>
+      </performance_search_patterns>
+    </tool>
+
+    <tool name="read_file">
+      <reading_strategy>
+        <step>First read core reactive files to understand architecture</step>
+        <step>Then read examples to understand usage patterns</step>
+        <step>Finally read test files to understand expected behavior</step>
+      </reading_strategy>
+
+      <critical_sections_to_examine>
+        <section>Signal struct definitions and methods</section>
+        <section>Effect scheduling and execution logic</section>
+        <section>DOM binding implementations</section>
+        <section>Memory management and cleanup code</section>
+        <section>Performance monitoring and profiling hooks</section>
+      </critical_sections_to_examine>
+
+      <performance_analysis_focus>
+        <focus>Allocation patterns in hot paths</focus>
+        <focus>Syscall/js call frequency and batching</focus>
+        <focus>Goroutine usage and concurrent patterns</focus>
+        <focus>Memory pooling and reuse strategies</focus>
+      </performance_analysis_focus>
+    </tool>
+
+    <tool name="apply_diff">
+      <reactive_development_practices>
+        <practice>Always read the target file first to understand current implementation</practice>
+        <practice>Make atomic changes that preserve reactive semantics</practice>
+        <practice>Update related test files in the same diff when possible</practice>
+        <practice>Ensure changes maintain SolidJS-inspired patterns</practice>
+      </reactive_development_practices>
+
+      <example_reactive_changes>
+        <example>
+          <description>Adding a new signal method</description>
+          <pattern><![CDATA[
+<apply_diff>
+<path>golid/signals.go</path>
+<diff>
+<<<<<<< SEARCH
+func (s *Signal[T]) Set(value T) {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    s.value = value
+    s.notifyObservers()
+}
+=======
+func (s *Signal[T]) Set(value T) {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    if !s.equals(s.value, value) {
+        s.value = value
+        s.notifyObservers()
+    }
+}
+
+func (s *Signal[T]) Update(updater func(T) T) {
+    s.mu.Lock()
+    defer s.mu.Unlock()
+    newValue := updater(s.value)
+    if !s.equals(s.value, newValue) {
+        s.value = newValue
+        s.notifyObservers()
+    }
+}
+>>>>>>> REPLACE
+</diff>
+</apply_diff>
+          ]]></pattern>
+        </example>
+      </example_reactive_changes>
+    </tool>
+
+    <tool name="execute_command">
+      <go_wasm_commands>
+        <command>
+          <purpose>Build WASM for examples</purpose>
+          <syntax>GOOS=js GOARCH=wasm go build -o main.wasm main.go</syntax>
+        </command>
+        <command>
+          <purpose>Run performance benchmarks</purpose>
+          <syntax>go test -bench=. -benchmem -cpuprofile=cpu.prof -memprofile=mem.prof</syntax>
+        </command>
+        <command>
+          <purpose>Analyze WASM binary size</purpose>
+          <syntax>wasm-pack build --target web && ls -la pkg/</syntax>
+        </command>
+        <command>
+          <purpose>Profile memory usage</purpose>
+          <syntax>go tool pprof mem.prof</syntax>
+        </command>
+        <command>
+          <purpose>Run specific reactive tests</purpose>
+          <syntax>go test ./golid -run TestSignal -v</syntax>
+        </command>
+      </go_wasm_commands>
+
+      <development_workflow_commands>
+        <command>
+          <purpose>Start development server with auto-rebuild</purpose>
+          <syntax>make dev</syntax>
+        </command>
+        <command>
+          <purpose>Run all examples</purpose>
+          <syntax>make examples</syntax>
+        </command>
+        <command>
+          <purpose>Run performance comparison</purpose>
+          <syntax>make benchmark-compare</syntax>
+        </command>
+      </development_workflow_commands>
+    </tool>
+
+    <tool name="browser_action">
+      <reactive_testing_scenarios>
+        <scenario>
+          <purpose>Test signal reactivity in browser</purpose>
+          <steps>
+            <step>Launch browser with example application</step>
+            <step>Interact with UI elements that trigger signal updates</step>
+            <step>Verify DOM updates occur without full re-renders</step>
+            <step>Check browser DevTools for performance metrics</step>
+          </steps>
+        </scenario>
+        <scenario>
+          <purpose>Performance profiling in browser</purpose>
+          <steps>
+            <step>Open DevTools Performance tab</step>
+            <step>Record while interacting with reactive components</step>
+            <step>Analyze timeline for unnecessary DOM manipulations</step>
+            <step>Verify effect batching is working correctly</step>
+          </steps>
+        </scenario>
+      </reactive_testing_scenarios>
+
+      <performance_validation>
+        <metric>Memory usage should be stable during reactive updates</metric>
+        <metric>DOM updates should be minimal and targeted</metric>
+        <metric>No unnecessary component re-renders should occur</metric>
+        <metric>Effect execution should be batched when possible</metric>
+      </performance_validation>
+    </tool>
+
+    <tool name="search_files">
+      <use_after_codebase_search>
+        Only use after codebase_search has identified general areas of interest.
+        Use for specific regex patterns in reactive code.
+      </use_after_codebase_search>
+
+      <reactive_regex_patterns>
+        <pattern>
+          <regex>CreateSignal\[.*\]\(</regex>
+          <purpose>Find typed signal creations</purpose>
+        </pattern>
+        <pattern>
+          <regex>\.Set\(.*\)</regex>
+          <purpose>Find signal update patterns</purpose>
+        </pattern>
+        <pattern>
+          <regex>CreateEffect\(func\(\)</regex>
+          <purpose>Find effect creation patterns</purpose>
+        </pattern>
+        <pattern>
+          <regex>js\.Value.*DOM</regex>
+          <purpose>Find direct DOM manipulation code</purpose>
+        </pattern>
+      </reactive_regex_patterns>
+    </tool>
+  </tool_specific_guidance>
+
+  <workflow_integration>
+    <phase name="exploration">
+      <tool_sequence>
+        <step>codebase_search - Find reactive implementations</step>
+        <step>list_code_definition_names - Get architectural overview</step>
+        <step>read_file - Examine core implementations</step>
+      </tool_sequence>
+    </phase>
+
+    <phase name="analysis">
+      <tool_sequence>
+        <step>read_file - Deep dive into specific implementations</step>
+        <step>search_files - Find specific patterns or issues</step>
+        <step>execute_command - Run tests and benchmarks</step>
+      </tool_sequence>
+    </phase>
+
+    <phase name="implementation">
+      <tool_sequence>
+        <step>apply_diff - Make reactive code changes</step>
+        <step>execute_command - Build and test</step>
+        <step>browser_action - Validate in browser environment</step>
+      </tool_sequence>
+    </phase>
+
+    <phase name="validation">
+      <tool_sequence>
+        <step>execute_command - Run comprehensive tests</step>
+        <step>browser_action - Performance testing</step>
+        <step>read_file - Review final implementation</step>
+      </tool_sequence>
+    </phase>
+  </workflow_integration>
+
+  <solidjs_translation_patterns>
+    <translation_workflow>
+      <step>Identify SolidJS pattern in user request</step>
+      <step>Search codebase for existing Go equivalent</step>
+      <step>Read implementation details if found</step>
+      <step>Design Go-idiomatic equivalent if not found</step>
+      <step>Implement with performance considerations</step>
+      <step>Test reactive behavior matches SolidJS semantics</step>
+    </translation_workflow>
+
+    <common_translations>
+      <translation>
+        <solidjs>createSignal(initialValue)</solidjs>
+        <go>CreateSignal[T](initialValue)</go>
+        <search_query>signal creation pattern</search_query>
+      </translation>
+      <translation>
+        <solidjs>createEffect(() => {...})</solidjs>
+        <go>CreateEffect(func() {...})</go>
+        <search_query>effect creation pattern</search_query>
+      </translation>
+      <translation>
+        <solidjs>createMemo(() => computation)</solidjs>
+        <go>CreateMemo(func() T { return computation })</go>
+        <search_query>memo computation pattern</search_query>
+      </translation>
+    </common_translations>
+  </solidjs_translation_patterns>
+</golid_tool_usage_guide>

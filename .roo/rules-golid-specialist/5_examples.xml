@@ -1,0 +1,364 @@
+<golid_workflow_examples>
+  <example name="implementing_new_signal_feature">
+    <description>
+      Complete workflow for implementing a new signal feature inspired by SolidJS,
+      including research, implementation, testing, and optimization.
+    </description>
+    <scenario>
+      User requests: "Add a signal.update() method similar to SolidJS's batch updates"
+    </scenario>
+    
+    <workflow_steps>
+      <step number="1">
+        <action>Research existing implementation</action>
+        <tools>
+          <tool>codebase_search with query "signal update batch"</tool>
+        </tools>
+        <expected_findings>
+          <finding>Existing Signal struct and methods</finding>
+          <finding>Current update mechanisms</finding>
+          <finding>Batching infrastructure if any</finding>
+        </expected_findings>
+      </step>
+
+      <step number="2">
+        <action>Examine core signal implementation</action>
+        <tools>
+          <tool>read_file golid/signals.go and golid/signals_v2.go</tool>
+        </tools>
+        <analysis_focus>
+          <focus>Current Set() method implementation</focus>
+          <focus>Observer notification patterns</focus>
+          <focus>Mutex usage and thread safety</focus>
+          <focus>Performance characteristics</focus>
+        </analysis_focus>
+      </step>
+
+      <step number="3">
+        <action>Design Go-idiomatic update method</action>
+        <design_considerations>
+          <consideration>Type safety with generics</consideration>
+          <consideration>Performance optimization for WASM</consideration>
+          <consideration>Thread safety and concurrent access</consideration>
+          <consideration>Consistency with existing API patterns</consideration>
+        </design_considerations>
+        <proposed_signature>
+          func (s *Signal[T]) Update(updater func(T) T) T
+        </proposed_signature>
+      </step>
+
+      <step number="4">
+        <action>Implement the update method using apply_diff</action>
+        <implementation_approach>
+          <approach>Add Update method to Signal struct</approach>
+          <approach>Ensure atomic updates with functional approach</approach>
+          <approach>Maintain thread safety with existing mutex pattern</approach>
+          <approach>Return new value for convenience</approach>
+        </implementation_approach>
+      </step>
+
+      <step number="5">
+        <action>Add comprehensive tests using apply_diff</action>
+        <test_cases>
+          <case>Basic functional update behavior</case>
+          <case>Effect triggering on update</case>
+          <case>Thread safety under concurrent access</case>
+          <case>Performance compared to Set method</case>
+        </test_cases>
+      </step>
+
+      <step number="6">
+        <action>Create example usage with write_to_file</action>
+        <example_features>
+          <feature>Counter with increment using Update</feature>
+          <feature>Form state management</feature>
+          <feature>Batch updates demonstration</feature>
+        </example_features>
+      </step>
+
+      <step number="7">
+        <action>Test and validate with execute_command and browser_action</action>
+        <validation_steps>
+          <step>Run unit tests</step>
+          <step>Build WASM example</step>
+          <step>Test in browser environment</step>
+          <step>Performance profiling</step>
+        </validation_steps>
+      </step>
+    </workflow_steps>
+
+    <success_criteria>
+      <criterion>All tests pass</criterion>
+      <criterion>Example builds successfully for WASM</criterion>
+      <criterion>Browser demo works correctly</criterion>
+      <criterion>Performance is optimized (no unnecessary allocations)</criterion>
+      <criterion>API follows Go idioms and SolidJS semantics</criterion>
+    </success_criteria>
+  </example>
+
+  <example name="optimizing_wasm_performance">
+    <description>
+      Complete workflow for identifying and resolving performance bottlenecks
+      in a reactive WASM application, focusing on SolidJS-inspired optimizations.
+    </description>
+    <scenario>
+      User reports: "My GoLid app is slower than expected in the browser. 
+      Can you help optimize the reactive performance?"
+    </scenario>
+
+    <workflow_steps>
+      <step number="1">
+        <action>Identify performance bottlenecks</action>
+        <tools>
+          <tool>codebase_search with "performance bottleneck DOM update frequency"</tool>
+        </tools>
+        <analysis_targets>
+          <target>Effect execution frequency</target>
+          <target>DOM manipulation patterns</target>
+          <target>Memory allocation in hot paths</target>
+          <target>Syscall/js call frequency</target>
+        </analysis_targets>
+      </step>
+
+      <step number="2">
+        <action>Profile current performance</action>
+        <tools>
+          <tool>execute_command for go benchmarks</tool>
+          <tool>browser_action for DevTools profiling</tool>
+        </tools>
+        <profiling_approach>
+          <approach>CPU profiling with pprof</approach>
+          <approach>Memory allocation analysis</approach>
+          <approach>Browser performance timeline</approach>
+          <approach>WASM binary size analysis</approach>
+        </profiling_approach>
+      </step>
+
+      <step number="3">
+        <action>Implement effect batching optimization</action>
+        <solidjs_inspiration>
+          SolidJS batches effect updates to minimize DOM thrashing
+        </solidjs_inspiration>
+        <optimization_strategies>
+          <strategy>Implement scheduler for effect batching</strategy>
+          <strategy>Use requestAnimationFrame for DOM updates</strategy>
+          <strategy>Minimize syscall/js calls through caching</strategy>
+          <strategy>Optimize signal dependency tracking</strategy>
+        </optimization_strategies>
+      </step>
+
+      <step number="4">
+        <action>Optimize DOM manipulation patterns</action>
+        <optimization_techniques>
+          <technique>Batch DOM operations</technique>
+          <technique>Cache DOM element references</technique>
+          <technique>Use DocumentFragment for multiple insertions</technique>
+          <technique>Minimize style recalculations</technique>
+        </optimization_techniques>
+      </step>
+
+      <step number="5">
+        <action>Validate optimizations</action>
+        <validation_metrics>
+          <metric>Reduced CPU usage in browser</metric>
+          <metric>Lower memory allocation rates</metric>
+          <metric>Fewer DOM update cycles</metric>
+          <metric>Improved frame rate consistency</metric>
+        </validation_metrics>
+      </step>
+    </workflow_steps>
+  </example>
+
+  <example name="porting_solidjs_component_pattern">
+    <description>
+      Workflow for translating a complex SolidJS component pattern to GoLid,
+      maintaining reactive semantics while using Go idioms.
+    </description>
+    <scenario>
+      User asks: "How do I port this SolidJS component with context and derived state to GoLid?"
+    </scenario>
+
+    <solidjs_reference_pattern>
+      <code>
+        const [theme, setTheme] = createSignal('light')
+        const [user, setUser] = createSignal(null)
+        const userDisplayName = createMemo(() => user()?.name || 'Guest')
+        
+        function App() {
+          return (
+            &lt;ThemeProvider theme={theme()}&gt;
+              &lt;UserProfile user={user()} displayName={userDisplayName()}/&gt;
+            &lt;/ThemeProvider&gt;
+          )
+        }
+      </code>
+    </solidjs_reference_pattern>
+
+    <workflow_steps>
+      <step number="1">
+        <action>Analyze SolidJS patterns</action>
+        <tools>
+          <tool>codebase_search for "context provider" and "memo pattern"</tool>
+        </tools>
+        <pattern_analysis>
+          <pattern>Signal creation and management</pattern>
+          <pattern>Memo for derived state</pattern>
+          <pattern>Context provider pattern</pattern>
+          <pattern>Component composition</pattern>
+        </pattern_analysis>
+      </step>
+
+      <step number="2">
+        <action>Design Go equivalent architecture</action>
+        <design_principles>
+          <principle>Use struct-based components instead of functions</principle>
+          <principle>Implement context through Go interfaces</principle>
+          <principle>Maintain reactive semantics with signals/effects</principle>
+          <principle>Use composition over inheritance</principle>
+        </design_principles>
+      </step>
+
+      <step number="3">
+        <action>Implement signal-based state management</action>
+        <go_implementation_approach>
+          <approach>Create typed signals for theme and user</approach>
+          <approach>Implement memo for derived display name</approach>
+          <approach>Use interfaces for context passing</approach>
+          <approach>Structure components as composable functions</approach>
+        </go_implementation_approach>
+      </step>
+
+      <step number="4">
+        <action>Implement context provider pattern</action>
+        <context_implementation>
+          <approach>Use Go context.Context for lifecycle</approach>
+          <approach>Store reactive values in context</approach>
+          <approach>Provide accessor functions for child components</approach>
+          <approach>Ensure proper cleanup on component unmount</approach>
+        </context_implementation>
+      </step>
+
+      <step number="5">
+        <action>Create component composition system</action>
+        <composition_strategy>
+          <strategy>Use function closures for component state</strategy>
+          <strategy>Return DOM elements from component functions</strategy>
+          <strategy>Implement proper cleanup and lifecycle management</strategy>
+          <strategy>Ensure reactive updates flow correctly</strategy>
+        </composition_strategy>
+      </step>
+
+      <step number="6">
+        <action>Test reactive behavior matches SolidJS</action>
+        <validation_approach>
+          <approach>Verify signal updates trigger correct re-renders</approach>
+          <approach>Test context propagation to child components</approach>
+          <approach>Validate memo recomputation behavior</approach>
+          <approach>Check proper cleanup on unmount</approach>
+        </validation_approach>
+      </step>
+    </workflow_steps>
+
+    <go_equivalent_result>
+      <description>
+        The final Go implementation maintains SolidJS's fine-grained reactivity
+        while feeling natural to Go developers, using interfaces for context,
+        functions for components, and maintaining direct DOM manipulation.
+      </description>
+    </go_equivalent_result>
+  </example>
+
+  <example name="debugging_reactive_system">
+    <description>
+      Workflow for debugging complex reactive behavior issues in GoLid applications,
+      using SolidJS debugging principles adapted for Go.
+    </description>
+    <scenario>
+      User reports: "My effects are running too often and I can't figure out the dependency chain"
+    </scenario>
+
+    <workflow_steps>
+      <step number="1">
+        <action>Enable reactive debugging</action>
+        <tools>
+          <tool>codebase_search for "debug" and "logging"</tool>
+          <tool>read_file for debug utilities</tool>
+        </tools>
+        <debugging_setup>
+          <setup>Enable signal tracking</setup>
+          <setup>Add effect execution logging</setup>
+          <setup>Implement dependency graph visualization</setup>
+        </debugging_setup>
+      </step>
+
+      <step number="2">
+        <action>Trace signal dependency chain</action>
+        <debugging_techniques>
+          <technique>Log signal reads during effect execution</technique>
+          <technique>Track effect registration and triggering</technique>
+          <technique>Visualize dependency graph</technique>
+          <technique>Identify circular dependencies</technique>
+        </debugging_techniques>
+      </step>
+
+      <step number="3">
+        <action>Identify performance issues</action>
+        <performance_debugging>
+          <issue>Unnecessary effect re-runs</issue>
+          <issue>Missing memoization opportunities</issue>
+          <issue>Inefficient signal comparisons</issue>
+          <issue>DOM update frequency problems</issue>
+        </performance_debugging>
+      </step>
+
+      <step number="4">
+        <action>Implement fixes and optimizations</action>
+        <solution_strategies>
+          <strategy>Add proper signal equality checking</strategy>
+          <strategy>Implement derived state with memos</strategy>
+          <strategy>Optimize effect dependencies</strategy>
+          <strategy>Add effect batching where appropriate</strategy>
+        </solution_strategies>
+      </step>
+
+      <step number="5">
+        <action>Validate fixes with testing</action>
+        <validation_methods>
+          <method>Unit tests for reactive behavior</method>
+          <method>Performance benchmarks</method>
+          <method>Browser testing with profiling</method>
+          <method>Regression tests for edge cases</method>
+        </validation_methods>
+      </step>
+    </workflow_steps>
+  </example>
+
+  <key_success_patterns>
+    <pattern name="solidjs_first_thinking">
+      <description>Always start by understanding the SolidJS equivalent pattern</description>
+      <benefits>
+        <benefit>Ensures reactive semantics are preserved</benefit>
+        <benefit>Leverages proven performance optimizations</benefit>
+        <benefit>Maintains conceptual consistency</benefit>
+      </benefits>
+    </pattern>
+
+    <pattern name="performance_driven_development">
+      <description>Profile early and often, especially for WASM targets</description>
+      <benefits>
+        <benefit>Catches performance issues before they compound</benefit>
+        <benefit>Validates optimization strategies</benefit>
+        <benefit>Ensures Go advantages aren't negated by poor design</benefit>
+      </benefits>
+    </pattern>
+
+    <pattern name="comprehensive_testing">
+      <description>Test reactive behavior, not just functional correctness</description>
+      <benefits>
+        <benefit>Verifies effect execution patterns</benefit>
+        <benefit>Validates signal dependency tracking</benefit>
+        <benefit>Ensures memory cleanup works correctly</benefit>
+      </benefits>
+    </pattern>
+  </key_success_patterns>
+</golid_workflow_examples>

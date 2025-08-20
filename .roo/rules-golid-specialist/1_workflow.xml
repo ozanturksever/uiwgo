@@ -1,0 +1,112 @@
+<golid_specialist_workflow>
+  <mode_overview>
+    The GoLid Specialist mode focuses on building high-performance, reactive UI frameworks in Go targeting WebAssembly,
+    with deep inspiration from SolidJS's fine-grained reactivity model. This mode prioritizes performance,
+    idiomatic Go code, and direct DOM manipulation over VDOM reconciliation.
+  </mode_overview>
+
+  <initialization_steps>
+    <step number="1">
+      <action>Understand the reactive UI requirements</action>
+      <details>
+        Parse the user's request to identify:
+        - UI framework features needed (signals, effects, components)
+        - Performance requirements and constraints
+        - SolidJS patterns to translate
+        - WASM/DOM interaction needs
+        - Existing codebase architecture
+      </details>
+    </step>
+    
+    <step number="2">
+      <action>Analyze existing reactive architecture</action>
+      <tools>
+        <tool>codebase_search - Find existing signal/effect implementations</tool>
+        <tool>read_file - Examine reactivity core files</tool>
+        <tool>list_files - Understand project structure and examples</tool>
+      </tools>
+      <focus_areas>
+        <area>golid/ directory - Core framework files</area>
+        <area>examples/ directory - Usage patterns and demos</area>
+        <area>Architecture documentation files</area>
+      </focus_areas>
+    </step>
+  </initialization_steps>
+
+  <main_workflow>
+    <phase name="architecture_analysis">
+      <description>Analyze and design the reactive system architecture</description>
+      <steps>
+        <step>Examine signal/effect/memo implementations</step>
+        <step>Identify performance bottlenecks and optimization opportunities</step>
+        <step>Map SolidJS patterns to Go idioms</step>
+        <step>Design WASM-optimized data structures</step>
+      </steps>
+      <deliverables>
+        <deliverable>Architectural assessment</deliverable>
+        <deliverable>Performance optimization plan</deliverable>
+        <deliverable>Go/WASM implementation strategy</deliverable>
+      </deliverables>
+    </phase>
+
+    <phase name="reactive_implementation">
+      <description>Implement or enhance the reactive system</description>
+      <steps>
+        <step>Implement fine-grained reactivity primitives</step>
+        <step>Create efficient signal/observer graphs</step>
+        <step>Build effect scheduling system</step>
+        <step>Optimize DOM update mechanisms</step>
+      </steps>
+      <solidjs_principles>
+        <principle>No VDOM - direct DOM manipulation only</principle>
+        <principle>Fine-grained updates - minimal computation and DOM changes</principle>
+        <principle>Compile-time optimizations where possible</principle>
+        <principle>Predictable performance characteristics</principle>
+      </solidjs_principles>
+    </phase>
+
+    <phase name="performance_optimization">
+      <description>Optimize for WASM and runtime performance</description>
+      <steps>
+        <step>Profile memory allocations and escape analysis</step>
+        <step>Optimize syscall/js DOM bindings</step>
+        <step>Minimize WASM binary size</step>
+        <step>Implement efficient batching and scheduling</step>
+      </steps>
+      <metrics>
+        <metric>Memory allocation rates</metric>
+        <metric>DOM update frequency and efficiency</metric>
+        <metric>WASM binary size</metric>
+        <metric>Runtime performance vs other frameworks</metric>
+      </metrics>
+    </phase>
+
+    <phase name="testing_and_validation">
+      <description>Validate implementation and performance</description>
+      <steps>
+        <step>Create comprehensive test suites</step>
+        <step>Build performance benchmarks</step>
+        <step>Validate against SolidJS behavior</step>
+        <step>Test real-world usage scenarios</step>
+      </steps>
+    </phase>
+  </main_workflow>
+
+  <completion_criteria>
+    <criterion>Reactive system follows SolidJS fine-grained model</criterion>
+    <criterion>No VDOM reconciliation - only direct DOM updates</criterion>
+    <criterion>Performance meets or exceeds VDOM frameworks</criterion>
+    <criterion>Code is idiomatic Go suitable for WASM</criterion>
+    <criterion>Memory usage is optimized and predictable</criterion>
+    <criterion>Examples demonstrate real-world usage patterns</criterion>
+  </completion_criteria>
+
+  <key_deliverables>
+    <deliverable>Signal/Effect/Memo primitives implementation</deliverable>
+    <deliverable>Efficient DOM binding system</deliverable>
+    <deliverable>Component lifecycle management</deliverable>
+    <deliverable>Performance benchmarks and analysis</deliverable>
+    <deliverable>Working examples demonstrating capabilities</deliverable>
+    <deliverable>Migration guides from VDOM patterns</deliverable>
+  </key_deliverables>
+</golid_specialist_workflow>
