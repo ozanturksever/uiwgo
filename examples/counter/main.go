@@ -43,7 +43,7 @@ func CounterComponent() Node {
 		Button(
 			Style("font-size: 1.2em; padding: 10px 20px; margin: 0 10px; border: none; border-radius: 5px; cursor: pointer; background-color: #28a745; color: white; transition: background-color 0.2s;"),
 			Text("+ Increment"),
-			golid.OnClick(func() {
+			golid.OnClickV2(func() {
 				count.Set(count.Get() + 1)
 			}),
 		),
@@ -52,7 +52,7 @@ func CounterComponent() Node {
 		Button(
 			Style("font-size: 1.2em; padding: 10px 20px; margin: 0 10px; border: none; border-radius: 5px; cursor: pointer; background-color: #dc3545; color: white; transition: background-color 0.2s;"),
 			Text("- Decrement"),
-			golid.OnClick(func() {
+			golid.OnClickV2(func() {
 				count.Set(count.Get() - 1)
 			}),
 		),
@@ -63,7 +63,7 @@ func CounterComponent() Node {
 		Button(
 			Style("font-size: 1.2em; padding: 10px 20px; margin: 10px; border: none; border-radius: 5px; cursor: pointer; background-color: #6c757d; color: white; transition: background-color 0.2s;"),
 			Text("Reset"),
-			golid.OnClick(func() {
+			golid.OnClickV2(func() {
 				count.Set(0)
 			}),
 		),

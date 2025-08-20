@@ -498,6 +498,33 @@ func CreateRoot[T any](fn func() T) (T, func()) {
 	return result, cleanup
 }
 
+// CreateOwner creates a new ownership scope for automatic resource management
+func CreateOwner(fn func()) *Owner {
+	owner := &Owner{
+		id:           atomic.AddUint64(&ownerIdCounter, 1),
+		parent:       getCurrentOwner(),
+		children:     make([]*Owner, 0),
+		computations: make([]*Computation, 0),
+		signals:      make([]SignalRef, 0),
+		cleanups:     make([]func(), 0),
+		context:      make(map[string]interface{}),
+	}
+
+	// Add to parent's children if we have a parent
+	if owner.parent != nil {
+		owner.parent.addChild(owner)
+	}
+
+	// Run function with this owner as current
+	prevOwner := getCurrentOwner()
+	setCurrentOwner(owner)
+	defer setCurrentOwner(prevOwner)
+
+	fn()
+
+	return owner
+}
+
 // RunWithOwner runs a function with the specified owner as current
 func RunWithOwner[T any](owner *Owner, fn func() T) T {
 	prevOwner := getCurrentOwner()
@@ -565,6 +592,11 @@ func (o *Owner) addCleanup(fn func()) {
 	}
 
 	o.cleanups = append(o.cleanups, fn)
+}
+
+// Dispose manually disposes the owner and cleans up all resources
+func (o *Owner) Dispose() {
+	o.dispose()
 }
 
 // dispose cleans up all resources owned by this owner

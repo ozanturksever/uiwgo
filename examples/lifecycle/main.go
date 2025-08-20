@@ -116,7 +116,7 @@ func DynamicComponentDemo() Node {
 					}
 					return "Show Timer Component"
 				}),
-				golid.OnClick(func() {
+				golid.OnClickV2(func() {
 					showComponent1.Set(!showComponent1.Get())
 				}),
 			),
@@ -128,14 +128,14 @@ func DynamicComponentDemo() Node {
 					}
 					return "Show Counter Component"
 				}),
-				golid.OnClick(func() {
+				golid.OnClickV2(func() {
 					showComponent2.Set(!showComponent2.Get())
 				}),
 			),
 			Button(
 				Style("padding: 8px 16px; background-color: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;"),
 				Text("Create Temporary Component"),
-				golid.OnClick(func() {
+				golid.OnClickV2(func() {
 					count := componentCount.Get()
 					componentCount.Set(count + 1)
 
@@ -262,14 +262,14 @@ func CounterComponent() *golid.Component {
 			Button(
 				Style("padding: 5px 10px; background-color: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; margin-right: 5px;"),
 				Text("+"),
-				golid.OnClick(func() {
+				golid.OnClickV2(func() {
 					count.Set(count.Get() + 1)
 				}),
 			),
 			Button(
 				Style("padding: 5px 10px; background-color: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer;"),
 				Text("-"),
-				golid.OnClick(func() {
+				golid.OnClickV2(func() {
 					count.Set(count.Get() - 1)
 				}),
 			),

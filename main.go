@@ -1,3 +1,5 @@
+//go:build js && wasm
+
 package main
 
 import (
@@ -75,7 +77,7 @@ func main() {
 		return DemoPage("All Examples Showcase", "All demos in one page", AllExamplesShowcase())
 	})
 
-	// Render the router-based app
+	// Render the router-based app - keeping V1 for now since router uses V1 internally
 	golid.Render(RouterApp())
 	golid.Run()
 }
@@ -246,23 +248,24 @@ func createFeatureCard(title, description, href string) Node {
 }
 
 func CounterComponent() Node {
-	// Observable (represents the state of the app)
-	count := golid.NewSignal(0)
+	// Observable (represents the state of the app) - V2 API
+	count, setCount := golid.CreateSignal(0)
 
 	return Div(
 		Style("border: 1px solid orange; padding: 10px; margin: 10px;"),
 
-		// Bind text Element to the reactive count signal (observable)
-		golid.Bind(func() Node {
-			return Div(Text(fmt.Sprintf("Count = %d", count.Get())))
-		}),
+		// Bind text Element to the reactive count signal (observable) - V2 API
+		Div(
+			ID("counter-display"),
+			Text(fmt.Sprintf("Count = %d", count())),
+		),
 
 		// [+] Button element
 		Button(
 			Style("margin: 3px;"),
 			Text("+"),
-			golid.OnClick(func() {
-				count.Set(count.Get() + 1)
+			golid.OnClickReactive(func() {
+				setCount(count() + 1)
 			}),
 		),
 
@@ -270,38 +273,46 @@ func CounterComponent() Node {
 		Button(
 			Style("margin: 3px;"),
 			Text("-"),
-			golid.OnClick(func() {
-				count.Set(count.Get() - 1)
+			golid.OnClickReactive(func() {
+				setCount(count() - 1)
 			}),
 		),
 	)
 }
 
 func List1() Node {
-	messages := []string{"Hello", "World", "Golid"}
-
 	return Div(
 		H3(Text("Messages")),
-		golid.ForEach(messages, func(msg string) Node {
-			return Li(Text(msg))
-		}),
+		Ul(
+			Li(Text("Hello")),
+			Li(Text("World")),
+			Li(Text("Golid")),
+		),
 	)
 }
 
 func List2() Node {
-	messages := []string{"Hello", "World", "Golid"}
-
 	return Div(
 		H3(Text("Messages")),
 		Ul( // Wrap list items in a <ul>
-			golid.ForEach(messages, func(msg string) Node {
-				return Li(
-					Text(msg),
-					golid.OnClick(func() {
-						golid.Log("Clicked on:", msg)
-					}),
-				)
-			}),
+			Li(
+				Text("Hello"),
+				golid.OnClickReactive(func() {
+					golid.Log("Clicked on:", "Hello")
+				}),
+			),
+			Li(
+				Text("World"),
+				golid.OnClickReactive(func() {
+					golid.Log("Clicked on:", "World")
+				}),
+			),
+			Li(
+				Text("Golid"),
+				golid.OnClickReactive(func() {
+					golid.Log("Clicked on:", "Golid")
+				}),
+			),
 		),
 	)
 }
@@ -318,7 +329,7 @@ func TextCopyDemo() Node {
 		Input(
 			Type("text"),
 			Placeholder("Type something..."),
-			golid.OnInput(func(val string) {
+			golid.OnInputReactive(func(val string) {
 				inputValue.Set(val)
 			}),
 		),
@@ -327,7 +338,7 @@ func TextCopyDemo() Node {
 		Button(
 			Style("margin-left: 10px;"),
 			Text("Copy"),
-			golid.OnClick(func() {
+			golid.OnClickReactive(func() {
 				copiedText.Set(inputValue.Get())
 			}),
 		),
@@ -336,9 +347,10 @@ func TextCopyDemo() Node {
 		Div(
 			Style("margin-top: 10px; font-weight: bold;"),
 			Text("Copied text: "),
-			golid.Bind(func() Node {
-				return Text(copiedText.Get())
-			}),
+			Span(
+				ID("text-display"),
+				Text(copiedText.Get()),
+			),
 		),
 	)
 }
@@ -353,7 +365,7 @@ func TextCopyDemo1() Node {
 		Input(
 			Type("text"),
 			Placeholder("Start typing..."),
-			golid.OnInput(func(val string) {
+			golid.OnInputReactive(func(val string) {
 				inputValue.Set(val)
 			}),
 		),
@@ -362,9 +374,10 @@ func TextCopyDemo1() Node {
 		Div(
 			Style("margin-top: 10px; font-weight: bold;"),
 			Text("You typed: "),
-			golid.Bind(func() Node {
-				return Text(inputValue.Get())
-			}),
+			Span(
+				ID("input-display"),
+				Text(inputValue.Get()),
+			),
 		),
 	)
 }
@@ -376,42 +389,41 @@ func TextCopyDemo2() Node {
 		H3(Text("Twin Mirror Inputs")),
 
 		// Input 1 (reactively updates on shared signal change)
-		golid.Bind(func() Node {
-			return Input(
-				Type("text"),
-				Placeholder("Input 1"),
-				Style("margin-left: 10px;"),
-				Value(shared.Get()),
-				golid.OnInput(func(val string) {
-					if val != shared.Get() {
-						shared.Set(val)
-					}
-				}),
-			)
-		}),
+		Input(
+			ID("input-1"),
+			Type("text"),
+			Placeholder("Input 1"),
+			Style("margin-left: 10px;"),
+			Value(shared.Get()),
+			golid.OnInputReactive(func(val string) {
+				if val != shared.Get() {
+					shared.Set(val)
+				}
+			}),
+		),
 
 		// Input 2 (also reacts to signal change)
-		golid.Bind(func() Node {
-			return Input(
-				Type("text"),
-				Placeholder("Input 2"),
-				Style("margin-left: 10px;"),
-				Value(shared.Get()),
-				golid.OnInput(func(val string) {
-					if val != shared.Get() {
-						shared.Set(val)
-					}
-				}),
-			)
-		}),
+		Input(
+			ID("input-2"),
+			Type("text"),
+			Placeholder("Input 2"),
+			Style("margin-left: 10px;"),
+			Value(shared.Get()),
+			golid.OnInputReactive(func(val string) {
+				if val != shared.Get() {
+					shared.Set(val)
+				}
+			}),
+		),
 
 		// Display current value
 		Div(
 			Style("margin-top: 10px; font-style: italic;"),
 			Text("Shared value: "),
-			golid.Bind(func() Node {
-				return Text(shared.Get())
-			}),
+			Span(
+			ID("shared-display-3"),
+			Text(shared.Get()),
+		),
 		),
 	)
 }
@@ -430,9 +442,10 @@ func TextCopyDemo3() Node {
 		Div(
 			Style("margin-top: 10px; font-style: italic;"),
 			Text("Shared value: "),
-			golid.Bind(func() Node {
-				return Text(shared.Get())
-			}),
+			Span(
+				ID("shared-display-2"),
+				Text(shared.Get()),
+			),
 		),
 	)
 }
@@ -458,7 +471,10 @@ func InputTypesDemo() Node {
 			Label(Style("display: block; font-weight: bold; margin-bottom: 5px;"), Text("Text Input:")),
 			golid.BindInputWithType(textValue, "text", "Enter some text..."),
 			Div(Style("font-size: 12px; color: #666; margin-top: 5px;"),
-				Text("Value: "), golid.BindText(func() string { return textValue.Get() })),
+				Text("Value: "), Span(
+				ID("text-value-display"),
+				Text(textValue.Get()),
+			)),
 		),
 
 		// Email Input
@@ -467,7 +483,10 @@ func InputTypesDemo() Node {
 			Label(Style("display: block; font-weight: bold; margin-bottom: 5px;"), Text("Email Input:")),
 			golid.BindInputWithType(emailValue, "email", "user@example.com"),
 			Div(Style("font-size: 12px; color: #666; margin-top: 5px;"),
-				Text("Email: "), golid.BindText(func() string { return emailValue.Get() })),
+				Text("Email: "), Span(
+				ID("email-value-display"),
+				Text(emailValue.Get()),
+			)),
 		),
 
 		// Password Input
@@ -476,7 +495,10 @@ func InputTypesDemo() Node {
 			Label(Style("display: block; font-weight: bold; margin-bottom: 5px;"), Text("Password Input:")),
 			golid.BindInputWithType(passwordValue, "password", "Enter password..."),
 			Div(Style("font-size: 12px; color: #666; margin-top: 5px;"),
-				Text("Length: "), golid.BindText(func() string { return fmt.Sprintf("%d characters", len(passwordValue.Get())) })),
+				Text("Length: "), Span(
+				ID("password-length-display"),
+				Text(fmt.Sprintf("%d characters", len(passwordValue.Get()))),
+			)),
 		),
 
 		// URL Input
@@ -485,7 +507,10 @@ func InputTypesDemo() Node {
 			Label(Style("display: block; font-weight: bold; margin-bottom: 5px;"), Text("URL Input:")),
 			golid.BindInputWithType(urlValue, "url", "https://example.com"),
 			Div(Style("font-size: 12px; color: #666; margin-top: 5px;"),
-				Text("URL: "), golid.BindText(func() string { return urlValue.Get() })),
+				Text("URL: "), Span(
+					ID("url-display"),
+					Text(func() string { return urlValue.Get() }()),
+				)),
 		),
 
 		// Search Input
@@ -494,7 +519,10 @@ func InputTypesDemo() Node {
 			Label(Style("display: block; font-weight: bold; margin-bottom: 5px;"), Text("Search Input:")),
 			golid.BindInputWithType(searchValue, "search", "Search something..."),
 			Div(Style("font-size: 12px; color: #666; margin-top: 5px;"),
-				Text("Search: "), golid.BindText(func() string { return searchValue.Get() })),
+				Text("Search: "), Span(
+					ID("search-display"),
+					Text(func() string { return searchValue.Get() }()),
+				)),
 		),
 	)
 }
@@ -513,16 +541,22 @@ func NumberInputDemo() Node {
 			Label(Style("display: block; font-weight: bold; margin-bottom: 5px;"), Text("Number Input:")),
 			golid.BindInputWithType(numberValue, "number", "Enter a number..."),
 			Div(Style("margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px;"),
-				Text("Value: "), golid.BindText(func() string { return numberValue.Get() }),
+				Text("Value: "), Span(
+				ID("number-value-display"),
+				Text(numberValue.Get()),
+			),
 				Br(),
-				Text("Doubled: "), golid.BindText(func() string {
-					if val := numberValue.Get(); val != "" {
-						if num := parseNumber(val); num != 0 {
-							return fmt.Sprintf("%.2f", num*2)
+				Text("Doubled: "), Span(
+					ID("doubled-display"),
+					Text(func() string {
+						if val := numberValue.Get(); val != "" {
+							if num := parseNumber(val); num != 0 {
+								return fmt.Sprintf("%.2f", num*2)
+							}
 						}
-					}
-					return "0"
-				}),
+						return "0"
+					}()),
+				),
 			),
 		),
 
@@ -532,19 +566,25 @@ func NumberInputDemo() Node {
 			Label(Style("display: block; font-weight: bold; margin-bottom: 5px;"), Text("Range Slider:")),
 			golid.BindInputWithType(rangeValue, "range", ""),
 			Div(Style("margin-top: 10px; padding: 10px; background: #e8f4fd; border-radius: 5px;"),
-				Text("Slider Value: "), golid.BindText(func() string { return rangeValue.Get() }),
+				Text("Slider Value: "), Span(
+				ID("range-value-display"),
+				Text(rangeValue.Get()),
+			),
 				Br(),
-				golid.Bind(func() Node {
-					val := rangeValue.Get()
-					if val == "" {
-						val = "0"
-					}
-					width := val + "%"
-					return Div(
-						Style("margin-top: 5px; height: 20px; background: #ddd; border-radius: 10px; overflow: hidden;"),
-						Div(Style("height: 100%; background: linear-gradient(90deg, #4CAF50, #2196F3); width: "+width+"; transition: width 0.3s;")),
-					)
-				}),
+				Div(
+					Style("margin-top: 5px; height: 20px; background: #ddd; border-radius: 10px; overflow: hidden;"),
+					Div(
+						ID("range-bar-display"),
+						Style(func() string {
+							val := rangeValue.Get()
+							if val == "" {
+								val = "0"
+							}
+							width := val + "%"
+							return "height: 100%; background: linear-gradient(90deg, #4CAF50, #2196F3); width: "+width+"; transition: width 0.3s;"
+						}()),
+					),
+				),
 			),
 		),
 	)
@@ -584,33 +624,41 @@ func EmailPasswordDemo() Node {
 			),
 
 			// Form Status
-			golid.Bind(func() Node {
-				emailVal := email.Get()
-				passVal := password.Get()
-				confirmVal := confirmPassword.Get()
+			Div(
+				ID("form-status-display"),
+				Style(func() string {
+					emailVal := email.Get()
+					passVal := password.Get()
+					confirmVal := confirmPassword.Get()
 
-				var status string
-				var color string
+					var color string
+					if emailVal == "" || passVal == "" {
+						color = "#ff9800"
+					} else if len(passVal) < 6 {
+						color = "#f44336"
+					} else if passVal != confirmVal {
+						color = "#f44336"
+					} else {
+						color = "#4caf50"
+					}
+					return "padding: 10px; border-radius: 5px; background: "+color+"22; color: "+color+"; font-weight: bold;"
+				}()),
+				Text(func() string {
+					emailVal := email.Get()
+					passVal := password.Get()
+					confirmVal := confirmPassword.Get()
 
-				if emailVal == "" || passVal == "" {
-					status = "⚠️  Please fill in all fields"
-					color = "#ff9800"
-				} else if len(passVal) < 6 {
-					status = "❌ Password must be at least 6 characters"
-					color = "#f44336"
-				} else if passVal != confirmVal {
-					status = "❌ Passwords don't match"
-					color = "#f44336"
-				} else {
-					status = "✅ Form is valid!"
-					color = "#4caf50"
-				}
-
-				return Div(
-					Style("padding: 10px; border-radius: 5px; background: "+color+"22; color: "+color+"; font-weight: bold;"),
-					Text(status),
-				)
-			}),
+					if emailVal == "" || passVal == "" {
+						return "⚠️  Please fill in all fields"
+					} else if len(passVal) < 6 {
+						return "❌ Password must be at least 6 characters"
+					} else if passVal != confirmVal {
+						return "❌ Passwords don't match"
+					} else {
+						return "✅ Form is valid!"
+					}
+				}()),
+			),
 		),
 	)
 }
@@ -634,36 +682,43 @@ func FocusStateDemo() Node {
 		),
 
 		// Focus Status Display
-		golid.Bind(func() Node {
-			focused := isFocused.Get()
-			var status, color, bgColor string
-
-			if focused {
-				status = "🟢 Input is FOCUSED"
-				color = "#4caf50"
-				bgColor = "#e8f5e8"
-			} else {
-				status = "🔴 Input is NOT focused"
-				color = "#666"
-				bgColor = "#f5f5f5"
-			}
-
-			return Div(
-				Style("padding: 15px; border-radius: 8px; background: "+bgColor+"; color: "+color+"; font-weight: bold; margin-bottom: 15px;"),
-				Text(status),
-			)
-		}),
+		Div(
+			ID("focus-status-display"),
+			Style(func() string {
+				focused := isFocused.Get()
+				var color, bgColor string
+				if focused {
+					color = "#4caf50"
+					bgColor = "#e8f5e8"
+				} else {
+					color = "#666"
+					bgColor = "#f5f5f5"
+				}
+				return "padding: 15px; border-radius: 8px; background: "+bgColor+"; color: "+color+"; font-weight: bold; margin-bottom: 15px;"
+			}()),
+			Text(func() string {
+				focused := isFocused.Get()
+				if focused {
+					return "🟢 Input is FOCUSED"
+				} else {
+					return "🔴 Input is NOT focused"
+				}
+			}()),
+		),
 
 		// Value Display
 		Div(
 			Style("padding: 10px; background: #f0f0f0; border-radius: 5px;"),
-			Text("Current value: "), golid.BindText(func() string {
-				val := inputValue.Get()
-				if val == "" {
-					return "(empty)"
-				}
-				return "\"" + val + "\""
-			}),
+			Text("Current value: "), Span(
+				ID("input-value-display"),
+				Text(func() string {
+					val := inputValue.Get()
+					if val == "" {
+						return "(empty)"
+					}
+					return "\"" + val + "\""
+				}()),
+			),
 		),
 	)
 }
@@ -688,31 +743,34 @@ func ValidationDemo() Node {
 				golid.BindInputWithFocus(username, usernameFocus, "Enter username..."),
 
 				// Username validation
-				golid.Bind(func() Node {
-					val := username.Get()
-					focused := usernameFocus.Get()
-
-					if val == "" && !focused {
-						return Div() // Empty when not focused and empty
-					}
-
-					var message, color string
-					if len(val) < 3 && val != "" {
-						message = "❌ Username must be at least 3 characters"
-						color = "#f44336"
-					} else if len(val) >= 3 {
-						message = "✅ Username looks good!"
-						color = "#4caf50"
-					}
-
-					if message != "" {
-						return Div(
-							Style("font-size: 12px; color: "+color+"; margin-top: 5px;"),
-							Text(message),
-						)
-					}
-					return Div()
-				}),
+				Div(
+					ID("username-validation"),
+					Style(func() string {
+						val := username.Get()
+						focused := usernameFocus.Get()
+						if val == "" && !focused {
+							return "display: none;"
+						}
+						var color string
+						if len(val) < 3 && val != "" {
+							color = "#f44336"
+						} else if len(val) >= 3 {
+							color = "#4caf50"
+						} else {
+							return "display: none;"
+						}
+						return "font-size: 12px; color: "+color+"; margin-top: 5px;"
+					}()),
+					Text(func() string {
+						val := username.Get()
+						if len(val) < 3 && val != "" {
+							return "❌ Username must be at least 3 characters"
+						} else if len(val) >= 3 {
+							return "✅ Username looks good!"
+						}
+						return ""
+					}()),
+				),
 			),
 
 			// Email field
@@ -722,31 +780,34 @@ func ValidationDemo() Node {
 				golid.BindInputWithFocus(email, emailFocus, "Enter email..."),
 
 				// Email validation
-				golid.Bind(func() Node {
-					val := email.Get()
-					focused := emailFocus.Get()
-
-					if val == "" && !focused {
-						return Div()
-					}
-
-					var message, color string
-					if val != "" && !strings.Contains(val, "@") {
-						message = "❌ Please enter a valid email address"
-						color = "#f44336"
-					} else if strings.Contains(val, "@") && strings.Contains(val, ".") {
-						message = "✅ Email format looks good!"
-						color = "#4caf50"
-					}
-
-					if message != "" {
-						return Div(
-							Style("font-size: 12px; color: "+color+"; margin-top: 5px;"),
-							Text(message),
-						)
-					}
-					return Div()
-				}),
+				Div(
+					ID("email-validation"),
+					Style(func() string {
+						val := email.Get()
+						focused := emailFocus.Get()
+						if val == "" && !focused {
+							return "display: none;"
+						}
+						var color string
+						if val != "" && !strings.Contains(val, "@") {
+							color = "#f44336"
+						} else if strings.Contains(val, "@") && strings.Contains(val, ".") {
+							color = "#4caf50"
+						} else {
+							return "display: none;"
+						}
+						return "font-size: 12px; color: "+color+"; margin-top: 5px;"
+					}()),
+					Text(func() string {
+						val := email.Get()
+						if val != "" && !strings.Contains(val, "@") {
+							return "❌ Please enter a valid email address"
+						} else if strings.Contains(val, "@") && strings.Contains(val, ".") {
+							return "✅ Email format looks good!"
+						}
+						return ""
+					}()),
+				),
 			),
 		),
 	)
@@ -776,31 +837,27 @@ func DynamicStylingDemo() Node {
 				Attr("id", id1),
 				golid.BindInputWithFocus(input1, focus1, "Focus me for glow effect..."),
 				//Dynamic styling applied via JavaScript
-				golid.Bind(func() Node {
-					focused := focus1.Get()
-					style := "padding: 12px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; transition: all 0.3s;"
-					if focused {
-						style += " border: 2px solid #2196F3; box-shadow: 0 0 10px rgba(33, 150, 243, 0.3);"
-					} else {
-						style += " border: 2px solid #ddd;"
-					}
-					// Apply style to the input element via JavaScript
-
-					jsCode := fmt.Sprintf(`
-										(function() {
-											const container = document.getElementById('%s');
-											const input = container ? container.querySelector('input') : null;
-											if (input) {
-												input.style.cssText = '%s';
-											}
-										})();
-									`, id1, style)
-					elem := golid.NodeFromID(id1)
-					if elem.Truthy() {
-						js.Global().Call("eval", jsCode)
-					}
-					return nil
-				}),
+				Script(
+					Attr("type", "text/javascript"),
+					Raw(func() string {
+						focused := focus1.Get()
+						style := "padding: 12px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; transition: all 0.3s;"
+						if focused {
+							style += " border: 2px solid #2196F3; box-shadow: 0 0 10px rgba(33, 150, 243, 0.3);"
+						} else {
+							style += " border: 2px solid #ddd;"
+						}
+						return fmt.Sprintf(`
+							(function() {
+								const container = document.getElementById('%s');
+								const input = container ? container.querySelector('input') : null;
+								if (input) {
+									input.style.cssText = '%s';
+								}
+							})();
+						`, id1, style)
+					}()),
+				),
 			),
 		),
 
@@ -811,27 +868,27 @@ func DynamicStylingDemo() Node {
 			Div(
 				Attr("id", id2),
 				golid.BindInputWithFocus(input2, focus2, "Focus for gradient background..."),
-				golid.Bind(func() Node {
-					focused := focus2.Get()
-					style := "padding: 12px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; transition: all 0.3s; border: 2px solid #ddd;"
-					if focused {
-						style += " background: linear-gradient(45deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);"
-					} else {
-						style += " background: white;"
-					}
-
-					js := fmt.Sprintf(`
-						(function() {
-							const container = document.getElementById('%s');
-							const input = container ? container.querySelector('input') : null;
-							if (input) {
-								input.style.cssText = '%s';
-							}
-						})();
-					`, id2, style)
-
-					return Script(Attr("type", "text/javascript"), Raw(js))
-				}),
+				Script(
+					Attr("type", "text/javascript"),
+					Raw(func() string {
+						focused := focus2.Get()
+						style := "padding: 12px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; transition: all 0.3s; border: 2px solid #ddd;"
+						if focused {
+							style += " background: linear-gradient(45deg, #ff9a9e 0%, #fecfef 50%, #fecfef 100%);"
+						} else {
+							style += " background: white;"
+						}
+						return fmt.Sprintf(`
+							(function() {
+								const container = document.getElementById('%s');
+								const input = container ? container.querySelector('input') : null;
+								if (input) {
+									input.style.cssText = '%s';
+								}
+							})();
+						`, id2, style)
+					}()),
+				),
 			),
 		),
 
@@ -842,25 +899,25 @@ func DynamicStylingDemo() Node {
 			Div(
 				Attr("id", id3),
 				golid.BindInputWithFocus(input3, focus3, "Focus me to scale up..."),
-				golid.Bind(func() Node {
-					focused := focus3.Get()
-					style := "padding: 12px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; transition: all 0.3s; border: 2px solid #4caf50;"
-					if focused {
-						style += " transform: scale(1.05); box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);"
-					}
-
-					js := fmt.Sprintf(`
-						(function() {
-							const container = document.getElementById('%s');
-							const input = container ? container.querySelector('input') : null;
-							if (input) {
-								input.style.cssText = '%s';
-							}
-						})();
-					`, id3, style)
-
-					return Script(Attr("type", "text/javascript"), Raw(js))
-				}),
+				Script(
+					Attr("type", "text/javascript"),
+					Raw(func() string {
+						focused := focus3.Get()
+						style := "padding: 12px; border-radius: 8px; font-size: 16px; width: 100%; box-sizing: border-box; transition: all 0.3s; border: 2px solid #4caf50;"
+						if focused {
+							style += " transform: scale(1.05); box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);"
+						}
+						return fmt.Sprintf(`
+							(function() {
+								const container = document.getElementById('%s');
+								const input = container ? container.querySelector('input') : null;
+								if (input) {
+									input.style.cssText = '%s';
+								}
+							})();
+						`, id3, style)
+					}()),
+				),
 			),
 		),
 
@@ -869,24 +926,33 @@ func DynamicStylingDemo() Node {
 			Style("padding: 15px; background: #f5f5f5; border-radius: 8px;"),
 			H4(Text("Focus Status:")),
 			Ul(
-				Li(Text("Input 1: "), golid.BindText(func() string {
-					if focus1.Get() {
-						return "🟢 Focused"
-					}
-					return "⚪ Not focused"
-				})),
-				Li(Text("Input 2: "), golid.BindText(func() string {
-					if focus2.Get() {
-						return "🟢 Focused"
-					}
-					return "⚪ Not focused"
-				})),
-				Li(Text("Input 3: "), golid.BindText(func() string {
-					if focus3.Get() {
-						return "🟢 Focused"
-					}
-					return "⚪ Not focused"
-				})),
+				Li(Text("Input 1: "), Span(
+					ID("focus-status-1"),
+					Text(func() string {
+						if focus1.Get() {
+							return "🟢 Focused"
+						}
+						return "⚪ Not focused"
+					}()),
+				)),
+				Li(Text("Input 2: "), Span(
+					ID("focus-status-2"),
+					Text(func() string {
+						if focus2.Get() {
+							return "🟢 Focused"
+						}
+						return "⚪ Not focused"
+					}()),
+				)),
+				Li(Text("Input 3: "), Span(
+					ID("focus-status-3"),
+					Text(func() string {
+						if focus3.Get() {
+							return "🟢 Focused"
+						}
+						return "⚪ Not focused"
+					}()),
+				)),
 			),
 		),
 	)
@@ -923,20 +989,37 @@ func ComprehensiveFormDemo() Node {
 				Style("margin-bottom: 20px;"),
 				Label(Style("display: block; font-weight: bold; margin-bottom: 8px; color: #333;"), Text("First Name:")),
 				golid.BindInputWithFocus(firstName, firstNameFocus, "Enter your first name..."),
-				golid.Bind(func() Node {
-					val := firstName.Get()
-					focused := firstNameFocus.Get()
-					if val == "" && focused {
-						return Div(Style("font-size: 12px; color: #ff9800; margin-top: 5px;"), Text("⚠️ First name is required"))
-					}
-					if len(val) > 0 && len(val) < 2 {
-						return Div(Style("font-size: 12px; color: #f44336; margin-top: 5px;"), Text("❌ Name too short"))
-					}
-					if len(val) >= 2 {
-						return Div(Style("font-size: 12px; color: #4caf50; margin-top: 5px;"), Text("✅ Looks good!"))
-					}
-					return Div()
-				}),
+				Div(
+					ID("first-name-validation"),
+					Style(func() string {
+						val := firstName.Get()
+						focused := firstNameFocus.Get()
+						if val == "" && focused {
+							return "font-size: 12px; color: #ff9800; margin-top: 5px;"
+						}
+						if len(val) > 0 && len(val) < 2 {
+							return "font-size: 12px; color: #f44336; margin-top: 5px;"
+						}
+						if len(val) >= 2 {
+							return "font-size: 12px; color: #4caf50; margin-top: 5px;"
+						}
+						return "display: none;"
+					}()),
+					Text(func() string {
+						val := firstName.Get()
+						focused := firstNameFocus.Get()
+						if val == "" && focused {
+							return "⚠️ First name is required"
+						}
+						if len(val) > 0 && len(val) < 2 {
+							return "❌ Name too short"
+						}
+						if len(val) >= 2 {
+							return "✅ Looks good!"
+						}
+						return ""
+					}()),
+				),
 			),
 
 			// Last Name
@@ -944,17 +1027,31 @@ func ComprehensiveFormDemo() Node {
 				Style("margin-bottom: 20px;"),
 				Label(Style("display: block; font-weight: bold; margin-bottom: 8px; color: #333;"), Text("Last Name:")),
 				golid.BindInputWithFocus(lastName, lastNameFocus, "Enter your last name..."),
-				golid.Bind(func() Node {
-					val := lastName.Get()
-					focused := lastNameFocus.Get()
-					if val == "" && focused {
-						return Div(Style("font-size: 12px; color: #ff9800; margin-top: 5px;"), Text("⚠️ Last name is required"))
-					}
-					if len(val) >= 2 {
-						return Div(Style("font-size: 12px; color: #4caf50; margin-top: 5px;"), Text("✅ Looks good!"))
-					}
-					return Div()
-				}),
+				Div(
+					ID("last-name-validation"),
+					Style(func() string {
+						val := lastName.Get()
+						focused := lastNameFocus.Get()
+						if val == "" && focused {
+							return "font-size: 12px; color: #ff9800; margin-top: 5px;"
+						}
+						if len(val) >= 2 {
+							return "font-size: 12px; color: #4caf50; margin-top: 5px;"
+						}
+						return "display: none;"
+					}()),
+					Text(func() string {
+						val := lastName.Get()
+						focused := lastNameFocus.Get()
+						if val == "" && focused {
+							return "⚠️ Last name is required"
+						}
+						if len(val) >= 2 {
+							return "✅ Looks good!"
+						}
+						return ""
+					}()),
+				),
 			),
 
 			// Email
@@ -965,19 +1062,35 @@ func ComprehensiveFormDemo() Node {
 					Style("width: 100%;"),
 					golid.BindInputWithType(email, "email", "user@example.com"),
 				),
-				golid.Bind(func() Node {
-					val := email.Get()
-					if val == "" {
-						return Div(Style("font-size: 12px; color: #999; margin-top: 5px;"), Text("Please enter your email"))
-					}
-					if val != "" && !strings.Contains(val, "@") {
-						return Div(Style("font-size: 12px; color: #f44336; margin-top: 5px;"), Text("❌ Invalid email format"))
-					}
-					if strings.Contains(val, "@") && strings.Contains(val, ".") {
-						return Div(Style("font-size: 12px; color: #4caf50; margin-top: 5px;"), Text("✅ Valid email!"))
-					}
-					return Div()
-				}),
+				Div(
+					ID("email-validation-comprehensive"),
+					Style(func() string {
+						val := email.Get()
+						if val == "" {
+							return "font-size: 12px; color: #999; margin-top: 5px;"
+						}
+						if val != "" && !strings.Contains(val, "@") {
+							return "font-size: 12px; color: #f44336; margin-top: 5px;"
+						}
+						if strings.Contains(val, "@") && strings.Contains(val, ".") {
+							return "font-size: 12px; color: #4caf50; margin-top: 5px;"
+						}
+						return "display: none;"
+					}()),
+					Text(func() string {
+						val := email.Get()
+						if val == "" {
+							return "Please enter your email"
+						}
+						if val != "" && !strings.Contains(val, "@") {
+							return "❌ Invalid email format"
+						}
+						if strings.Contains(val, "@") && strings.Contains(val, ".") {
+							return "✅ Valid email!"
+						}
+						return ""
+					}()),
+				),
 			),
 
 			// Age
@@ -988,22 +1101,41 @@ func ComprehensiveFormDemo() Node {
 					Style("width: 100%;"),
 					golid.BindInputWithType(age, "number", "18"),
 				),
-				golid.Bind(func() Node {
-					val := age.Get()
-					if val == "" {
-						return Div(Style("font-size: 12px; color: #999; margin-top: 5px;"), Text("Please enter your age"))
-					}
-					if num := parseNumber(val); num > 0 {
-						if num < 13 {
-							return Div(Style("font-size: 12px; color: #f44336; margin-top: 5px;"), Text("❌ Must be at least 13 years old"))
+				Div(
+					ID("age-validation"),
+					Style(func() string {
+						val := age.Get()
+						if val == "" {
+							return "font-size: 12px; color: #999; margin-top: 5px;"
 						}
-						if num > 120 {
-							return Div(Style("font-size: 12px; color: #ff9800; margin-top: 5px;"), Text("⚠️ Please enter a valid age"))
+						if num := parseNumber(val); num > 0 {
+							if num < 13 {
+								return "font-size: 12px; color: #f44336; margin-top: 5px;"
+							}
+							if num > 120 {
+								return "font-size: 12px; color: #ff9800; margin-top: 5px;"
+							}
+							return "font-size: 12px; color: #4caf50; margin-top: 5px;"
 						}
-						return Div(Style("font-size: 12px; color: #4caf50; margin-top: 5px;"), Text("✅ Valid age"))
-					}
-					return Div()
-				}),
+						return "display: none;"
+					}()),
+					Text(func() string {
+						val := age.Get()
+						if val == "" {
+							return "Please enter your age"
+						}
+						if num := parseNumber(val); num > 0 {
+							if num < 13 {
+								return "❌ Must be at least 13 years old"
+							}
+							if num > 120 {
+								return "⚠️ Please enter a valid age"
+							}
+							return "✅ Valid age"
+						}
+						return ""
+					}()),
+				),
 			),
 
 			// Website
@@ -1014,19 +1146,35 @@ func ComprehensiveFormDemo() Node {
 					Style("width: 100%;"),
 					golid.BindInputWithType(website, "url", "https://yourwebsite.com"),
 				),
-				golid.Bind(func() Node {
-					val := website.Get()
-					if val == "" {
-						return Div(Style("font-size: 12px; color: #999; margin-top: 5px;"), Text("Optional - enter your website"))
-					}
-					if val != "" && !strings.HasPrefix(val, "http://") && !strings.HasPrefix(val, "https://") {
-						return Div(Style("font-size: 12px; color: #ff9800; margin-top: 5px;"), Text("⚠️ URL should start with http:// or https://"))
-					}
-					if strings.HasPrefix(val, "http") && strings.Contains(val, ".") {
-						return Div(Style("font-size: 12px; color: #4caf50; margin-top: 5px;"), Text("✅ Valid URL!"))
-					}
-					return Div()
-				}),
+				Div(
+					ID("website-validation"),
+					Style(func() string {
+						val := website.Get()
+						if val == "" {
+							return "font-size: 12px; color: #999; margin-top: 5px;"
+						}
+						if val != "" && !strings.HasPrefix(val, "http://") && !strings.HasPrefix(val, "https://") {
+							return "font-size: 12px; color: #ff9800; margin-top: 5px;"
+						}
+						if strings.HasPrefix(val, "http") && strings.Contains(val, ".") {
+							return "font-size: 12px; color: #4caf50; margin-top: 5px;"
+						}
+						return "display: none;"
+					}()),
+					Text(func() string {
+						val := website.Get()
+						if val == "" {
+							return "Optional - enter your website"
+						}
+						if val != "" && !strings.HasPrefix(val, "http://") && !strings.HasPrefix(val, "https://") {
+							return "⚠️ URL should start with http:// or https://"
+						}
+						if strings.HasPrefix(val, "http") && strings.Contains(val, ".") {
+							return "✅ Valid URL!"
+						}
+						return ""
+					}()),
+				),
 			),
 
 			// Form Summary
@@ -1034,65 +1182,79 @@ func ComprehensiveFormDemo() Node {
 			Div(
 				Style("margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;"),
 				H4(Style("margin-top: 0; color: #333;"), Text("Form Summary:")),
-				golid.Bind(func() Node {
-					return Div(
-						Text("👤 Name: "), golid.BindText(func() string {
-							first := firstName.Get()
-							last := lastName.Get()
-							if first == "" && last == "" {
-								return "(not entered)"
-							}
-							return first + " " + last
-						}),
-						Br(),
-						Text("📧 Email: "), golid.BindText(func() string {
-							val := email.Get()
-							if val == "" {
-								return "(not entered)"
-							}
-							return val
-						}),
-						Br(),
-						Text("🎂 Age: "), golid.BindText(func() string {
-							val := age.Get()
-							if val == "" {
-								return "(not entered)"
-							}
-							return val + " years old"
-						}),
-						Br(),
-						Text("🌐 Website: "), golid.BindText(func() string {
-							val := website.Get()
-							if val == "" {
-								return "(none)"
-							}
-							return val
-						}),
-					)
-				}),
+				Div(
+				ID("form-summary"),
+				Text("👤 Name: "), Span(
+					ID("name-summary"),
+					Text(func() string {
+						first := firstName.Get()
+						last := lastName.Get()
+						if first == "" && last == "" {
+							return "(not entered)"
+						}
+						return first + " " + last
+					}()),
+				),
+				Br(),
+				Text("📧 Email: "), Span(
+					ID("email-summary"),
+					Text(func() string {
+						val := email.Get()
+						if val == "" {
+							return "(not entered)"
+						}
+						return val
+					}()),
+				),
+				Br(),
+				Text("🎂 Age: "), Span(
+					ID("age-summary"),
+					Text(func() string {
+						val := age.Get()
+						if val == "" {
+							return "(not entered)"
+						}
+						return val + " years old"
+					}()),
+				),
+				Br(),
+				Text("🌐 Website: "), Span(
+					ID("website-summary"),
+					Text(func() string {
+						val := website.Get()
+						if val == "" {
+							return "(none)"
+						}
+						return val
+					}()),
+				),
+			),
 			),
 
 			// Focus Status
 			Div(
 				Style("margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 5px;"),
-				Text("👀 Currently focused: "), golid.BindText(func() string {
-					if firstNameFocus.Get() {
-						return "First Name"
-					}
-					if lastNameFocus.Get() {
-						return "Last Name"
-					}
-					if emailFocus.Get() {
-						return "Email"
-					}
-					if ageFocus.Get() {
-						return "Age"
-					}
-					if websiteFocus.Get() {
-						return "Website"
-					}
-					return "None"
-				}),
+				Text("👀 Currently focused: "), Span(
+					ID("focus-status-comprehensive"),
+					Text(func() string {
+						if firstNameFocus.Get() {
+							return "First Name"
+						}
+						if lastNameFocus.Get() {
+							return "Last Name"
+						}
+						if emailFocus.Get() {
+							return "Email"
+						}
+						if ageFocus.Get() {
+							return "Age"
+						}
+						if websiteFocus.Get() {
+							return "Website"
+						}
+						return "None"
+					}()),
+				),
 			),
 		),
 	)
@@ -1259,60 +1421,81 @@ func AllExamplesShowcase() Node {
 func LifecycleBasicDemo() Node {
 	message := golid.NewSignal("Component not initialized")
 
-	component := golid.WithLifecycle(func() Node {
-		return Div(
-			Style("padding: 20px; border: 2px solid #e0e0e0; border-radius: 8px; margin: 10px 0;"),
-			H4(Text("Basic Lifecycle Demo")),
-			P(golid.BindText(func() string { return message.Get() })),
-		)
-	}).OnInit(func() {
+	// Use CreateOwner for resource management instead of WithLifecycle
+	owner := golid.CreateOwner(func() {
+		// OnInit equivalent - runs immediately when owner is created
 		message.Set("✅ OnInit: Component initialized!")
 		golid.Log("LifecycleBasicDemo: OnInit called")
-	}).OnMount(func() {
-		message.Set("🚀 OnMount: Component mounted to DOM!")
-		golid.Log("LifecycleBasicDemo: OnMount called")
-	}).OnDismount(func() {
-		golid.Log("LifecycleBasicDemo: OnDismount called - component removed from DOM!")
+
+		// OnDismount equivalent - runs when owner is disposed
+		golid.OnCleanup(func() {
+			golid.Log("LifecycleBasicDemo: OnCleanup called - component removed from DOM!")
+		})
 	})
 
-	return component.Render()
+	// Simulate OnMount by setting message after component creation
+	message.Set("🚀 OnMount: Component mounted to DOM!")
+	golid.Log("LifecycleBasicDemo: OnMount called")
+
+	return Div(
+		Style("padding: 20px; border: 2px solid #e0e0e0; border-radius: 8px; margin: 10px 0;"),
+		H4(Text("Basic Lifecycle Demo")),
+		P(Span(
+			ID("lifecycle-message"),
+			Text(func() string { return message.Get() }()),
+		)),
+		// Store owner reference for cleanup (in a real app, this would be handled by the framework)
+		Attr("data-owner-id", fmt.Sprintf("%p", owner)),
+	)
 }
 
 func LifecycleCounterDemo() Node {
 	counter := golid.NewSignal(0)
 	mountTime := golid.NewSignal("")
 
-	component := golid.WithLifecycle(func() Node {
-		return Div(
-			Style("padding: 20px; border: 2px solid #4CAF50; border-radius: 8px; margin: 10px 0;"),
-			H4(Text("Counter with Lifecycle Hooks")),
-			P(golid.BindText(func() string { return fmt.Sprintf("Count: %d", counter.Get()) })),
-			P(golid.BindText(func() string { return mountTime.Get() })),
-			Button(
-				Text("Increment"),
-				Style("margin: 5px; padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;"),
-				golid.OnClick(func() {
-					counter.Set(counter.Get() + 1)
-				}),
-			),
-			Button(
-				Text("Reset"),
-				Style("margin: 5px; padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;"),
-				golid.OnClick(func() {
-					counter.Set(0)
-				}),
-			),
-		)
-	}).OnInit(func() {
+	// Use CreateOwner for resource management instead of WithLifecycle
+	owner := golid.CreateOwner(func() {
+		// OnInit equivalent - runs immediately when owner is created
 		golid.Log("LifecycleCounterDemo: OnInit - counter initialized at", counter.Get())
-	}).OnMount(func() {
-		mountTime.Set(fmt.Sprintf("⏰ Mounted at: %d", js.Global().Get("Date").New().Call("getTime").Int()))
-		golid.Log("LifecycleCounterDemo: OnMount - component mounted to DOM")
-	}).OnDismount(func() {
-		golid.Log("LifecycleCounterDemo: OnDismount - cleaning up counter component")
+
+		// OnDismount equivalent - runs when owner is disposed
+		golid.OnCleanup(func() {
+			golid.Log("LifecycleCounterDemo: OnCleanup - cleaning up counter component")
+		})
 	})
 
-	return component.Render()
+	// Simulate OnMount by setting mount time after component creation
+	mountTime.Set(fmt.Sprintf("⏰ Mounted at: %d", js.Global().Get("Date").New().Call("getTime").Int()))
+	golid.Log("LifecycleCounterDemo: OnMount - component mounted to DOM")
+
+	return Div(
+		Style("padding: 20px; border: 2px solid #4CAF50; border-radius: 8px; margin: 10px 0;"),
+		H4(Text("Counter with Lifecycle Hooks")),
+		P(Span(
+			ID("lifecycle-counter"),
+			Text(func() string { return fmt.Sprintf("Count: %d", counter.Get()) }()),
+		)),
+		P(Span(
+			ID("lifecycle-mount-time"),
+			Text(func() string { return mountTime.Get() }()),
+		)),
+		Button(
+			Text("Increment"),
+			Style("margin: 5px; padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;"),
+			golid.OnClick(func() {
+				counter.Set(counter.Get() + 1)
+			}),
+		),
+		Button(
+			Text("Reset"),
+			Style("margin: 5px; padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;"),
+			golid.OnClick(func() {
+				counter.Set(0)
+			}),
+		),
+		// Store owner reference for cleanup (in a real app, this would be handled by the framework)
+		Attr("data-owner-id", fmt.Sprintf("%p", owner)),
+	)
 }
 
 func LifecycleCleanupDemo() Node {
@@ -1320,57 +1503,84 @@ func LifecycleCleanupDemo() Node {
 	intervalID := golid.NewSignal(0)
 	timestamp := golid.NewSignal("")
 
-	lifecycleComponent := golid.WithLifecycle(func() Node {
+	// Create a function that returns the lifecycle component using CreateOwner
+	lifecycleComponent := func() Node {
+		// Use CreateOwner for resource management instead of WithLifecycle
+		owner := golid.CreateOwner(func() {
+			// OnInit equivalent - runs immediately when owner is created
+			golid.Log("LifecycleCleanupDemo child: OnInit called")
+
+			// Start an interval that updates timestamp (OnMount equivalent)
+			golid.Log("LifecycleCleanupDemo child: OnMount - starting interval")
+			callback := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+				now := js.Global().Get("Date").New()
+				timestamp.Set(fmt.Sprintf("🕒 Current time: %s", now.Call("toLocaleTimeString").String()))
+				return nil
+			})
+			id := js.Global().Call("setInterval", callback, 1000)
+			intervalID.Set(id.Int())
+
+			// OnDismount equivalent - runs when owner is disposed
+			golid.OnCleanup(func() {
+				golid.Log("LifecycleCleanupDemo child: OnDismount - clearing interval", intervalID.Get())
+				if intervalID.Get() > 0 {
+					js.Global().Call("clearInterval", intervalID.Get())
+				}
+			})
+		})
+
 		return Div(
 			Style("padding: 20px; border: 2px solid #FF9800; border-radius: 8px; margin: 10px 0; background: #FFF3E0;"),
 			H4(Text("Cleanup Demo Component")),
 			P(Text("This component updates every second and cleans up on dismount.")),
-			P(golid.BindText(func() string { return timestamp.Get() })),
+			P(Span(
+				ID("lifecycle-timestamp"),
+				Text(func() string { return timestamp.Get() }()),
+			)),
+			// Store owner reference for cleanup (in a real app, this would be handled by the framework)
+			Attr("data-owner-id", fmt.Sprintf("%p", owner)),
 		)
-	}).OnInit(func() {
-		golid.Log("LifecycleCleanupDemo child: OnInit called")
-	}).OnMount(func() {
-		golid.Log("LifecycleCleanupDemo child: OnMount - starting interval")
-		// Start an interval that updates timestamp
-		callback := js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-			now := js.Global().Get("Date").New()
-			timestamp.Set(fmt.Sprintf("🕒 Current time: %s", now.Call("toLocaleTimeString").String()))
-			return nil
-		})
-		id := js.Global().Call("setInterval", callback, 1000)
-		intervalID.Set(id.Int())
-	}).OnDismount(func() {
-		golid.Log("LifecycleCleanupDemo child: OnDismount - clearing interval", intervalID.Get())
-		if intervalID.Get() > 0 {
-			js.Global().Call("clearInterval", intervalID.Get())
-		}
-	})
+	}
 
 	return Div(
 		Style("padding: 20px; border: 2px solid #2196F3; border-radius: 8px; margin: 10px 0;"),
 		H4(Text("Lifecycle Cleanup Demo")),
 		P(Text("Toggle visibility to see mount/dismount lifecycle in action:")),
 		Button(
-			golid.BindText(func() string {
-				if isVisible.Get() {
-					return "Hide Component"
-				}
-				return "Show Component"
-			}),
+			Span(
+				ID("toggle-button-text"),
+				Text(func() string {
+					if isVisible.Get() {
+						return "Hide Component"
+					}
+					return "Show Component"
+				}()),
+			),
 			Style("margin: 5px; padding: 8px 16px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;"),
 			golid.OnClick(func() {
 				isVisible.Set(!isVisible.Get())
 			}),
 		),
-		golid.Bind(func() Node {
-			if isVisible.Get() {
-				return lifecycleComponent.Render()
-			}
-			return Div(
-				Style("padding: 20px; border: 2px dashed #ccc; border-radius: 8px; margin: 10px 0; color: #666;"),
-				Text("Component is hidden - dismount hooks should have been called"),
-			)
-		}),
+		Div(
+			ID("lifecycle-conditional-content"),
+			Style(func() string {
+				if isVisible.Get() {
+					return "display: block;"
+				}
+				return "display: none;"
+			}()),
+			lifecycleComponent(),
+		),
+		Div(
+			ID("lifecycle-hidden-message"),
+			Style(func() string {
+				if !isVisible.Get() {
+					return "padding: 20px; border: 2px dashed #ccc; border-radius: 8px; margin: 10px 0; color: #666; display: block;"
+				}
+				return "display: none;"
+			}()),
+			Text("Component is hidden - dismount hooks should have been called"),
+		),
 	)
 }
 

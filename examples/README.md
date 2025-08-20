@@ -9,7 +9,7 @@ This directory contains simple examples demonstrating various features of the Go
 
 **Features:**
 - Reactive signals with `golid.NewSignal()`
-- Button click handlers with `golid.OnClick()`
+- Button click handlers with `golid.OnClickV2()`
 - Reactive text binding with `golid.BindText()`
 - State-based conditional rendering
 
@@ -23,7 +23,7 @@ make example-counter
 
 **Features:**
 - Dynamic list rendering with `golid.ForEach()`
-- Form input handling with `golid.OnInput()`
+- Form input handling with `golid.OnInputV2()`
 - Adding, removing, and toggling todo items
 - Reactive statistics display
 - Complex state management with arrays
@@ -146,7 +146,7 @@ All examples demonstrate these common Golid patterns:
 
 3. **Event Handling:**
    ```go
-   golid.OnClick(func() {
+   golid.OnClickV2(func() {
        count.Set(count.Get() + 1)
    })
    ```

@@ -48,6 +48,7 @@ type CleanupScheduler struct {
 	ctx            context.Context
 	cancel         context.CancelFunc
 	scheduleTicker *time.Ticker
+	wg             sync.WaitGroup // Track background goroutines
 	stopScheduling chan bool
 
 	// Synchronization
@@ -270,9 +271,11 @@ func NewCleanupScheduler(memoryManager *MemoryManager) *CleanupScheduler {
 	cs.createWorkers()
 
 	// Start background scheduling
+	cs.wg.Add(1)
 	go cs.backgroundScheduling()
 
 	// Start result processing
+	cs.wg.Add(1)
 	go cs.processResults()
 
 	return cs
@@ -440,6 +443,7 @@ func (cs *CleanupScheduler) addToQueue(cleanup *ScheduledCleanup) {
 
 // backgroundScheduling runs continuous cleanup scheduling
 func (cs *CleanupScheduler) backgroundScheduling() {
+	defer cs.wg.Done()
 	for {
 		select {
 		case <-cs.ctx.Done():
@@ -689,6 +693,7 @@ func (w *CleanupWorker) executeCleanup(cleanup *ScheduledCleanup) {
 
 // processResults processes cleanup execution results
 func (cs *CleanupScheduler) processResults() {
+	defer cs.wg.Done()
 	for {
 		select {
 		case <-cs.ctx.Done():
@@ -701,6 +706,11 @@ func (cs *CleanupScheduler) processResults() {
 
 // handleResult handles a single cleanup result
 func (cs *CleanupScheduler) handleResult(result *CleanupResult) {
+	// Guard against nil results from closed channels
+	if result == nil {
+		return
+	}
+
 	if result.Success {
 		cs.updateStats(func(stats *CleanupSchedulerStats) {
 			atomic.AddUint64(&stats.TotalSuccessful, 1)
@@ -973,12 +983,15 @@ func (cs *CleanupScheduler) Dispose() {
 	cs.workers = make([]*CleanupWorker, 0)
 	cs.workerMutex.Unlock()
 
+	// Wait for background goroutines to finish
+	cs.wg.Wait()
+
 	// Clear queues
 	cs.immediateQueue = make([]*ScheduledCleanup, 0)
 	cs.delayedQueue = make([]*ScheduledCleanup, 0)
 	cs.periodicQueue = make([]*ScheduledCleanup, 0)
 
-	// Close channels
+	// Close channels after goroutines have finished
 	close(cs.workQueue)
 	close(cs.resultQueue)
 

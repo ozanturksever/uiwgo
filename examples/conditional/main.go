@@ -44,7 +44,7 @@ func ConditionalComponent() Node {
 					}
 					return "Show Details"
 				}),
-				golid.OnClick(func() {
+				golid.OnClickV2(func() {
 					showDetails.Set(!showDetails.Get())
 				}),
 			),
@@ -68,17 +68,17 @@ func ConditionalComponent() Node {
 				Button(
 					Style("padding: 8px 15px; background-color: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; margin-right: 10px;"),
 					Text("Guest"),
-					golid.OnClick(func() { userType.Set("guest") }),
+					golid.OnClickV2(func() { userType.Set("guest") }),
 				),
 				Button(
 					Style("padding: 8px 15px; background-color: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer; margin-right: 10px;"),
 					Text("User"),
-					golid.OnClick(func() { userType.Set("user") }),
+					golid.OnClickV2(func() { userType.Set("user") }),
 				),
 				Button(
 					Style("padding: 8px 15px; background-color: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer;"),
 					Text("Admin"),
-					golid.OnClick(func() { userType.Set("admin") }),
+					golid.OnClickV2(func() { userType.Set("admin") }),
 				),
 			),
 			golid.Bind(func() Node {
@@ -113,12 +113,12 @@ func ConditionalComponent() Node {
 				Button(
 					Style("padding: 8px 15px; background-color: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer; margin-right: 10px;"),
 					Text("+"),
-					golid.OnClick(func() { count.Set(count.Get() + 1) }),
+					golid.OnClickV2(func() { count.Set(count.Get() + 1) }),
 				),
 				Button(
 					Style("padding: 8px 15px; background-color: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer;"),
 					Text("-"),
-					golid.OnClick(func() { count.Set(count.Get() - 1) }),
+					golid.OnClickV2(func() { count.Set(count.Get() - 1) }),
 				),
 			),
 			golid.Bind(func() Node {

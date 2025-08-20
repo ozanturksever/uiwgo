@@ -207,7 +207,7 @@ func ContactPage() Node {
 					Button(
 						Style("padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;"),
 						Text("Send Another Message"),
-						golid.OnClick(func() {
+						golid.OnClickV2(func() {
 							submitted.Set(false)
 							name.Set("")
 							email.Set("")
@@ -226,7 +226,7 @@ func ContactPage() Node {
 						Type("text"),
 						Placeholder("Your name"),
 						Style("width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 16px;"),
-						golid.OnInput(func(val string) {
+						golid.OnInputV2(func(val string) {
 							name.Set(val)
 						}),
 					),
@@ -239,7 +239,7 @@ func ContactPage() Node {
 						Type("email"),
 						Placeholder("your.email@example.com"),
 						Style("width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 16px;"),
-						golid.OnInput(func(val string) {
+						golid.OnInputV2(func(val string) {
 							email.Set(val)
 						}),
 					),
@@ -252,7 +252,7 @@ func ContactPage() Node {
 						Rows("5"),
 						Placeholder("Your message here..."),
 						Style("width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px; font-size: 16px; resize: vertical;"),
-						golid.OnInput(func(val string) {
+						golid.OnInputV2(func(val string) {
 							message.Set(val)
 						}),
 					),
@@ -261,7 +261,7 @@ func ContactPage() Node {
 				Button(
 					Style("width: 100%; padding: 15px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;"),
 					Text("Send Message"),
-					golid.OnClick(func() {
+					golid.OnClickV2(func() {
 						if name.Get() != "" && email.Get() != "" && message.Get() != "" {
 							submitted.Set(true)
 						}
