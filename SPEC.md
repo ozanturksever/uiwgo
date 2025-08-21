@@ -187,7 +187,7 @@ import (
 
 // Our simple Counter component.
 // It doesn't take any props, so we use an empty struct.
-func Counter(props struct{}) github.com/ozanturksever/uiwgo.Node {
+func Counter(props struct{}) uiwgo.Node {
 	// 1. Create a reactive state variable (a signal).
 	count := reactivity.CreateSignal(0)
 
@@ -202,7 +202,7 @@ func Counter(props struct{}) github.com/ozanturksever/uiwgo.Node {
 	})
 
 	// This is a lifecycle hook.
-	github.com/ozanturksever/uiwgo.OnMount(func() {
+	uiwgo.OnMount(func() {
 		fmt.Println("Counter component has been mounted to the DOM!")
 	})
 
@@ -215,7 +215,7 @@ func Counter(props struct{}) github.com/ozanturksever/uiwgo.Node {
 
 		// IMPORTANT: This text node needs to be reactive.
 		// We'll wrap it in an effect to update it directly.
-		html.P(github.com/ozanturksever/uiwgo.Text(func() string {
+		html.P(uiwgo.Text(func() string {
 			return fmt.Sprintf("Double Count: %d", doubleCount.Get())
 		})),
 
@@ -231,7 +231,7 @@ func Counter(props struct{}) github.com/ozanturksever/uiwgo.Node {
 	)
 }
 
-// github.com/ozanturksever/uiwgo.Text is a helper we would create. It takes a function and creates
+// uiwgo.Text is a helper we would create. It takes a function and creates
 // a text node, then wraps it in an effect that updates the text node's
 // `data` property whenever any signals inside the function change.
 /*
@@ -247,7 +247,7 @@ func Text(fn func() string) gomponents.Node {
 
 func main() {
 	// Mount the root component into the <div id="app"></div> in our index.html
-	github.com/ozanturksever/uiwgo.Mount("app", func() github.com/ozanturksever/uiwgo.Node {
+	uiwgo.Mount("app", func() uiwgo.Node {
 		return Counter(struct{}{})
 	})
 
@@ -256,6 +256,11 @@ func main() {
 }
 ```
 
+---
+
+**Note on Execution:**
+
+To run the compiled WASM binary, you will need an `index.html` file and the `wasm_exec.js` script. The `wasm_exec.js` file is provided by the Go standard library and should be placed in the root of your project. It handles the loading and execution of the WASM module in the browser.
 ### Summary of the API Design
 
 *   **Reactivity (`reactivity` package):** `CreateSignal`, `CreateEffect`, `CreateMemo`. The core, pure logic.
@@ -267,3 +272,101 @@ func main() {
     *   `Text(fn)`: A helper for creating reactive text content.
 
 This design provides a powerful, performant, and Go-idiomatic foundation for building web UIs. It directly reflects the SolidJS philosophy, prioritizing performance by creating a direct connection between state and the DOM, entirely sidestepping the overhead of a VDOM.
+
+
+### 4. Test Scenarios
+
+This section outlines test scenarios for the core features of the framework.
+
+#### 4.1. Core Reactivity API (`pkg/reactivity`)
+
+##### 4.1.1. `CreateSignal[T]`
+
+*   **Initial Value:**
+    *   Test that `Get()` returns the initial value provided during creation (e.g., for integers, strings, structs).
+    *   Test with a nil or zero value as the initial value.
+*   **Value Update:**
+    *   Test that `Set()` correctly updates the signal's value.
+    *   Test that a subsequent `Get()` returns the new value.
+*   **Dependency Tracking:**
+    *   Test that calling `Set()` with a new value triggers a dependent `CreateEffect`.
+    *   Test that calling `Set()` with the *same* value (e.g., `count.Set(5)` when the value is already 5) does *not* trigger a dependent `CreateEffect`.
+    *   Test that multiple effects depending on the same signal are all triggered on change.
+*   **Type Safety:**
+    *   (Compile-time) Ensure `Set()` only accepts values of the type the signal was created with.
+
+##### 4.1.2. `CreateEffect(fn func())`
+
+*   **Initial Execution:**
+    *   Test that the effect function runs once immediately upon creation.
+*   **Dependency-based Re-execution:**
+    *   Test that the effect re-runs when a single signal it depends on (`Get()` was called inside) is updated.
+    *   Test that the effect re-runs when any of multiple signals it depends on are updated.
+    *   Test that the effect does *not* re-run if a signal it does *not* depend on is updated.
+*   **Cleanup:**
+    *   Test that calling `Dispose()` on the effect prevents it from re-running when its dependencies change.
+    *   Test that any cleanup functions registered via `OnCleanup` within the effect are executed when the effect is disposed.
+*   **Nested Effects:**
+    *   Test that an effect created inside another effect functions correctly and is re-created/re-run when the outer effect re-runs.
+    *   Test that the inner effect's cleanup is called when the outer effect re-runs.
+
+##### 4.1.3. `CreateMemo[T](fn func() T)`
+
+*   **Lazy Evaluation & Caching:**
+    *   Test that the memo's calculation function does not run if its value is never requested (`Get()`).
+    *   Test that the calculation function runs only once when `Get()` is called multiple times and dependencies have not changed.
+*   **Dependency Tracking:**
+    *   Test that the memo re-calculates its value when a signal it depends on changes.
+    *   Test that an effect depending on the memo is triggered when the memo's value changes.
+    *   Test that the memo does *not* re-calculate if a signal it does not depend on changes.
+*   **Chained Memos:**
+    *   Test that a memo (`memo2`) that depends on another memo (`memo1`) updates correctly when `memo1`'s dependencies change.
+
+##### 4.1.4. `OnCleanup(fn func())`
+
+*   **Execution Timing:**
+    *   Test that a cleanup function registered inside an effect is called when that effect is re-executed (just before the new execution).
+    *   Test that the cleanup function is called when the effect is manually disposed.
+*   **Scope:**
+    *   Test that `OnCleanup` within a nested scope (e.g., inner effect) does not affect the cleanup of an outer scope.
+    *   Test that multiple cleanup functions in the same scope are all executed.
+
+#### 4.2. Component & DOM API (`pkg/uiwgo`)
+
+##### 4.2.1. `Mount(elementID string, rootComponent func() Node)`
+
+*   **DOM Attachment:**
+    *   Test that the component's root node is successfully appended to the DOM element specified by `elementID`.
+    *   Test that `Mount` panics or returns an error if the `elementID` does not exist in the DOM.
+*   **Execution:**
+    *   Test that the `rootComponent` function is executed exactly once during the mount process.
+
+##### 4.2.2. `OnMount(fn func())`
+
+*   **Execution Timing:**
+    *   Test that the `OnMount` function is executed after the component's elements are attached to the main DOM.
+    *   Test that it is executed only once for a given component instance.
+*   **DOM Access:**
+    *   Test that code inside `OnMount` can successfully access the component's rendered DOM elements.
+
+##### 4.2.3. Control Flow
+
+*   **`Show(props ShowProps)`:**
+    *   **Initial State (True):** Test that if `When` signal is initially `true`, the `Children` are rendered immediately.
+    *   **Initial State (False):** Test that if `When` signal is initially `false`, the `Children` are not rendered.
+    *   **Transition False -> True:** Test that `Children` are rendered when the `When` signal changes from `false` to `true`.
+    *   **Transition True -> False:** Test that `Children` are removed from the DOM when the `When` signal changes from `true` to `false`.
+    *   **Cleanup:** Test that `OnCleanup` hooks within the `Children` are called when they are removed from the DOM.
+*   **`For(...)` (Conceptual):**
+    *   **Initial Render:** Test that the component correctly renders a list of items from a signal slice.
+    *   **Adding Items:** Test that adding an item to the slice results in a new DOM element being added.
+    *   **Removing Items:** Test that removing an item from the slice removes the corresponding DOM element.
+    *   **Reordering Items (Keyed):** Test that reordering items in the slice reorders the DOM elements without re-creating them.
+    *   **Cleanup:** Test that `OnCleanup` is called for components of items that are removed.
+
+##### 4.2.4. Reactive Helpers
+
+*   **`Text(fn func() string)`:**
+    *   **Initial Render:** Test that the helper renders a text node with the initial string returned by `fn`.
+    *   **Reactivity:** Test that the text node's content updates automatically when a signal used inside `fn` changes.
+    *   **Non-Reactive:** Test that the text node does not update if no signals are used within `fn`.
