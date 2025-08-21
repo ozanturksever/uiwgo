@@ -1,4 +1,4 @@
-### Framework Philosophy: "GoSolid" (A working name)
+### Framework Philosophy: "UiwGo" (A working name)
 
 1.  **Declarative UI, Imperative Performance:** You write declarative components using standard Go functions and `gomponents` (see [gomponents-doc.md](gomponents-doc.md)) for structure. The framework's core (and a future compiler) will translate this into the most efficient, direct DOM manipulation calls.
 2.  **Fine-Grained Reactivity:** The foundation is a system of `Signals`, `Effects`, and `Memos`. Updates flow through the system automatically, triggering the smallest possible DOM updates. No component re-rendering, no diffing.
