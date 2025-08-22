@@ -19,6 +19,9 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
+//go:embed wasm_exec.js
+var wasmExecJS []byte
+
 // Simple SSE hub
 type sseHub struct {
 	clients map[chan string]struct{}
@@ -57,9 +60,10 @@ func serveWithLiveReload(hub *sseHub, example string) {
 	fs := http.FileServer(http.Dir(dir))
 	http.Handle("/", fs)
 
-	// wasm_exec.js from repo root
+	// wasm_exec.js served from embedded content
 	http.HandleFunc("/wasm_exec.js", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, filepath.Join(".", "wasm_exec.js"))
+		w.Header().Set("Content-Type", "application/javascript")
+		_, _ = w.Write(wasmExecJS)
 	})
 
 	// SSE endpoint
