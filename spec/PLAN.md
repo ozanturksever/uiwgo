@@ -97,29 +97,31 @@ This layer builds on the reactive core. Tests in this section will require a bro
     *   Write a simple "Hello World" component.
     *   Compile to WASM and verify it renders correctly in the browser.
 
-### Step 2.2: Reactive Text Node
+### Step 2.2: Reactive Text Node: BindText
 
-*   **Goal:** Create a helper to render reactive text content.
+*   **Goal:** Create a helper to render reactive text content directly in the DOM.
 *   **Actions:**
-    1.  Implement `Text(fn func() string) Node`.
+    1.  Implement `BindText(fn func() string) Node`.
     2.  This function will:
         *   Create a DOM text node via `syscall/js`.
         *   Create a `gomponents.Node` that wraps this text node.
         *   Use `reactivity.CreateEffect` to run `fn` and update the text node's `nodeValue` whenever its dependencies change.
     3.  Return the wrapper node.
 *   **Testing (Manual):**
-    *   Update the counter example to use `uiwgo.Text` for the count display.
+    *   Update the counter example to use `uiwgo.BindText` for the count display.
     *   Verify the number on the screen updates when the "Increment" button is clicked.
 
-### Step 2.3: Lifecycle Hooks
+### Step 2.3: Lifecycle Hooks (OnMount, Effect, OnCleanup)
 
-*   **Goal:** Implement `OnMount` and expose `OnCleanup`.
+*   **Goal:** Provide lifecycle hooks for components to run side-effects and clean up.
 *   **Actions:**
-    1.  Implement `OnMount(fn func())`. For now, this can be a simple alias for `reactivity.CreateEffect`. A more robust solution that guarantees execution after DOM attachment can be implemented later.
-    2.  Expose `reactivity.OnCleanup` by declaring `var OnCleanup = reactivity.OnCleanup`.
+    1.  Implement `OnMount(fn func())`. For now, this can be a simple alias for `reactivity.CreateEffect` that runs once when the component is initialized.
+    2.  Implement `Effect(fn func())` as a direct pass-through to `reactivity.CreateEffect` for tracking and running whenever its dependencies change.
+    3.  Expose `reactivity.OnCleanup` by declaring `var OnCleanup = reactivity.OnCleanup`.
 *   **Testing (Manual):**
     *   In the counter example, add an `OnMount` hook that prints a message to the console.
-    *   Verify the message appears in the browser's developer console on page load.
+    *   Add an `Effect` that logs the current count whenever it changes.
+    *   Verify cleanup is called when the component is removed (e.g., via a conditional).
 
 ### Step 2.4: Control Flow - `Show` Component
 
@@ -153,6 +155,17 @@ This layer builds on the reactive core. Tests in this section will require a bro
     *   Add buttons to add and remove items from the slice.
     *   Verify the DOM updates correctly.
 
+### Step 2.7: Event Handling - `OnClick`
+
+*   **Goal:** Provide a helper to attach Go functions as click event handlers on DOM elements.
+*   **Actions:**
+    1.  Implement `OnClick(fn func()) Node` that attaches a single-use JS function to the element's onclick.
+    2.  Ensure the created JS callback is cleaned up using `OnCleanup` to avoid leaks.
+    3.  Consider a generic `On(event string, fn func())` for future extensibility, but start with `OnClick`.
+*   **Testing (Manual):**
+    *   Use `OnClick` in the counter example to increment, decrement, and reset.
+    *   Verify the handlers are called and that no memory leaks occur on teardown.
+
 ### Step 2.6: Control Flow - `For` Component (Keyed)
 
 *   **Goal:** Improve the `For` component with efficient, keyed reconciliation.
@@ -169,10 +182,20 @@ This layer builds on the reactive core. Tests in this section will require a bro
 
 ## Part 3: Finalization
 
+### Step 2.8: Component Composition Patterns
+
+*   **Goal:** Demonstrate composition by splitting a feature into smaller components.
+*   **Actions:**
+    1.  Create a presentational header component (e.g., `AppHeader(title, subtitle string) Node`).
+    2.  Split a feature component into display and controls (e.g., `CounterDisplay(getCount func() int)`, `CounterControls(onInc, onDec, onReset func())`).
+    3.  Wire callbacks from the parent to children; keep state in the parent via `NewSignal/CreateSignal`.
+*   **Testing (Manual):**
+    *   Replace inline markup with composed components in the counter example and verify behavior.
+
 ### Step 3.1: Documentation and Final Example
 
 *   **Goal:** Clean up the code and provide a comprehensive example.
 *   **Actions:**
     1.  Add GoDoc comments to all public functions and types.
     2.  Create a `README.md` with build and run instructions.
-    3.  Ensure the final `Counter` example in `examples/counter/main.go` is clean and demonstrates all major features (`Signal`, `Memo`, `Effect`, `OnMount`, `Text`).
+    3.  Ensure the final `Counter` example in `examples/counter/main.go` is clean and demonstrates all major features (`Signal`, `Memo`, `Effect`, `OnMount`, `OnCleanup`, `BindText`, `OnClick`, composition).

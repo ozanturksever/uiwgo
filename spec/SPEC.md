@@ -191,6 +191,22 @@ func Show(props ShowProps) Node {
 // It would take a Signal[[]T] and a render function, and it would perform
 // efficient, keyed reconciliation to add, remove, or move items without
 // re-creating existing ones.
+
+---
+
+### Component Composition and Lifecycle
+
+The component model encourages splitting features into small, reusable, testable functions. State lives in a parent, while children receive data via accessors and communicate via callbacks.
+
+Convenience API (UI layer):
+- `NewSignal[T](initial T) Signal[T]` — optional re-export alias of `reactivity.CreateSignal`.
+- `BindText(fn func() string) Node` — create a text node bound to reactive reads inside `fn`.
+- `OnClick(fn func()) Node` — attach a click handler to an element and clean it up automatically.
+- `OnMount(fn func())` — run a side-effect after initial setup.
+- `Effect(fn func())` — run and re-run a side-effect whenever its dependencies change.
+- `OnCleanup(fn func())` — register teardown logic.
+
+Example (composition and lifecycle):
 ```
 
 ---
