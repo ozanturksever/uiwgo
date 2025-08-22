@@ -1,4 +1,4 @@
-.PHONY: build test serve run clean
+.PHONY: build test serve run clean test-counter test-todo test-todo-store test-resource test-examples test-all
 
 # Extract example name from command or variable
 # Usage:
@@ -52,3 +52,35 @@ TEST_ENV := env -i PATH="$(PATH)" HOME="$(HOME)" GOOS=js GOARCH=wasm
 test:
 	@echo "==> Running WASM tests for $(PKG) ..."
 	@$(TEST_ENV) go test $(PKG) $(if $(RUN),-run $(RUN),)
+
+# Browser tests for individual examples
+test-counter:
+	@echo "==> Running browser tests for counter example..."
+	go test ./examples/counter -v
+
+test-todo:
+	@echo "==> Running browser tests for todo example..."
+	go test ./examples/todo -v
+
+test-todo-store:
+	@echo "==> Running browser tests for todo_store example..."
+	go test ./examples/todo_store -v
+
+test-resource:
+	@echo "==> Running browser tests for resource example..."
+	go test ./examples/resource -v
+
+# Run all browser tests for examples
+test-examples:
+	@echo "==> Running browser tests for all examples..."
+	@$(MAKE) test-counter
+	@$(MAKE) test-todo
+	@$(MAKE) test-todo-store
+	@$(MAKE) test-resource
+
+# Run all tests (unit tests + browser tests)
+test-all:
+	@echo "==> Running all tests (unit + browser)..."
+	@echo "==> Running WASM unit tests (excluding examples)..."
+	@$(TEST_ENV) go test ./reactivity ./comps $(if $(RUN),-run $(RUN),)
+	@$(MAKE) test-examples
