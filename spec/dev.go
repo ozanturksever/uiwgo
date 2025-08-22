@@ -81,8 +81,6 @@ func addLiveReloadEndpoint(hub *sseHub) {
 	})
 }
 
-
-
 func watchAndReload(ctx context.Context, hub *sseHub, example string) error {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -94,6 +92,9 @@ func watchAndReload(ctx context.Context, hub *sseHub, example string) error {
 	paths := []string{
 		exampleDir,
 		"pkg",
+		"comps",
+		"dom",
+		"reactivity",
 		"server.go",
 	}
 	for _, p := range paths {

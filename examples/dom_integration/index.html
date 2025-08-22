@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UiwGo DOM/v2 Integration Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 10px;
+        }
+        
+        h2 {
+            color: #555;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-left: 4px solid #007acc;
+            padding-left: 15px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #fafafa;
+            border-radius: 6px;
+            border: 1px solid #e0e0e0;
+        }
+        
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background: #005a9e;
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        input[type="text"] {
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            margin: 5px;
+            transition: border-color 0.2s;
+        }
+        
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #007acc;
+        }
+        
+        p {
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        li {
+            background: white;
+            margin: 8px 0;
+            padding: 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        li span {
+            flex-grow: 1;
+        }
+        
+        .delete-todo {
+            background: #f44336;
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        
+        .delete-todo:hover {
+            background: #d32f2f;
+        }
+        
+        #dynamic-container {
+            min-height: 50px;
+            border: 2px dashed #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .error {
+            color: #f44336;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ffcdd2;
+        }
+        
+        .console {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .console h3 {
+            color: #569cd6;
+            margin-top: 0;
+        }
+        
+        .console code {
+            color: #ce9178;
+        }
+        
+        .demo-controls {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            border: 1px solid #b3d9f2;
+        }
+        
+        .demo-controls h3 {
+            margin-top: 0;
+            color: #0066cc;
+        }
+        
+        .demo-controls button {
+            background: #0066cc;
+            margin: 3px;
+            padding: 8px 15px;
+            font-size: 12px;
+        }
+        
+        .demo-controls button:hover {
+            background: #004499;
+        }
+    </style>
+    <script src="wasm_exec.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div class="loading">
+            Loading UiwGo DOM/v2 Integration Demo...
+        </div>
+    </div>
+    
+    <div class="demo-controls">
+        <h3>JavaScript Console Demo</h3>
+        <p>Try these functions in your browser's console:</p>
+        <button onclick="incrementCounter()">incrementCounter()</button>
+        <button onclick="decrementCounter()">decrementCounter()</button>
+        <button onclick="setCounter(42)">setCounter(42)</button>
+        <button onclick="setName('Alice')">setName('Alice')</button>
+        <button onclick="toggleVisibility()">toggleVisibility()</button>
+        <button onclick="addTodoFromJS('New Todo')">addTodoFromJS('New Todo')</button>
+        <button onclick="clearTodos()">clearTodos()</button>
+        <button onclick="cleanupAll()" style="background: #f44336;">cleanupAll()</button>
+    </div>
+    
+    <div class="console">
+        <h3>Console Output</h3>
+        <div id="console-output">
+            <p>Open your browser's developer console to see Go WASM output and try the exposed functions.</p>
+        </div>
+    </div>
+    
+    <script>
+        // Override console.log to also display in our custom console
+        const originalConsoleLog = console.log;
+        const consoleOutput = document.getElementById('console-output');
+        
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+            ).join(' ');
+            
+            const p = document.createElement('p');
+            p.textContent = `> ${message}`;
+            consoleOutput.appendChild(p);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        };
+        
+        // Load and run the WASM module
+        const go = new Go();
+        WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then((result) => {
+            go.run(result.instance);
+        }).catch((err) => {
+            console.error('Failed to load WASM module:', err);
+            document.getElementById('app').innerHTML = `
+                <div class="error">
+                    <h2>Error Loading WASM Module</h2>
+                    <p>Failed to load the WebAssembly module. Make sure you've built the WASM file:</p>
+                    <code>GOOS=js GOARCH=wasm go build -o main.wasm main.go</code>
+                    <p>Error: ${err.message}</p>
+                </div>
+            `;
+        });
+        
+        // Add some helpful functions for testing
+        window.testAllFunctions = function() {
+            console.log('Testing all exposed functions...');
+            
+            setTimeout(() => incrementCounter(), 100);
+            setTimeout(() => incrementCounter(), 200);
+            setTimeout(() => decrementCounter(), 300);
+            setTimeout(() => setCounter(10), 400);
+            setTimeout(() => setName('Test User'), 500);
+            setTimeout(() => toggleVisibility(), 600);
+            setTimeout(() => addTodoFromJS('Auto-added todo'), 700);
+            setTimeout(() => {
+                console.log('All functions tested!');
+            }, 800);
+        };
+        
+        window.stressTest = function() {
+            console.log('Running stress test...');
+            
+            for (let i = 0; i < 10; i++) {
+                setTimeout(() => {
+                    incrementCounter();
+                    addTodoFromJS(`Stress test item ${i + 1}`);
+                }, i * 50);
+            }
+            
+            setTimeout(() => {
+                console.log('Stress test completed!');
+            }, 600);
+        };
+        
+        // Display additional help
+        console.log('Additional test functions available:');
+        console.log('- testAllFunctions() - Test all exposed Go functions');
+        console.log('- stressTest() - Run a stress test with multiple rapid calls');
+    </script>
+
+</body>
+</html>

@@ -12,5 +12,6 @@ require (
 	github.com/gobwas/pool v0.2.1 // indirect
 	github.com/gobwas/ws v1.4.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect
+	honnef.co/go/js/dom/v2 v2.0.0-20250304181735-b5e52f05e89d // indirect
 	maragu.dev/gomponents v1.2.0 // indirect
 )
