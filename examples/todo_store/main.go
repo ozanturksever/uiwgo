@@ -37,7 +37,7 @@ func TodoStoreApp() Node {
 	// Expose JS handlers
 	addFn := js.FuncOf(func(this js.Value, args []js.Value) any {
 		doc := js.Global().Get("document")
-		v := strings.TrimSpace(doc.Call("getElementById", "newTodo").Get("value").String())
+		v := strings.TrimSpace(doc.Call("getElementById", "new-todo-input").Get("value").String())
 		if v == "" {
 			return nil
 		}
@@ -50,7 +50,7 @@ func TodoStoreApp() Node {
 		nextID++
 		setState("Todos", list)
 		// clear
-		doc.Call("getElementById", "newTodo").Set("value", "")
+		doc.Call("getElementById", "new-todo-input").Set("value", "")
 		return nil
 	})
 	toggleFn := js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -126,12 +126,13 @@ func TodoStoreApp() Node {
 				for i := 0; i < l; i++ {
 					items = append(items, TodoItemView(store, i))
 				}
-				return Ul(items...)
+				allItems := append([]Node{ID("todo-list")}, items...)
+				return Ul(allItems...)
 			}),
 			Div(
 				Style("display:flex; align-items:center; justify-content: space-between; margin-top: 12px; color:#555;"),
 				Div(comps.BindText(func() string { return fmt.Sprintf("%d items left", remaining.Get()) })),
-				comps.Show(comps.ShowProps{When: hasCompleted, Children: Button(Text("Clear completed"), Attr("onclick", "window.clearCompleted()"))}),
+				comps.Show(comps.ShowProps{When: hasCompleted, Children: Button(ID("clear-completed-btn"), Text("Clear completed"), Attr("onclick", "window.clearCompleted()"))}),
 			),
 		),
 	)
@@ -140,8 +141,8 @@ func TodoStoreApp() Node {
 func TodoInput() Node {
 	return Div(
 		Style("display:flex; gap: 10px; margin: 10px 0;"),
-		Input(Type("text"), ID("newTodo"), Placeholder("What needs to be done?"), Style("flex:1; padding: 10px; font-size: 1rem;")),
-		Button(Text("Add"), Style("padding: 10px 16px;"), Attr("onclick", "window.addTodo()")),
+		Input(Type("text"), ID("new-todo-input"), Placeholder("What needs to be done?"), Style("flex:1; padding: 10px; font-size: 1rem;")),
+		Button(ID("add-todo-btn"), Text("Add"), Style("padding: 10px 16px;"), Attr("onclick", "window.addTodo()")),
 	)
 }
 
@@ -155,15 +156,15 @@ func TodoItemView(store reactivity.Store[AppState], i int) Node {
 		renders++
 		fmt.Printf("[Item %d] render count=%d completed=%v\n", id, renders, completed)
 
-		checkbox := Input(Type("checkbox"), Attr("onclick", fmt.Sprintf("window.toggleTodo(%d)", i)))
+		checkbox := Input(Class("todo-toggle"), Type("checkbox"), Attr("onclick", fmt.Sprintf("window.toggleTodo(%d)", i)))
 		if completed {
-			checkbox = Input(Type("checkbox"), Attr("onclick", fmt.Sprintf("window.toggleTodo(%d)", i)), Attr("checked", "true"))
+			checkbox = Input(Class("todo-toggle"), Type("checkbox"), Attr("onclick", fmt.Sprintf("window.toggleTodo(%d)", i)), Attr("checked", "true"))
 		}
 
 		return Group([]Node{
 			checkbox,
-			Span(Text(title), Style("flex:1;")),
-			Button(Text("×"), Style("padding:4px 8px"), Attr("onclick", fmt.Sprintf("window.removeTodo(%d)", i))),
+			Span(Class("todo-label"), Text(title), Style("flex:1;")),
+			Button(Class("todo-destroy"), Text("×"), Style("padding:4px 8px"), Attr("onclick", fmt.Sprintf("window.removeTodo(%d)", i))),
 		})
-	}, Style("display:flex; align-items:center; gap:10px; padding: 6px 0;"))
+	}, Class("todo-item"), Style("display:flex; align-items:center; gap:10px; padding: 6px 0;"))
 }

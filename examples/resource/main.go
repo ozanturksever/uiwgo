@@ -52,13 +52,14 @@ func UserProfileApp() Node {
 			// Controls
 			Div(
 				Style("display:flex; gap:10px; margin: 10px 0;"),
-				Button(Text("Load User 1"), Attr("onclick", "window.setUser1()"), Style("padding:8px 12px")),
-				Button(Text("Load User 2 (errors)"), Attr("onclick", "window.setUser2()"), Style("padding:8px 12px")),
-				Button(Text("Random User"), Attr("onclick", "window.randomUser()"), Style("padding:8px 12px")),
+				Button(Text("Load User 1"), ID("load-user1-btn"), Attr("onclick", "window.setUser1()"), Style("padding:8px 12px")),
+				Button(Text("Load User 2 (errors)"), ID("load-user2-btn"), Attr("onclick", "window.setUser2()"), Style("padding:8px 12px")),
+				Button(Text("Random User"), ID("random-user-btn"), Attr("onclick", "window.randomUser()"), Style("padding:8px 12px")),
 			),
 
 			// Status and data rendering
 			Div(
+				ID("user-display"),
 				Style("margin-top: 16px; padding: 16px; border: 1px solid #eee; border-radius: 8px; background:#fafafa;"),
 				comps.BindHTML(func() Node {
 					if userRes.Loading() {

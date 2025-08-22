@@ -59,8 +59,15 @@ func TodoApp() Node {
 	// Expose window functions for events
 	addFn := js.FuncOf(func(this js.Value, args []js.Value) any {
 		doc := js.Global().Get("document")
-		v := doc.Call("getElementById", "newTodo").Get("value").String()
-		title := strings.TrimSpace(v)
+		var title string
+		if len(args) > 0 {
+			// Called with argument (from keydown event)
+			title = strings.TrimSpace(args[0].String())
+		} else {
+			// Called without argument (from button click)
+			v := doc.Call("getElementById", "new-todo-input").Get("value").String()
+			title = strings.TrimSpace(v)
+		}
 		if title == "" {
 			return nil
 		}
@@ -69,7 +76,7 @@ func TodoApp() Node {
 		nextID++
 		todos.Set(list)
 		// clear input
-		doc.Call("getElementById", "newTodo").Set("value", "")
+		doc.Call("getElementById", "new-todo-input").Set("value", "")
 		return nil
 	})
 	toggleFn := js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -144,28 +151,30 @@ func TodoInput() Node {
 		Style("display:flex; gap: 10px; margin: 10px 0;"),
 		comps.OnMount(func() {
 			doc := js.Global().Get("document")
-			doc.Call("getElementById", "newTodo").Call("focus")
+			doc.Call("getElementById", "new-todo-input").Call("focus")
 		}),
-		Input(Type("text"), ID("newTodo"), Placeholder("What needs to be done?"), Style("flex:1; padding: 10px; font-size: 1rem;")),
-		Button(Text("Add"), Style("padding: 10px 16px;"), Attr("onclick", "window.addTodo()")),
+		Input(Type("text"), ID("new-todo-input"), Placeholder("What needs to be done?"), Style("flex:1; padding: 10px; font-size: 1rem;")),
+		Button(ID("add-todo-btn"), Text("Add"), Style("padding: 10px 16px;"), Attr("onclick", "window.addTodo()")),
 	)
 }
 
 func TodoList(todos reactivity.Signal[[]Todo]) Node {
 	return Div(
+		ID("todo-list"),
 		comps.BindHTML(func() Node {
 			items := make([]Node, 0)
 			for _, t := range todos.Get() {
-				checkbox := Input(Type("checkbox"), Attr("onclick", fmt.Sprintf("window.toggleTodo(%d)", t.ID)))
+				checkbox := Input(Class("todo-toggle"), Type("checkbox"), Attr("onclick", fmt.Sprintf("window.toggleTodo(%d)", t.ID)))
 				if t.Completed {
-					checkbox = Input(Type("checkbox"), Attr("onclick", fmt.Sprintf("window.toggleTodo(%d)", t.ID)), Attr("checked", "true"))
+					checkbox = Input(Class("todo-toggle"), Type("checkbox"), Attr("onclick", fmt.Sprintf("window.toggleTodo(%d)", t.ID)), Attr("checked", "true"))
 				}
 				items = append(items,
 					Li(
+						Class("todo-item"),
 						Style("display:flex; align-items:center; gap:10px; padding: 6px 0;"),
 						checkbox,
 						Span(Text(t.Title), Style("flex:1;")),
-						Button(Text("×"), Style("padding:4px 8px"), Attr("onclick", fmt.Sprintf("window.removeTodo(%d)", t.ID))),
+						Button(Class("todo-destroy"), Text("×"), Style("padding:4px 8px"), Attr("onclick", fmt.Sprintf("window.removeTodo(%d)", t.ID))),
 					),
 				)
 			}
@@ -176,13 +185,14 @@ func TodoList(todos reactivity.Signal[[]Todo]) Node {
 
 func StatsFooter(remaining reactivity.Signal[int], hasCompleted reactivity.Signal[bool]) Node {
 	return Div(
+		ID("stats-footer"),
 		Style("display:flex; align-items:center; justify-content: space-between; margin-top: 12px; color:#555;"),
 		Div(
 			comps.BindText(func() string { return fmt.Sprintf("%d items left", remaining.Get()) }),
 		),
 		comps.Show(comps.ShowProps{
 			When:     hasCompleted,
-			Children: Button(Text("Clear completed"), Attr("onclick", "window.clearCompleted()")),
+			Children: Button(ID("clear-completed-btn"), Text("Clear completed"), Attr("onclick", "window.clearCompleted()")),
 		}),
 	)
 }
