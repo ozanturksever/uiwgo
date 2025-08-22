@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+
+	_ "embed"
 )
 
 //go:embed wasm_exec.js
