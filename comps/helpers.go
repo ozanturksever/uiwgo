@@ -15,6 +15,7 @@ import (
 var (
 	idCounter    uint64
 	textRegistry = map[string]func() string{}
+	htmlRegistry = map[string]func() g.Node{}
 	showRegistry = map[string]showBinder{}
 )
 
@@ -49,9 +50,21 @@ func BindText(fn func() string) g.Node {
 	return g.El("span", g.Attr("data-uiwgo-txt", id), g.Text(initial))
 }
 
+// BindHTML creates a reactive HTML container whose innerHTML is re-rendered from a
+// gomponents Node-producing function whenever its dependencies change.
+func BindHTML(fn func() g.Node) g.Node {
+	id := nextID("h")
+	htmlRegistry[id] = fn
+	// Render initial content
+	var buf bytes.Buffer
+	_ = fn().Render(&buf)
+	return g.El("div", g.Attr("data-uiwgo-html", id), g.Raw(buf.String()))
+}
+
 // attachBinders scans the mounted DOM and attaches reactive behaviors.
 func attachBinders(doc js.Value) {
 	attachTextBinders(doc)
+	attachHTMLBinders(doc)
 	attachShowBinders(doc)
 }
 
@@ -111,6 +124,22 @@ func attachShowBinders(doc js.Value) {
 					el.Set("innerHTML", "")
 					visible = false
 				}
+			})
+		}
+	}
+}
+
+func attachHTMLBinders(doc js.Value) {
+	nodes := doc.Call("querySelectorAll", "[data-uiwgo-html]")
+	ln := nodes.Get("length").Int()
+	for i := 0; i < ln; i++ {
+		el := nodes.Call("item", i)
+		id := el.Call("getAttribute", "data-uiwgo-html").String()
+		if fn, ok := htmlRegistry[id]; ok {
+			reactivity.CreateEffect(func() {
+				var buf bytes.Buffer
+				_ = fn().Render(&buf)
+				el.Set("innerHTML", buf.String())
 			})
 		}
 	}
