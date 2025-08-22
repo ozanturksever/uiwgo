@@ -3,7 +3,6 @@
 1.  **Declarative UI, Imperative Performance:** You write declarative components using standard Go functions and `gomponents` (see [gomponents-doc.md](gomponents-doc.md)) for structure. The framework's core (and a future compiler) will translate this into the most efficient, direct DOM manipulation calls.
 2.  **Fine-Grained Reactivity:** The foundation is a system of `Signals`, `Effects`, and `Memos`. Updates flow through the system automatically, triggering the smallest possible DOM updates. No component re-rendering, no diffing.
 3.  **Components are Just Functions:** A component is a Go function that runs *once* to set up state, create effects, and return the initial DOM structure. It does not re-run when its state changes. This is a critical distinction from React's model and is key to our performance.
-4.  **Fallback Reactivity Mechanisms:** If you exhaust the simple ways to do things, you can revert to use DOM diff or node dirty algorithms to handle reactivity. While fine-grained reactivity is preferred for optimal performance, these fallback mechanisms provide flexibility for complex scenarios where direct signal-based updates are insufficient.
 
 ---
 
@@ -261,7 +260,7 @@ func Counter(props struct{}) uiwgo.Node {
 
 		// IMPORTANT: This text node needs to be reactive.
 		// We'll wrap it in an effect to update it directly.
-		html.P(uiwgo.Text(func() string {
+		html.P(uiwgo.BindText(func() string {
 			return fmt.Sprintf("Double Count: %d", doubleCount.Get())
 		})),
 
@@ -277,11 +276,11 @@ func Counter(props struct{}) uiwgo.Node {
 	)
 }
 
-// uiwgo.Text is a helper we would create. It takes a function and creates
+// uiwgo.BindText is a helper we would create. It takes a function and creates
 // a text node, then wraps it in an effect that updates the text node's
 // `data` property whenever any signals inside the function change.
 /*
-func Text(fn func() string) gomponents.Node {
+func BindText(fn func() string) gomponents.Node {
     // Creates a placeholder text node.
     // Creates an effect:
     //   reactivity.CreateEffect(func() {
@@ -315,7 +314,7 @@ To run the compiled WASM binary, you will need an `index.html` file and the `was
     *   `Mount(id, component)`: The application entry point.
     *   `OnMount(fn)`, `OnCleanup(fn)`: Lifecycle helpers.
     *   `Show(props)`, `For(props)`: Reactive control flow primitives.
-    *   `Text(fn)`: A helper for creating reactive text content.
+    *   `BindText(fn)`: A helper for creating reactive text content.
 
 This design provides a powerful, performant, and Go-idiomatic foundation for building web UIs. It directly reflects the SolidJS philosophy, prioritizing performance by creating a direct connection between state and the DOM, entirely sidestepping the overhead of a VDOM.
 
