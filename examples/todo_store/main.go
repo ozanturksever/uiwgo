@@ -148,7 +148,7 @@ func TodoInput() Node {
 func TodoItemView(store reactivity.Store[AppState], i int) Node {
 	// Per-item rendering binder that depends only on this item's fields
 	renders := 0
-	return comps.BindHTML(func() Node {
+	return comps.BindHTMLAs("li", func() Node {
 		id := reactivity.Adapt[int](store.Select("Todos", i, "ID")).Get()
 		title := reactivity.Adapt[string](store.Select("Todos", i, "Title")).Get()
 		completed := reactivity.Adapt[bool](store.Select("Todos", i, "Completed")).Get()
@@ -159,11 +159,11 @@ func TodoItemView(store reactivity.Store[AppState], i int) Node {
 		if completed {
 			checkbox = Input(Type("checkbox"), Attr("onclick", fmt.Sprintf("window.toggleTodo(%d)", i)), Attr("checked", "true"))
 		}
-		return Li(
-			Style("display:flex; align-items:center; gap:10px; padding: 6px 0;"),
+
+		return Group([]Node{
 			checkbox,
 			Span(Text(title), Style("flex:1;")),
 			Button(Text("×"), Style("padding:4px 8px"), Attr("onclick", fmt.Sprintf("window.removeTodo(%d)", i))),
-		)
-	})
+		})
+	}, Style("display:flex; align-items:center; gap:10px; padding: 6px 0;"))
 }

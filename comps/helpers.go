@@ -52,6 +52,7 @@ func BindText(fn func() string) g.Node {
 
 // BindHTML creates a reactive HTML container whose innerHTML is re-rendered from a
 // gomponents Node-producing function whenever its dependencies change.
+// It uses a <div> wrapper as the container.
 func BindHTML(fn func() g.Node) g.Node {
 	id := nextID("h")
 	htmlRegistry[id] = fn
@@ -61,18 +62,37 @@ func BindHTML(fn func() g.Node) g.Node {
 	return g.El("div", g.Attr("data-uiwgo-html", id), g.Raw(buf.String()))
 }
 
-// attachBinders scans the mounted DOM and attaches reactive behaviors.
-func attachBinders(doc js.Value) {
-	attachTextBinders(doc)
-	attachHTMLBinders(doc)
-	attachShowBinders(doc)
+// BindHTMLAs is like BindHTML but uses the provided tag name as the container element.
+// This is useful to keep valid HTML structure (e.g., <li> inside <ul>).
+func BindHTMLAs(tag string, fn func() g.Node, attrs ...g.Node) g.Node {
+	id := nextID("h")
+	htmlRegistry[id] = fn
+	var buf bytes.Buffer
+	_ = fn().Render(&buf)
+	// Place attrs before the initial HTML content
+	nodes := append([]g.Node{g.Attr("data-uiwgo-html", id)}, attrs...)
+	nodes = append(nodes, g.Raw(buf.String()))
+	return g.El(tag, nodes...)
 }
 
-func attachTextBinders(doc js.Value) {
-	nodes := doc.Call("querySelectorAll", "[data-uiwgo-txt]")
+// attachBinders scans the mounted DOM (or a subtree) and attaches reactive behaviors.
+func attachBinders(root js.Value) {
+	attachTextBindersIn(root)
+	attachHTMLBindersIn(root)
+	attachShowBindersIn(root)
+}
+
+func attachTextBindersIn(root js.Value) {
+	nodes := root.Call("querySelectorAll", "[data-uiwgo-txt]")
 	ln := nodes.Get("length").Int()
 	for i := 0; i < ln; i++ {
 		el := nodes.Call("item", i)
+		// avoid duplicate attachment
+		if el.Call("hasAttribute", "data-uiwgo-bound-text").Bool() {
+			continue
+		}
+		el.Call("setAttribute", "data-uiwgo-bound-text", "1")
+
 		id := el.Call("getAttribute", "data-uiwgo-txt").String()
 		if fn, ok := textRegistry[id]; ok {
 			// Create a reactive effect that updates textContent
@@ -106,11 +126,17 @@ func Show(p ShowProps) g.Node {
 	return g.El("span", g.Attr("data-uiwgo-show", id))
 }
 
-func attachShowBinders(doc js.Value) {
-	nodes := doc.Call("querySelectorAll", "[data-uiwgo-show]")
+func attachShowBindersIn(root js.Value) {
+	nodes := root.Call("querySelectorAll", "[data-uiwgo-show]")
 	ln := nodes.Get("length").Int()
 	for i := 0; i < ln; i++ {
 		el := nodes.Call("item", i)
+		// avoid duplicate attachment
+		if el.Call("hasAttribute", "data-uiwgo-bound-show").Bool() {
+			continue
+		}
+		el.Call("setAttribute", "data-uiwgo-bound-show", "1")
+
 		id := el.Call("getAttribute", "data-uiwgo-show").String()
 		if b, ok := showRegistry[id]; ok {
 			// Track visibility and update innerHTML
@@ -119,6 +145,8 @@ func attachShowBinders(doc js.Value) {
 				v := b.when.Get()
 				if v && !visible {
 					el.Set("innerHTML", b.html)
+					// new content may contain binders
+					attachBinders(el)
 					visible = true
 				} else if !v && visible {
 					el.Set("innerHTML", "")
@@ -129,17 +157,25 @@ func attachShowBinders(doc js.Value) {
 	}
 }
 
-func attachHTMLBinders(doc js.Value) {
-	nodes := doc.Call("querySelectorAll", "[data-uiwgo-html]")
+func attachHTMLBindersIn(root js.Value) {
+	nodes := root.Call("querySelectorAll", "[data-uiwgo-html]")
 	ln := nodes.Get("length").Int()
 	for i := 0; i < ln; i++ {
 		el := nodes.Call("item", i)
+		// avoid duplicate attachment
+		if el.Call("hasAttribute", "data-uiwgo-bound-html").Bool() {
+			continue
+		}
+		el.Call("setAttribute", "data-uiwgo-bound-html", "1")
+
 		id := el.Call("getAttribute", "data-uiwgo-html").String()
 		if fn, ok := htmlRegistry[id]; ok {
 			reactivity.CreateEffect(func() {
 				var buf bytes.Buffer
 				_ = fn().Render(&buf)
 				el.Set("innerHTML", buf.String())
+				// bind nested newly-rendered content
+				attachBinders(el)
 			})
 		}
 	}
