@@ -19,15 +19,13 @@ import (
 //go:embed wasm_exec.js
 var wasmExecJS []byte
 
-
-
 // BuildWASM compiles the Go code to WebAssembly for the given example
 func BuildWASM(example string) error {
 	log.Printf("==> Building WASM binary for '%s' example...\n", example)
-	
+
 	// Determine the correct paths based on current working directory
 	var outPath, srcPath, workDir string
-	
+
 	// Check if we're already in the example directory
 	if _, err := os.Stat("main.go"); err == nil {
 		// We're in the example directory
@@ -39,16 +37,17 @@ func BuildWASM(example string) error {
 		outPath = filepath.Join("examples", example, "main.wasm")
 		srcPath = filepath.Join("examples", example, "main.go")
 		workDir = "."
-		
-		// Check if examples directory exists
+
+		// Check if examples directory exists relative to current dir; if not, adjust working dir up to repo root
 		if _, err := os.Stat(filepath.Join("examples", example)); err != nil {
-			// Try going up one level
-			outPath = filepath.Join("..", "..", "examples", example, "main.wasm")
-			srcPath = filepath.Join("..", "..", "examples", example, "main.go")
+			// Set working directory to repo root (two levels up from internal/* packages)
 			workDir = filepath.Join("..", "..")
+			// Build paths relative to the working directory
+			outPath = filepath.Join("examples", example, "main.wasm")
+			srcPath = filepath.Join("examples", example, "main.go")
 		}
 	}
-	
+
 	cmd := exec.Command("go", "build", "-o", outPath, srcPath)
 	cmd.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
 	cmd.Dir = workDir
@@ -67,6 +66,7 @@ func BuildWASM(example string) error {
 // Server represents a development server instance
 type Server struct {
 	server   *http.Server
+	mux      *http.ServeMux
 	example  string
 	addr     string
 	listener net.Listener
@@ -91,8 +91,8 @@ func (s *Server) Start() error {
 		return fmt.Errorf("failed to build WASM: %w", err)
 	}
 
-	// Setup HTTP handlers
-	mux := http.NewServeMux()
+	// Setup HTTP handlers using the DefaultServeMux so other packages (e.g., spec/dev.go) can register endpoints like /__livereload
+	mux := http.DefaultServeMux
 
 	// Static files from examples/<example> or current directory
 	var dir string
@@ -109,7 +109,32 @@ func (s *Server) Start() error {
 		}
 	}
 	fs := http.FileServer(http.Dir(dir))
-	mux.Handle("/", fs)
+
+	// Root handler with live-reload injection for index.html
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		p := r.URL.Path
+		if p == "/" || p == "/index.html" || strings.HasSuffix(p, "/") {
+			// Serve index.html with injection
+			indexPath := filepath.Join(dir, "index.html")
+			data, err := os.ReadFile(indexPath)
+			if err != nil {
+				http.Error(w, "index.html not found", http.StatusNotFound)
+				return
+			}
+			html := string(data)
+			inject := "<script>(function(){try{var es=new EventSource('/__livereload');es.onmessage=function(e){if(e.data==='reload'){location.reload();}}}catch(e){console.warn('livereload disabled',e);}})();</script>"
+			if strings.Contains(html, "</body>") {
+				html = strings.Replace(html, "</body>", inject+"</body>", 1)
+			} else {
+				html = html + inject
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			_, _ = w.Write([]byte(html))
+			return
+		}
+		// Delegate other paths to static file server
+		fs.ServeHTTP(w, r)
+	})
 
 	// wasm_exec.js served from embedded content
 	mux.HandleFunc("/wasm_exec.js", func(w http.ResponseWriter, r *http.Request) {
