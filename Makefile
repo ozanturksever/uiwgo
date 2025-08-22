@@ -22,10 +22,6 @@ build:
 	@echo "==> Building WASM binary for counter example..."
 	GOOS=js GOARCH=wasm go build -o examples/counter/main.wasm examples/counter/main.go
 
-test:
-	@echo "==> Running tests..."
-	go test $(shell go list ./... | grep -v '/examples/' | grep -v '/pkg/uiwgo')
-
 serve:
 	@echo "==> Serving http://localhost:8080"
 	go run ./server.go
@@ -41,3 +37,18 @@ run: kill
 clean:
 	@echo "==> Cleaning up WASM binary..."
 	rm -f examples/counter/main.wasm
+# Test configuration for js/wasm
+PKG ?= ./...
+RUN ?=
+# Minimized environment avoids wasm_exec.js command line/env length limits
+TEST_ENV := env -i PATH="$(PATH)" HOME="$(HOME)" GOOS=js GOARCH=wasm
+
+# Run tests under js/wasm
+# Usage examples:
+#   make test                         # tests all packages under wasm
+#   make test PKG=./reactivity        # tests one package
+#   make test RUN=TestName            # filter tests by name
+#   make test PKG=./reactivity RUN=Signal
+test:
+	@echo "==> Running WASM tests for $(PKG) ..."
+	@$(TEST_ENV) go test $(PKG) $(if $(RUN),-run $(RUN),)
