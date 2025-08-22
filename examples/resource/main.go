@@ -89,7 +89,7 @@ func fetchUser(id int) (User, error) {
 
 	// Simulate an error for certain IDs
 	if id == 2 {
-		return User{}, fmt.Errorf("user %d not found")
+		return User{}, fmt.Errorf("user %d not found", id)
 	}
 	// Simulate a successful response
 	return User{ID: id, Name: fmt.Sprintf("User-%d", id)}, nil
