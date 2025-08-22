@@ -1,14 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -17,14 +15,10 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-
-	_ "embed"
+	"github.com/ozanturksever/uiwgo/internal/devserver"
 )
 
-//go:embed wasm_exec.js
-var wasmExecJS []byte
-
-// Simple SSE hub
+// Simple SSE hub for live reload
 type sseHub struct {
 	clients map[chan string]struct{}
 	mu      sync.Mutex
@@ -56,19 +50,8 @@ func (h *sseHub) broadcast(msg string) {
 	}
 }
 
-func serveWithLiveReload(hub *sseHub, example string) {
-	// Static files from examples/<example>
-	dir := filepath.Join("examples", example)
-	fs := http.FileServer(http.Dir(dir))
-	http.Handle("/", fs)
-
-	// wasm_exec.js served from embedded content
-	http.HandleFunc("/wasm_exec.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/javascript")
-		_, _ = w.Write(wasmExecJS)
-	})
-
-	// SSE endpoint
+func addLiveReloadEndpoint(hub *sseHub) {
+	// SSE endpoint for live reload
 	http.HandleFunc("/__livereload", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
@@ -98,23 +81,7 @@ func serveWithLiveReload(hub *sseHub, example string) {
 	})
 }
 
-func buildWASM(example string) error {
-	log.Printf("==> Building WASM binary for '%s' example...\n", example)
-	outPath := filepath.Join("examples", example, "main.wasm")
-	srcPath := filepath.Join("examples", example, "main.go")
-	cmd := exec.Command("go", "build", "-o", outPath, srcPath)
-	cmd.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
-	out, err := cmd.CombinedOutput()
-	if len(out) > 0 {
-		s := string(out)
-		// Print only interesting lines
-		scanner := bufio.NewScanner(strings.NewReader(s))
-		for scanner.Scan() {
-			log.Println(scanner.Text())
-		}
-	}
-	return err
-}
+
 
 func watchAndReload(ctx context.Context, hub *sseHub, example string) error {
 	watcher, err := fsnotify.NewWatcher()
@@ -159,7 +126,7 @@ func watchAndReload(ctx context.Context, hub *sseHub, example string) error {
 	}
 
 	rebuild := func() {
-		if err := buildWASM(example); err != nil {
+		if err := devserver.BuildWASM(example); err != nil {
 			log.Println("[dev] Build failed:", err)
 			return
 		}
@@ -202,20 +169,16 @@ func main() {
 		log.Fatalf("example '%s' missing main.go", *example)
 	}
 
-	if err := buildWASM(*example); err != nil {
-		log.Println("Initial build failed:", err)
+	// Create and start the development server
+	server := devserver.NewServer(*example, ":8080")
+	if err := server.Start(); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
 	}
+	defer server.Stop()
 
+	// Add live reload endpoint
 	hub := newSSEHub()
-	serveWithLiveReload(hub, *example)
-
-	server := &http.Server{Addr: ":8080"}
-	go func() {
-		log.Printf("==> Serving http://localhost:8080 (example: %s)\n", *example)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal(err)
-		}
-	}()
+	addLiveReloadEndpoint(hub)
 
 	ctx, stop := context.WithCancel(context.Background())
 	defer stop()
@@ -234,9 +197,7 @@ func main() {
 	<-sigCh
 	log.Println("Shutting down...")
 	stop()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	_ = server.Shutdown(shutdownCtx)
+	server.Stop()
 }
 
 // small wrapper to register for SIGINT/SIGTERM

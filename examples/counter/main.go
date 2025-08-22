@@ -47,12 +47,14 @@ func CounterApp() Node {
 			P(Text("A simple counter demonstrating uiwgo's reactive signals")),
 
 			Div(
+				ID("count-display"),
 				Style("font-size: 2em; font-weight: bold; color: #333; margin: 20px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef;"),
 				comps.BindText(func() string { return fmt.Sprintf("Count: %d (double: %d)", count.Get(), double.Get()) }),
 			),
 
 			Div(
 				Button(
+					ID("increment-btn"),
 					Style("font-size: 1.2em; padding: 10px 20px; margin: 0 10px; border: none; border-radius: 5px; cursor: pointer; background-color: #28a745; color: white; transition: background-color 0.2s;"),
 					Text("+ Increment"),
 					Attr("onclick", "window.incrementCounter()"),
