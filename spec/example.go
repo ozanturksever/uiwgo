@@ -1,3 +1,5 @@
+//go:build ignore
+
 package spec
 
 import (
@@ -10,8 +12,8 @@ import (
 )
 
 func main() {
- comps.Render(CounterApp())
- comps.Run()
+	comps.Render(CounterApp())
+	comps.Run()
 }
 
 func CounterApp() Node {
@@ -27,18 +29,18 @@ func CounterApp() Node {
 
 func CounterComponent() Node {
 	// Create a reactive signal to hold the counter value
- count := reactivity.NewSignal(0)
+	count := reactivity.NewSignal(0)
 
 	return Div(
 		// Lifecycle hooks
-  comps.OnMount(func() {
+		comps.OnMount(func() {
 			fmt.Println("CounterComponent mounted")
 		}),
 		// Effect runs whenever accessed signals inside change (e.g., count)
-  reactivity.Effect(func() {
+		reactivity.Effect(func() {
 			fmt.Println("CounterComponent count changed:", count.Get())
 		}),
-  comps.OnCleanup(func() {
+		comps.OnCleanup(func() {
 			fmt.Println("CounterComponent unmounted")
 		}),
 
@@ -52,7 +54,7 @@ func CounterComponent() Node {
 
 		// Show additional info reactively
 		Div(
-   Style("margin-top: 20px; color: #666; font-style: italic;"),
+			Style("margin-top: 20px; color: #666; font-style: italic;"),
 			comps.BindText(func() string {
 				currentCount := count.Get()
 				if currentCount == 0 {
@@ -79,7 +81,7 @@ func AppHeader(title, subtitle string) Node {
 func CounterDisplay(getCount func() int) Node {
 	return Div(
 		Style("font-size: 2em; font-weight: bold; color: #333; margin: 20px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef;"),
-  comps.BindText(func() string {
+		comps.BindText(func() string {
 			return fmt.Sprintf("Count: %d", getCount())
 		}),
 	)
