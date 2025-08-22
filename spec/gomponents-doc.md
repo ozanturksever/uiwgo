@@ -578,6 +578,41 @@ func CounterComponent() Node {
 
 This pattern is particularly valuable for applications that need to share logic between server and client, or when you want to leverage Go's strengths (type safety, performance, tooling) for client-side behavior.
 
+#### Direct onclick attribute binding to exposed Go function
+
+If you prefer inline attribute binding, you can still keep the logic in Go by exposing a global function and calling it from the attribute value:
+
+```go
+import (
+    "syscall/js"
+    . "maragu.dev/gomponents"
+    . "maragu.dev/gomponents/html"
+)
+
+// Expose from Go (do this during setup/mount)
+var incFn js.Func
+func expose() {
+    incFn = js.FuncOf(func(this js.Value, args []js.Value) any {
+        // your logic here
+        return nil
+    })
+    js.Global().Set("increment", incFn)
+}
+
+// Use in markup
+func CounterComponent() Node {
+    return Button(
+        Attr("onclick", "window.increment()"),
+        Text("Increment"),
+    )
+}
+
+// Clean up when no longer needed
+func cleanup() { incFn.Release(); js.Global().Set("increment", js.Undefined()) }
+```
+
+Remember to call `incFn.Release()` on teardown to avoid memory leaks.
+
 ### Best Practices for Event Handling
 
 1. **Use IDs or classes** to target elements from JavaScript

@@ -2,15 +2,16 @@ package spec
 
 import (
 	"fmt"
-	"github.com/ozanturksever/uiwgo"
+	comps "github.com/ozanturksever/uiwgo/comps"
+	reactivity "github.com/ozanturksever/uiwgo/reactivity"
 
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
 
 func main() {
-	uiwgo.Render(CounterApp())
-	uiwgo.Run()
+ comps.Render(CounterApp())
+ comps.Run()
 }
 
 func CounterApp() Node {
@@ -26,18 +27,18 @@ func CounterApp() Node {
 
 func CounterComponent() Node {
 	// Create a reactive signal to hold the counter value
-	count := uiwgo.NewSignal(0)
+ count := reactivity.NewSignal(0)
 
 	return Div(
 		// Lifecycle hooks
-		uiwgo.OnMount(func() {
+  comps.OnMount(func() {
 			fmt.Println("CounterComponent mounted")
 		}),
 		// Effect runs whenever accessed signals inside change (e.g., count)
-		uiwgo.Effect(func() {
+  reactivity.Effect(func() {
 			fmt.Println("CounterComponent count changed:", count.Get())
 		}),
-		uiwgo.OnCleanup(func() {
+  comps.OnCleanup(func() {
 			fmt.Println("CounterComponent unmounted")
 		}),
 
@@ -51,8 +52,8 @@ func CounterComponent() Node {
 
 		// Show additional info reactively
 		Div(
-			Style("margin-top: 20px; color: #666; font-style: italic;"),
-			uiwgo.BindText(func() string {
+   Style("margin-top: 20px; color: #666; font-style: italic;"),
+			comps.BindText(func() string {
 				currentCount := count.Get()
 				if currentCount == 0 {
 					return "Counter is at zero"
@@ -78,7 +79,7 @@ func AppHeader(title, subtitle string) Node {
 func CounterDisplay(getCount func() int) Node {
 	return Div(
 		Style("font-size: 2em; font-weight: bold; color: #333; margin: 20px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef;"),
-		uiwgo.BindText(func() string {
+  comps.BindText(func() string {
 			return fmt.Sprintf("Count: %d", getCount())
 		}),
 	)
@@ -91,14 +92,14 @@ func CounterControls(onInc, onDec, onReset func()) Node {
 		Button(
 			Style("font-size: 1.2em; padding: 10px 20px; margin: 0 10px; border: none; border-radius: 5px; cursor: pointer; background-color: #28a745; color: white; transition: background-color 0.2s;"),
 			Text("+ Increment"),
-			uiwgo.OnClick(onInc),
+			comps.OnClick(onInc),
 		),
 
 		// Decrement button
 		Button(
 			Style("font-size: 1.2em; padding: 10px 20px; margin: 0 10px; border: none; border-radius: 5px; cursor: pointer; background-color: #dc3545; color: white; transition: background-color 0.2s;"),
 			Text("- Decrement"),
-			uiwgo.OnClick(onDec),
+			comps.OnClick(onDec),
 		),
 
 		Br(),
@@ -107,7 +108,7 @@ func CounterControls(onInc, onDec, onReset func()) Node {
 		Button(
 			Style("font-size: 1.2em; padding: 10px 20px; margin: 10px; border: none; border-radius: 5px; cursor: pointer; background-color: #6c757d; color: white; transition: background-color 0.2s;"),
 			Text("Reset"),
-			uiwgo.OnClick(onReset),
+			comps.OnClick(onReset),
 		),
 	)
 }

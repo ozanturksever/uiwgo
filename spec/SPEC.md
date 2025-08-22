@@ -35,7 +35,7 @@ This philosophy ensures that developers have explicit control over where and how
 
 ---
 
-### 1. The Core Reactive API (`pkg/reactivity`)
+### 1. The Core Reactive API (`github.com/ozanturksever/uiwgo/reactivity`)
 
 This is the engine of our framework. It's completely platform-agnostic; it knows nothing about the DOM.
 
@@ -92,7 +92,7 @@ func OnCleanup(fn func()) {
 }
 ```
 
-### 2. The Component & DOM API (`pkg/github.com/ozanturksever/uiwgo`)
+### 2. The Component & DOM API (`github.com/ozanturksever/uiwgo/comps`)
 
 This package builds on the reactive core to provide components, lifecycle hooks, and the rendering logic.
 
@@ -101,7 +101,7 @@ This package builds on the reactive core to provide components, lifecycle hooks,
 A component is simply a function.
 
 ```go
-package github.com/ozanturksever/uiwgo
+package comps
 
 import "github.com/ozanturksever/gomponents"
 
@@ -118,7 +118,7 @@ type ComponentFunc[P any] func(props P) Node
 This is the entry point for the application.
 
 ```go
-package github.com/ozanturksever/uiwgo
+package comps
 
 // Mount renders a root component into a specific DOM element identified by its ID.
 // It sets up the top-level reactive context.
@@ -139,9 +139,9 @@ func Mount(elementID string, rootComponent func() Node) {
 Lifecycle management flows naturally from the reactive primitives. We just provide convenient wrappers.
 
 ```go
-package github.com/ozanturksever/uiwgo
+package comps
 
-import "github.com/ozanturksever/uiwgo/pkg/reactivity"
+import "github.com/ozanturksever/uiwgo/reactivity"
 
 // OnMount runs the given function after the component's elements have been
 // mounted to the DOM.
@@ -226,13 +226,13 @@ import (
 	"github.com/ozanturksever/gomponents"
 	"maragu.dev/gomponents/html"
 
-	"github.com/ozanturksever/uiwgo"
-	"github.com/ozanturksever/uiwgo/pkg/reactivity"
+	"github.com/ozanturksever/uiwgo/comps"
+	"github.com/ozanturksever/uiwgo/reactivity"
 )
 
 // Our simple Counter component.
 // It doesn't take any props, so we use an empty struct.
-func Counter(props struct{}) uiwgo.Node {
+func Counter(props struct{}) comps.Node {
 	// 1. Create a reactive state variable (a signal).
 	count := reactivity.CreateSignal(0)
 
@@ -246,9 +246,21 @@ func Counter(props struct{}) uiwgo.Node {
 		fmt.Printf("The current count is: %d\n", count.Get())
 	})
 
-	// This is a lifecycle hook.
-	uiwgo.OnMount(func() {
+	// Expose increment function to JS on mount and clean up on unmount.
+	var incFn js.Func
+	comps.OnMount(func() {
 		fmt.Println("Counter component has been mounted to the DOM!")
+		incFn = js.FuncOf(func(this js.Value, args []js.Value) any {
+			count.Set(count.Get() + 1)
+			return nil
+		})
+		js.Global().Set("incrementCounter", incFn)
+	})
+	comps.OnCleanup(func() {
+		if incFn != (js.Func{}) {
+			incFn.Release()
+			js.Global().Set("incrementCounter", js.Undefined())
+		}
 	})
 
 	// 3. Return the DOM structure using gomponents.
@@ -260,17 +272,16 @@ func Counter(props struct{}) uiwgo.Node {
 
 		// IMPORTANT: This text node needs to be reactive.
 		// We'll wrap it in an effect to update it directly.
-		html.P(uiwgo.BindText(func() string {
+ 	html.P(comps.BindText(func() string {
 			return fmt.Sprintf("Double Count: %d", doubleCount.Get())
 		})),
 
 		html.Button(
 			html.Class("px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-700"),
-			// Event handlers are set up once. The closure captures the signal.
-			gomponents.Attr("onclick", js.FuncOf(func(this js.Value, args []js.Value) any {
-				count.Set(count.Get() + 1)
-				return nil
-			}).String()),
+			// Event handlers are set up once. Expose a Go function via js.Global() and call it from JS.
+			// For example, in setup: js.Global().Set("incrementCounter", js.FuncOf(func(this js.Value, args []js.Value) any { count.Set(count.Get()+1); return nil }))
+			// Then reference it here by name:
+			gomponents.Attr("onclick", "window.incrementCounter()"),
 			gomponents.Text("Increment"),
 		),
 	)
@@ -292,7 +303,7 @@ func BindText(fn func() string) gomponents.Node {
 
 func main() {
 	// Mount the root component into the <div id="app"></div> in our index.html
-	uiwgo.Mount("app", func() uiwgo.Node {
+ comps.Mount("app", func() comps.Node {
 		return Counter(struct{}{})
 	})
 
@@ -308,8 +319,8 @@ func main() {
 To run the compiled WASM binary, you will need an `index.html` file and the `wasm_exec.js` script. The `wasm_exec.js` file is provided by the Go standard library and should be placed in the root of your project. It handles the loading and execution of the WASM module in the browser.
 ### Summary of the API Design
 
-*   **Reactivity (`reactivity` package):** `CreateSignal`, `CreateEffect`, `CreateMemo`. The core, pure logic.
-*   **Components (`github.com/ozanturksever/uiwgo` package):**
+*   **Reactivity (`github.com/ozanturksever/uiwgo/reactivity` package):** `CreateSignal`, `CreateEffect`, `CreateMemo`. The core, pure logic.
+*   **Components (`github.com/ozanturksever/uiwgo/comps` package):**
     *   `ComponentFunc[P]`: The standard signature `func(props P) Node`.
     *   `Mount(id, component)`: The application entry point.
     *   `OnMount(fn)`, `OnCleanup(fn)`: Lifecycle helpers.
@@ -376,7 +387,7 @@ This section outlines test scenarios for the core features of the framework.
     *   Test that `OnCleanup` within a nested scope (e.g., inner effect) does not affect the cleanup of an outer scope.
     *   Test that multiple cleanup functions in the same scope are all executed.
 
-#### 4.2. Component & DOM API (`pkg/uiwgo`)
+#### 4.2. Component & DOM API (`github.com/ozanturksever/uiwgo/comps`)
 
 ##### 4.2.1. `Mount(elementID string, rootComponent func() Node)`
 

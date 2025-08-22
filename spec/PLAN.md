@@ -4,7 +4,7 @@ This document outlines the step-by-step implementation plan for the UiwGo framew
 
 ---
 
-## Part 1: Core Reactivity API (`pkg/reactivity`)
+## Part 1: Core Reactivity API (`github.com/ozanturksever/uiwgo/reactivity`)
 
 This is the foundational, platform-agnostic engine of the framework. All tests in this section can be standard Go tests (`go test`).
 
@@ -12,8 +12,8 @@ This is the foundational, platform-agnostic engine of the framework. All tests i
 
 *   **Goal:** Create the basic structure for the reactivity package and a non-reactive `Signal`.
 *   **Actions:**
-    1.  Create the directory `pkg/reactivity`.
-    2.  Inside `pkg/reactivity`, create `signal.go`.
+    1.  Create the package directory `reactivity` (module path: `github.com/ozanturksever/uiwgo/reactivity`).
+    2.  Inside `reactivity`, create `signal.go`.
     3.  Define the `Signal[T]` interface with `Get() T` and `Set(T)`.
     4.  Implement `CreateSignal[T]` which returns a struct holding a value and an empty list of observers (effects).
     5.  `Get()` should simply return the current value.
@@ -80,7 +80,7 @@ This is the foundational, platform-agnostic engine of the framework. All tests i
 
 ---
 
-## Part 2: Component & DOM API (`pkg/github.com/ozanturksever/uiwgo`)
+## Part 2: Component & DOM API (`github.com/ozanturksever/uiwgo/comps`)
 
 This layer builds on the reactive core. Tests in this section will require a browser environment (WASM).
 
@@ -88,8 +88,8 @@ This layer builds on the reactive core. Tests in this section will require a bro
 
 *   **Goal:** Render a static, non-reactive component to the DOM.
 *   **Actions:**
-    1.  Create the directory `pkg/github.com/ozanturksever/uiwgo`.
-    2.  Create `uiwgo.go` and define `Node` and `ComponentFunc` types.
+    1.  Create the package directory `comps` (module path: `github.com/ozanturksever/uiwgo/comps`).
+    2.  Create `comps.go` (or similar) and define `Node` and `ComponentFunc` types.
     3.  Implement a basic `Mount(elementID, rootComponent)` function.
     4.  Inside `Mount`, write a simple `gomponents` renderer using `syscall/js` that handles `createElement`, `setAttribute`, and `appendChild`. It does not need to handle updates yet.
     5.  Create an `examples/counter/main.go` and `index.html`.
@@ -108,7 +108,7 @@ This layer builds on the reactive core. Tests in this section will require a bro
         *   Use `reactivity.CreateEffect` to run `fn` and update the text node's `nodeValue` whenever its dependencies change.
     3.  Return the wrapper node.
 *   **Testing (Manual):**
-    *   Update the counter example to use `uiwgo.BindText` for the count display.
+    *   Update the counter example to use `comps.BindText` for the count display.
     *   Verify the number on the screen updates when the "Increment" button is clicked.
 
 ### Step 2.3: Lifecycle Hooks (OnMount, Effect, OnCleanup)

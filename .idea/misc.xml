@@ -11,4 +11,5 @@
     </option>
   </component>
   <component name="JsBuildToolPackageJson" sorting="DEFINITION_ORDER" />
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_24" project-jdk-name="corretto-21" project-jdk-type="JavaSDK" />
 </project>
