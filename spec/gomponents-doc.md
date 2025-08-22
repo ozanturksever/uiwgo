@@ -470,6 +470,321 @@ El("my-component",
 )
 ```
 
+## Event Handling
+
+gomponents is designed for server-side HTML generation and does not provide `OnClick`-style event handling directly within Go code. The library focuses on generating static HTML markup that can be enhanced with client-side JavaScript for interactivity.
+
+### JavaScript-Based Event Handling
+
+For any interactivity or event handling, you should use pure JavaScript to attach event listeners to the rendered DOM elements. This separation of concerns keeps the Go code focused on HTML structure while delegating dynamic behavior to the client side.
+
+### Example: Adding Click Handlers
+
+Here's how to create a button with gomponents and attach a click event handler using JavaScript:
+
+```go
+import (
+    . "maragu.dev/gomponents"
+    . "maragu.dev/gomponents/html"
+)
+
+// Create a button with gomponents
+func InteractiveButton() Node {
+    return Div(
+        // Button with an ID for JavaScript targeting
+        Button(
+            ID("my-button"),
+            Class("btn btn-primary"),
+            Text("Click Me!"),
+        ),
+        
+        // JavaScript to handle the click event
+        Script(Raw(`
+            document.addEventListener('DOMContentLoaded', function() {
+                const button = document.getElementById('my-button');
+                button.addEventListener('click', function(event) {
+                    alert('Button was clicked!');
+                    console.log('Click event triggered');
+                });
+            });
+        `)),
+    )
+}
+```
+
+### Preferred Pattern: Go Logic with JavaScript Binding
+
+When client-side logic is required, the preferred method is to define the logic in Go and expose it to JavaScript using `js.Global().Set`. This approach keeps the core logic within Go, maintaining better organization and type safety, while still using standard JavaScript for DOM event binding.
+
+#### Exposing Go Functions to JavaScript
+
+```go
+import (
+    "syscall/js"
+    . "maragu.dev/gomponents"
+    . "maragu.dev/gomponents/html"
+)
+
+// Define your logic in Go
+func increment(this js.Value, args []js.Value) interface{} {
+    // Your Go logic here
+    counter := args[0].Int()
+    newValue := counter + 1
+    
+    // Update the DOM element
+    document := js.Global().Get("document")
+    element := document.Call("getElementById", "counter")
+    element.Set("textContent", newValue)
+    
+    return newValue
+}
+
+// In your Go code, expose the function to JavaScript
+js.Global().Set("increment", js.FuncOf(increment))
+
+// Create the HTML structure
+func CounterComponent() Node {
+    return Div(
+        P(ID("counter"), Text("0")),
+        Button(
+            ID("increment-btn"),
+            Text("Increment"),
+        ),
+        
+        // JavaScript to bind the event
+        Script(Raw(`
+            document.addEventListener('DOMContentLoaded', function() {
+                const button = document.getElementById('increment-btn');
+                const counter = document.getElementById('counter');
+                
+                button.addEventListener('click', function() {
+                    const currentValue = parseInt(counter.textContent);
+                    // Call the Go function exposed to JavaScript
+                    window.increment(currentValue);
+                });
+            });
+        `)),
+    )
+}
+```
+
+#### Benefits of This Pattern
+
+1. **Type Safety**: Core logic remains in Go with compile-time type checking
+2. **Code Organization**: Business logic stays centralized in Go code
+3. **Debugging**: Use Go's debugging tools for complex logic
+4. **Testing**: Go functions can be unit tested independently
+5. **Performance**: Go logic can be more performant than JavaScript for complex operations
+
+This pattern is particularly valuable for applications that need to share logic between server and client, or when you want to leverage Go's strengths (type safety, performance, tooling) for client-side behavior.
+
+### Best Practices for Event Handling
+
+1. **Use IDs or classes** to target elements from JavaScript
+2. **Wrap event listeners** in `DOMContentLoaded` to ensure elements exist
+3. **Keep JavaScript separate** from Go logic when possible
+4. **Consider using external JavaScript files** for complex interactions
+5. **Use data attributes** to pass data from Go to JavaScript:
+
+```go
+Button(
+    ID("submit-btn"),
+    DataAttr("user-id", "123"),
+    DataAttr("action", "submit"),
+    Text("Submit"),
+)
+
+Script(Raw(`
+    document.getElementById('submit-btn').addEventListener('click', function(e) {
+        const userId = e.target.dataset.userId;
+        const action = e.target.dataset.action;
+        // Use the data in your JavaScript logic
+    });
+`))
+```
+
+This approach maintains the clean separation between server-side HTML generation (Go) and client-side behavior (JavaScript), which is a core principle of gomponents' design philosophy.
+
+## Best Practice: Interacting with Go from JavaScript
+
+When building interactive components with gomponents, it's important to follow best practices for structuring your code. A key principle is to avoid writing complex, multi-line JavaScript directly inside `Script(Raw(...))` tags, and instead structure your code to keep business logic in Go while using minimal JavaScript for DOM event binding.
+
+### ❌ What to Avoid
+
+Don't write complex logic directly in JavaScript within `Script(Raw(...))` tags:
+
+```go
+import (
+    . "maragu.dev/gomponents"
+    . "maragu.dev/gomponents/html"
+)
+
+func CounterComponent() Node {
+    return Div(
+        P(ID("counter"), Text("0")),
+        Button(ID("increment-btn"), Text("Increment")),
+        
+        // AVOID: Complex logic embedded in JavaScript
+        Script(Raw(`
+            document.addEventListener('DOMContentLoaded', function() {
+                const button = document.getElementById('increment-btn');
+                const counter = document.getElementById('counter');
+                
+                button.addEventListener('click', function() {
+                    const currentValue = parseInt(counter.textContent);
+                    
+                    // Complex business logic mixed with DOM manipulation
+                    let newValue;
+                    if (currentValue < 10) {
+                        newValue = currentValue + 1;
+                    } else if (currentValue < 100) {
+                        newValue = currentValue + 5;
+                    } else {
+                        newValue = currentValue + 10;
+                    }
+                    
+                    // Validation logic
+                    if (newValue > 1000) {
+                        alert('Maximum value reached!');
+                        newValue = 1000;
+                    }
+                    
+                    counter.textContent = newValue;
+                    
+                    // Additional side effects
+                    if (newValue % 10 === 0) {
+                        console.log('Milestone reached:', newValue);
+                    }
+                });
+            });
+        `)),
+    )
+}
+```
+
+### ✅ Recommended Approach
+
+Instead, write your core logic in Go and expose it to JavaScript using `js.Global().Set()`, then use minimal JavaScript for event binding:
+
+```go
+import (
+    "syscall/js"
+    . "maragu.dev/gomponents"
+    . "maragu.dev/gomponents/html"
+)
+
+// Core business logic in Go - type-safe and testable
+func calculateIncrement(current int) int {
+    if current < 10 {
+        return current + 1
+    } else if current < 100 {
+        return current + 5
+    } else {
+        return current + 10
+    }
+}
+
+func validateValue(value int) (int, bool) {
+    if value > 1000 {
+        return 1000, true // Return max value and indicate limit reached
+    }
+    return value, false
+}
+
+func logMilestone(value int) {
+    if value%10 == 0 {
+        js.Global().Get("console").Call("log", "Milestone reached:", value)
+    }
+}
+
+// Go function exposed to JavaScript
+func increment(this js.Value, args []js.Value) interface{} {
+    currentValue := args[0].Int()
+    
+    // Use Go functions for business logic
+    newValue := calculateIncrement(currentValue)
+    finalValue, limitReached := validateValue(newValue)
+    
+    if limitReached {
+        js.Global().Call("alert", "Maximum value reached!")
+    }
+    
+    // Update DOM
+    document := js.Global().Get("document")
+    element := document.Call("getElementById", "counter")
+    element.Set("textContent", finalValue)
+    
+    // Log milestone
+    logMilestone(finalValue)
+    
+    return finalValue
+}
+
+// Expose the Go function to JavaScript (typically in your main function)
+func init() {
+    js.Global().Set("increment", js.FuncOf(increment))
+}
+
+// Component with minimal JavaScript
+func CounterComponent() Node {
+    return Div(
+        P(ID("counter"), Text("0")),
+        Button(ID("increment-btn"), Text("Increment")),
+        
+        // Minimal JavaScript - just event binding
+        Script(Raw(`
+            document.addEventListener('DOMContentLoaded', function() {
+                const button = document.getElementById('increment-btn');
+                const counter = document.getElementById('counter');
+                
+                button.addEventListener('click', function() {
+                    const currentValue = parseInt(counter.textContent);
+                    // Call the Go function exposed to JavaScript
+                    window.increment(currentValue);
+                });
+            });
+        `)),
+    )
+}
+```
+
+### Why This Approach is Better
+
+1. **Type Safety**: Business logic remains in Go with compile-time type checking, reducing runtime errors.
+
+2. **Code Organization**: Core logic is centralized in Go functions that can be easily found, understood, and maintained.
+
+3. **Testability**: Go functions can be unit tested independently using standard Go testing tools:
+   ```go
+   func TestCalculateIncrement(t *testing.T) {
+       tests := []struct {
+           input    int
+           expected int
+       }{
+           {5, 6},
+           {15, 20},
+           {150, 160},
+       }
+       
+       for _, test := range tests {
+           result := calculateIncrement(test.input)
+           if result != test.expected {
+               t.Errorf("calculateIncrement(%d) = %d; want %d", test.input, result, test.expected)
+           }
+       }
+   }
+   ```
+
+4. **Debugging**: Use Go's excellent debugging tools and error handling for complex logic instead of browser developer tools.
+
+5. **Performance**: Go logic can be more performant than JavaScript for computationally intensive operations.
+
+6. **Code Reuse**: Business logic written in Go can be shared between server-side and client-side code.
+
+7. **Maintainability**: Separating concerns makes the code easier to read and modify. JavaScript is limited to simple DOM manipulation and event handling.
+
+This pattern keeps the JavaScript minimal and focused solely on DOM event binding, while all business logic remains in Go where it benefits from strong typing, better tooling, and easier testing.
+
 ## Debugging
 
 ### String() Method

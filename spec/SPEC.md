@@ -3,6 +3,36 @@
 1.  **Declarative UI, Imperative Performance:** You write declarative components using standard Go functions and `gomponents` (see [gomponents-doc.md](gomponents-doc.md)) for structure. The framework's core (and a future compiler) will translate this into the most efficient, direct DOM manipulation calls.
 2.  **Fine-Grained Reactivity:** The foundation is a system of `Signals`, `Effects`, and `Memos`. Updates flow through the system automatically, triggering the smallest possible DOM updates. No component re-rendering, no diffing.
 3.  **Components are Just Functions:** A component is a Go function that runs *once* to set up state, create effects, and return the initial DOM structure. It does not re-run when its state changes. This is a critical distinction from React's model and is key to our performance.
+4.  **Fallback Reactivity Mechanisms:** If you exhaust the simple ways to do things, you can revert to use DOM diff or node dirty algorithms to handle reactivity. While fine-grained reactivity is preferred for optimal performance, these fallback mechanisms provide flexibility for complex scenarios where direct signal-based updates are insufficient.
+
+---
+
+### Event Handling Philosophy
+
+The `gomponents` library follows a strict separation of concerns between server-side HTML generation and client-side interactivity:
+
+1. **No Server-Side Event Binding:** The `gomponents` library does not, by design, include support for `OnClick`-style or other server-side event binding mechanisms. This is an intentional architectural decision that maintains clarity between what happens on the server versus what happens in the browser.
+
+2. **Recommended Pattern - Go-Defined Client Logic:** The preferred architectural pattern is to define client-side logic within Go and expose it to JavaScript using `js.Global().Set` and `js.FuncOf`. This approach maintains type safety and centralizes application logic within Go while providing seamless interoperability with the browser environment.
+
+   **Example:**
+   ```go
+   js.Global().Set("myFunction", js.FuncOf(myGoFunction))
+   ```
+
+   This pattern is recommended because it:
+   - **Maintains Type Safety:** All application logic remains in Go with compile-time type checking
+   - **Centralizes Logic:** Business logic and state management stay within the Go application
+   - **Preserves Performance:** Direct function calls without marshaling overhead
+   - **Enables Testing:** Go functions can be unit tested independently of the DOM
+
+3. **Clear Separation of Concerns:** This design choice enforces a clear separation of concerns between:
+   - **Go backend:** Responsible for generating HTML structure, managing application state, defining business logic, and exposing functions to the JavaScript runtime
+   - **Frontend JavaScript:** Responsible primarily for binding Go-defined functions to DOM events and handling browser-specific interactions
+
+4. **Framework Integration:** When using this reactive framework (UiwGo), event handlers are attached directly to DOM elements by binding Go functions to JavaScript. The reactive signals provide the bridge between user interactions and state updates, maintaining the unidirectional data flow that is central to the framework's design. This pattern reinforces the separation of concerns where Go manages the application's state and logic, while JavaScript's role is primarily to bind these Go functions to DOM events.
+
+This philosophy ensures that developers have explicit control over where and how events are handled, while maintaining the performance benefits of fine-grained reactivity for state updates and keeping the majority of application logic within the type-safe Go environment.
 
 ---
 
