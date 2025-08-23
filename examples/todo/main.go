@@ -188,11 +188,15 @@ func StatsFooter(remaining reactivity.Signal[int], hasCompleted reactivity.Signa
 		ID("stats-footer"),
 		Style("display:flex; align-items:center; justify-content: space-between; margin-top: 12px; color:#555;"),
 		Div(
-			comps.BindText(func() string { return fmt.Sprintf("%d items left", remaining.Get()) }),
+			comps.BindHTML(func() Node {
+				count := remaining.Get()
+				itemText := "items"
+				if count == 1 {
+					itemText = "item"
+				}
+				return Text(fmt.Sprintf("%d %s left", count, itemText))
+			}),
 		),
-		comps.Show(comps.ShowProps{
-			When:     hasCompleted,
-			Children: Button(ID("clear-completed-btn"), Text("Clear completed"), Attr("onclick", "window.clearCompleted()")),
-		}),
+		comps.Show(comps.ShowProps{When: hasCompleted, Children: Button(ID("clear-completed-btn"), Text("Clear completed"), Attr("onclick", "window.clearCompleted()"))}),
 	)
 }
