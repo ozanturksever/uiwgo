@@ -91,8 +91,9 @@ func (s *Server) Start() error {
 		return fmt.Errorf("failed to build WASM: %w", err)
 	}
 
-	// Setup HTTP handlers using the DefaultServeMux so other packages (e.g., spec/dev.go) can register endpoints like /__livereload
-	mux := http.DefaultServeMux
+	// Setup HTTP handlers using a new ServeMux to avoid conflicts between test instances
+	mux := http.NewServeMux()
+	s.mux = mux
 
 	// Static files from examples/<example> or current directory
 	var dir string
