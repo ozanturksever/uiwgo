@@ -3,7 +3,6 @@
 package dom
 
 import (
-	"fmt"
 	"sync"
 	"syscall/js"
 
@@ -103,7 +102,7 @@ var GlobalEventManager = NewEventManager()
 
 // BindClick binds a click event handler to an element
 func BindClick(element dom.Element, handler func(event dom.Event)) *EventBinding {
-	funcName := CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) > 0 {
 			event := dom.WrapEvent(args[0])
 			handler(event)
@@ -111,15 +110,16 @@ func BindClick(element dom.Element, handler func(event dom.Event)) *EventBinding
 		return nil
 	})
 
-	// Use onclick attribute for better compatibility
-	element.SetAttribute("onclick", fmt.Sprintf("%s(event)", funcName))
+	// Use addEventListener instead of inline attribute
+	element.Underlying().Call("addEventListener", "click", jsFunc)
 
 	binding := &EventBinding{
 		element:   element,
 		eventType: "click",
-		funcName:  funcName,
+		funcName:  "", // not used with addEventListener
 		cleanupFn: func() {
-			element.RemoveAttribute("onclick")
+			element.Underlying().Call("removeEventListener", "click", jsFunc)
+			jsFunc.Release()
 		},
 	}
 
@@ -129,7 +129,8 @@ func BindClick(element dom.Element, handler func(event dom.Event)) *EventBinding
 
 // BindClickInline binds a click event using inline onclick attribute
 func BindClickInline(element dom.Element, handler func(event dom.Event)) *EventBinding {
-	funcName := CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
+	// Keep API but implement with addEventListener for reliability
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) > 0 {
 			event := dom.WrapEvent(args[0])
 			handler(event)
@@ -137,14 +138,15 @@ func BindClickInline(element dom.Element, handler func(event dom.Event)) *EventB
 		return nil
 	})
 
-	element.SetAttribute("onclick", fmt.Sprintf("%s(event)", funcName))
+	element.Underlying().Call("addEventListener", "click", jsFunc)
 
 	binding := &EventBinding{
 		element:   element,
 		eventType: "click",
-		funcName:  funcName,
+		funcName:  "",
 		cleanupFn: func() {
-			element.RemoveAttribute("onclick")
+			element.Underlying().Call("removeEventListener", "click", jsFunc)
+			jsFunc.Release()
 		},
 	}
 
@@ -154,7 +156,7 @@ func BindClickInline(element dom.Element, handler func(event dom.Event)) *EventB
 
 // BindChange binds a change event handler to an element
 func BindChange(element dom.Element, handler func(event dom.Event)) *EventBinding {
-	funcName := CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) > 0 {
 			event := dom.WrapEvent(args[0])
 			handler(event)
@@ -162,14 +164,15 @@ func BindChange(element dom.Element, handler func(event dom.Event)) *EventBindin
 		return nil
 	})
 
-	element.SetAttribute("onchange", fmt.Sprintf("%s(event)", funcName))
+	element.Underlying().Call("addEventListener", "change", jsFunc)
 
 	binding := &EventBinding{
 		element:   element,
 		eventType: "change",
-		funcName:  funcName,
+		funcName:  "",
 		cleanupFn: func() {
-			element.RemoveAttribute("onchange")
+			element.Underlying().Call("removeEventListener", "change", jsFunc)
+			jsFunc.Release()
 		},
 	}
 
@@ -179,7 +182,7 @@ func BindChange(element dom.Element, handler func(event dom.Event)) *EventBindin
 
 // BindInput binds an input event handler to an element
 func BindInput(element dom.Element, handler func(event dom.Event)) *EventBinding {
-	funcName := CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) > 0 {
 			event := dom.WrapEvent(args[0])
 			handler(event)
@@ -187,14 +190,15 @@ func BindInput(element dom.Element, handler func(event dom.Event)) *EventBinding
 		return nil
 	})
 
-	element.SetAttribute("oninput", fmt.Sprintf("%s(event)", funcName))
+	element.Underlying().Call("addEventListener", "input", jsFunc)
 
 	binding := &EventBinding{
 		element:   element,
 		eventType: "input",
-		funcName:  funcName,
+		funcName:  "",
 		cleanupFn: func() {
-			element.RemoveAttribute("oninput")
+			element.Underlying().Call("removeEventListener", "input", jsFunc)
+			jsFunc.Release()
 		},
 	}
 
@@ -204,7 +208,7 @@ func BindInput(element dom.Element, handler func(event dom.Event)) *EventBinding
 
 // BindKeyDown binds a keydown event handler to an element
 func BindKeyDown(element dom.Element, handler func(event dom.Event)) *EventBinding {
-	funcName := CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) > 0 {
 			event := dom.WrapEvent(args[0])
 			handler(event)
@@ -212,14 +216,15 @@ func BindKeyDown(element dom.Element, handler func(event dom.Event)) *EventBindi
 		return nil
 	})
 
-	element.SetAttribute("onkeydown", fmt.Sprintf("%s(event)", funcName))
+	element.Underlying().Call("addEventListener", "keydown", jsFunc)
 
 	binding := &EventBinding{
 		element:   element,
 		eventType: "keydown",
-		funcName:  funcName,
+		funcName:  "",
 		cleanupFn: func() {
-			element.RemoveAttribute("onkeydown")
+			element.Underlying().Call("removeEventListener", "keydown", jsFunc)
+			jsFunc.Release()
 		},
 	}
 
@@ -229,7 +234,7 @@ func BindKeyDown(element dom.Element, handler func(event dom.Event)) *EventBindi
 
 // BindKeyUp binds a keyup event handler to an element
 func BindKeyUp(element dom.Element, handler func(event dom.Event)) *EventBinding {
-	funcName := CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) > 0 {
 			event := dom.WrapEvent(args[0])
 			handler(event)
@@ -237,14 +242,15 @@ func BindKeyUp(element dom.Element, handler func(event dom.Event)) *EventBinding
 		return nil
 	})
 
-	element.SetAttribute("onkeyup", fmt.Sprintf("%s(event)", funcName))
+	element.Underlying().Call("addEventListener", "keyup", jsFunc)
 
 	binding := &EventBinding{
 		element:   element,
 		eventType: "keyup",
-		funcName:  funcName,
+		funcName:  "",
 		cleanupFn: func() {
-			element.RemoveAttribute("onkeyup")
+			element.Underlying().Call("removeEventListener", "keyup", jsFunc)
+			jsFunc.Release()
 		},
 	}
 
@@ -254,7 +260,7 @@ func BindKeyUp(element dom.Element, handler func(event dom.Event)) *EventBinding
 
 // BindSubmit binds a submit event handler to a form element
 func BindSubmit(element dom.Element, handler func(event dom.Event)) *EventBinding {
-	funcName := CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) > 0 {
 			event := dom.WrapEvent(args[0])
 			handler(event)
@@ -262,14 +268,15 @@ func BindSubmit(element dom.Element, handler func(event dom.Event)) *EventBindin
 		return nil
 	})
 
-	element.SetAttribute("onsubmit", fmt.Sprintf("%s(event)", funcName))
+	element.Underlying().Call("addEventListener", "submit", jsFunc)
 
 	binding := &EventBinding{
 		element:   element,
 		eventType: "submit",
-		funcName:  funcName,
+		funcName:  "",
 		cleanupFn: func() {
-			element.RemoveAttribute("onsubmit")
+			element.Underlying().Call("removeEventListener", "submit", jsFunc)
+			jsFunc.Release()
 		},
 	}
 
@@ -279,7 +286,7 @@ func BindSubmit(element dom.Element, handler func(event dom.Event)) *EventBindin
 
 // BindMouseOver binds a mouseover event handler to an element
 func BindMouseOver(element dom.Element, handler func(event dom.Event)) *EventBinding {
-	funcName := CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) > 0 {
 			event := dom.WrapEvent(args[0])
 			handler(event)
@@ -287,14 +294,15 @@ func BindMouseOver(element dom.Element, handler func(event dom.Event)) *EventBin
 		return nil
 	})
 
-	element.SetAttribute("onmouseover", fmt.Sprintf("%s(event)", funcName))
+	element.Underlying().Call("addEventListener", "mouseover", jsFunc)
 
 	binding := &EventBinding{
 		element:   element,
 		eventType: "mouseover",
-		funcName:  funcName,
+		funcName:  "",
 		cleanupFn: func() {
-			element.RemoveAttribute("onmouseover")
+			element.Underlying().Call("removeEventListener", "mouseover", jsFunc)
+			jsFunc.Release()
 		},
 	}
 
@@ -304,7 +312,7 @@ func BindMouseOver(element dom.Element, handler func(event dom.Event)) *EventBin
 
 // BindMouseOut binds a mouseout event handler to an element
 func BindMouseOut(element dom.Element, handler func(event dom.Event)) *EventBinding {
-	funcName := CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) > 0 {
 			event := dom.WrapEvent(args[0])
 			handler(event)
@@ -312,14 +320,15 @@ func BindMouseOut(element dom.Element, handler func(event dom.Event)) *EventBind
 		return nil
 	})
 
-	element.SetAttribute("onmouseout", fmt.Sprintf("%s(event)", funcName))
+	element.Underlying().Call("addEventListener", "mouseout", jsFunc)
 
 	binding := &EventBinding{
 		element:   element,
 		eventType: "mouseout",
-		funcName:  funcName,
+		funcName:  "",
 		cleanupFn: func() {
-			element.RemoveAttribute("onmouseout")
+			element.Underlying().Call("removeEventListener", "mouseout", jsFunc)
+			jsFunc.Release()
 		},
 	}
 
@@ -329,7 +338,7 @@ func BindMouseOut(element dom.Element, handler func(event dom.Event)) *EventBind
 
 // BindFocus binds a focus event handler to an element
 func BindFocus(element dom.Element, handler func(event dom.Event)) *EventBinding {
-	funcName := CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) > 0 {
 			event := dom.WrapEvent(args[0])
 			handler(event)
@@ -337,14 +346,15 @@ func BindFocus(element dom.Element, handler func(event dom.Event)) *EventBinding
 		return nil
 	})
 
-	element.SetAttribute("onfocus", fmt.Sprintf("%s(event)", funcName))
+	element.Underlying().Call("addEventListener", "focus", jsFunc)
 
 	binding := &EventBinding{
 		element:   element,
 		eventType: "focus",
-		funcName:  funcName,
+		funcName:  "",
 		cleanupFn: func() {
-			element.RemoveAttribute("onfocus")
+			element.Underlying().Call("removeEventListener", "focus", jsFunc)
+			jsFunc.Release()
 		},
 	}
 
@@ -354,7 +364,7 @@ func BindFocus(element dom.Element, handler func(event dom.Event)) *EventBinding
 
 // BindBlur binds a blur event handler to an element
 func BindBlur(element dom.Element, handler func(event dom.Event)) *EventBinding {
-	funcName := CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) > 0 {
 			event := dom.WrapEvent(args[0])
 			handler(event)
@@ -362,14 +372,15 @@ func BindBlur(element dom.Element, handler func(event dom.Event)) *EventBinding 
 		return nil
 	})
 
-	element.SetAttribute("onblur", fmt.Sprintf("%s(event)", funcName))
+	element.Underlying().Call("addEventListener", "blur", jsFunc)
 
 	binding := &EventBinding{
 		element:   element,
 		eventType: "blur",
-		funcName:  funcName,
+		funcName:  "",
 		cleanupFn: func() {
-			element.RemoveAttribute("onblur")
+			element.Underlying().Call("removeEventListener", "blur", jsFunc)
+			jsFunc.Release()
 		},
 	}
 
@@ -379,7 +390,7 @@ func BindBlur(element dom.Element, handler func(event dom.Event)) *EventBinding 
 
 // BindGenericEvent binds a generic event handler to an element
 func BindGenericEvent(element dom.Element, eventType string, handler func(event dom.Event)) *EventBinding {
-	funcName := CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) > 0 {
 			event := dom.WrapEvent(args[0])
 			handler(event)
@@ -387,16 +398,15 @@ func BindGenericEvent(element dom.Element, eventType string, handler func(event 
 		return nil
 	})
 
-	// Convert event type to attribute name (e.g., "click" -> "onclick")
-	attrName := "on" + eventType
-	element.SetAttribute(attrName, fmt.Sprintf("%s(event)", funcName))
+	element.Underlying().Call("addEventListener", eventType, jsFunc)
 
 	binding := &EventBinding{
 		element:   element,
 		eventType: eventType,
-		funcName:  funcName,
+		funcName:  "",
 		cleanupFn: func() {
-			element.RemoveAttribute(attrName)
+			element.Underlying().Call("removeEventListener", eventType, jsFunc)
+			jsFunc.Release()
 		},
 	}
 
@@ -480,52 +490,73 @@ func CleanupDisposedEvents() {
 
 // Event delegation helpers
 
-// DelegateEvent sets up event delegation for dynamically added elements
-func DelegateEvent(container dom.Element, eventType string, selector string, handler func(event dom.Event, target dom.Element)) *EventBinding {
-	funcName := CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
-		if len(args) > 0 {
-			event := dom.WrapEvent(args[0])
-			target := event.Target()
+// DelegateEvent attaches a delegated handler on parent for events bubbling from descendants
+// matching the CSS selector. Uses Element.closest() so selectors like
+// [data-action='toggle'] and complex selectors are supported.
+func DelegateEvent(parent dom.Element, eventType string, selector string, handler func(e dom.Event, target dom.Element)) *EventBinding {
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
+		if len(args) == 0 {
+			return nil
+		}
+		rawEvent := args[0]
+		ev := dom.WrapEvent(rawEvent)
 
-			// Check if target matches selector
-			if target != nil {
-				// Simple selector matching - can be enhanced
-				if element, ok := target.(dom.Element); ok {
-					if matchesSelector(element, selector) {
-						handler(event, element)
-					}
-				}
-			}
+		target := rawEvent.Get("target")
+		if target.IsUndefined() || target.IsNull() {
+			return nil
+		}
+
+		// closest() supports full CSS selectors, including attribute selectors with quotes
+		matched := target.Call("closest", selector)
+		if !matched.IsUndefined() && !matched.IsNull() {
+			handler(ev, dom.WrapElement(matched))
 		}
 		return nil
 	})
 
-	// Convert event type to attribute name and set up delegation
-	attrName := "on" + eventType
-	container.SetAttribute(attrName, fmt.Sprintf("%s(event)", funcName))
+	// Use addEventListener for delegation on the parent
+	parent.Underlying().Call("addEventListener", eventType, jsFunc)
 
 	binding := &EventBinding{
-		element:   container,
+		element:   parent,
 		eventType: eventType,
-		funcName:  funcName,
+		funcName:  "",
 		cleanupFn: func() {
-			container.RemoveAttribute(attrName)
+			parent.Underlying().Call("removeEventListener", eventType, jsFunc)
+			jsFunc.Release()
 		},
 	}
 
 	GlobalEventManager.AddBinding(binding)
 	return binding
+
 }
 
-// Simple selector matching helper (basic implementation)
+// matchesSelector checks if the given element matches the provided CSS selector.
+// It uses the native Element.matches() with vendor-prefixed fallbacks, so it
+// supports full CSS selectors (including attribute and complex selectors).
+// Note: For delegated scenarios where the listener is on an ancestor, consider
+// using Element.closest(selector) to both find and verify matches up the tree.
 func matchesSelector(element dom.Element, selector string) bool {
-	// Basic implementation - can be enhanced with more complex selectors
-	switch {
-	case selector[0] == '#': // ID selector
-		return element.ID() == selector[1:]
-	case selector[0] == '.': // Class selector
-		return element.Class().Contains(selector[1:])
-	default: // Tag selector
-		return element.TagName() == selector
+	u := element.Underlying()
+	if !u.Truthy() {
+		return false
 	}
+
+	// Standard method
+	if u.Get("matches").Truthy() {
+		return u.Call("matches", selector).Bool()
+	}
+
+	// Vendor-prefixed fallbacks
+	if m := u.Get("webkitMatchesSelector"); m.Truthy() {
+		return m.Invoke(selector).Bool()
+	}
+	if m := u.Get("msMatchesSelector"); m.Truthy() {
+		return m.Invoke(selector).Bool()
+	}
+
+	// Last-resort fallback: use closest() and compare
+	closest := u.Call("closest", selector)
+	return !closest.IsUndefined() && !closest.IsNull() && closest.Equal(u)
 }

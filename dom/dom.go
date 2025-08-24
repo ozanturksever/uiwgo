@@ -147,18 +147,19 @@ func (eb *ElementBuilder) AppendElement(child *ElementBuilder) *ElementBuilder {
 
 // OnClick adds a click event listener with automatic cleanup
 func (eb *ElementBuilder) OnClick(handler func(event dom.Event)) *ElementBuilder {
-	funcName := FunctionManager.CreateJSFunction("", func(this js.Value, args []js.Value) any {
-		// Convert js.Value to dom.Event
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		event := dom.WrapEvent(args[0])
 		handler(event)
 		return nil
 	})
 
-	eb.element.SetAttribute("onclick", fmt.Sprintf("%s(event)", funcName))
+	// Use addEventListener instead of inline attribute
+	eb.element.Underlying().Call("addEventListener", "click", jsFunc)
 
 	// Add cleanup function
 	eb.cleanupFuncs = append(eb.cleanupFuncs, func() {
-		FunctionManager.ReleaseJSFunction(funcName)
+		eb.element.Underlying().Call("removeEventListener", "click", jsFunc)
+		jsFunc.Release()
 	})
 
 	return eb
@@ -166,19 +167,18 @@ func (eb *ElementBuilder) OnClick(handler func(event dom.Event)) *ElementBuilder
 
 // OnEvent adds a generic event listener with automatic cleanup
 func (eb *ElementBuilder) OnEvent(eventType string, handler func(event dom.Event)) *ElementBuilder {
-	funcName := FunctionManager.CreateJSFunction("", func(this js.Value, args []js.Value) any {
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		event := dom.WrapEvent(args[0])
 		handler(event)
 		return nil
 	})
 
-	// Use setAttribute for event handlers instead of AddEventListener
-	eb.element.SetAttribute("on"+eventType, fmt.Sprintf("%s(event)", funcName))
+	eb.element.Underlying().Call("addEventListener", eventType, jsFunc)
 
 	// Add cleanup function
 	eb.cleanupFuncs = append(eb.cleanupFuncs, func() {
-		eb.element.RemoveAttribute("on" + eventType)
-		FunctionManager.ReleaseJSFunction(funcName)
+		eb.element.Underlying().Call("removeEventListener", eventType, jsFunc)
+		jsFunc.Release()
 	})
 
 	return eb

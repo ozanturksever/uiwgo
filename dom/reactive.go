@@ -3,7 +3,6 @@
 package dom
 
 import (
-	"fmt"
 	"sync"
 	"syscall/js"
 
@@ -13,17 +12,17 @@ import (
 
 // ReactiveElement wraps a DOM element with reactive capabilities
 type ReactiveElement struct {
-	element dom.Element
-	effects []reactivity.Effect
+	element      dom.Element
+	effects      []reactivity.Effect
 	cleanupFuncs []func()
-	mu sync.RWMutex
+	mu           sync.RWMutex
 }
 
 // NewReactiveElement creates a new reactive element wrapper
 func NewReactiveElement(element dom.Element) *ReactiveElement {
 	return &ReactiveElement{
-		element: element,
-		effects: make([]reactivity.Effect, 0),
+		element:      element,
+		effects:      make([]reactivity.Effect, 0),
 		cleanupFuncs: make([]func(), 0),
 	}
 }
@@ -215,17 +214,19 @@ func (re *ReactiveElement) OnClick(handler func(event dom.Event)) *ReactiveEleme
 	re.mu.Lock()
 	defer re.mu.Unlock()
 
-	funcName := CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		event := dom.WrapEvent(args[0])
 		handler(event)
 		return nil
 	})
 
-	re.element.SetAttribute("onclick", fmt.Sprintf("%s(event)", funcName))
+	// Attach listener
+	re.element.Underlying().Call("addEventListener", "click", jsFunc)
 
 	// Add cleanup function
 	re.cleanupFuncs = append(re.cleanupFuncs, func() {
-		ReleaseJSFunction(funcName)
+		re.element.Underlying().Call("removeEventListener", "click", jsFunc)
+		jsFunc.Release()
 	})
 
 	return re
@@ -236,19 +237,18 @@ func (re *ReactiveElement) OnEvent(eventType string, handler func(event dom.Even
 	re.mu.Lock()
 	defer re.mu.Unlock()
 
-	funcName := CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
+	jsFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
 		event := dom.WrapEvent(args[0])
 		handler(event)
 		return nil
 	})
 
-	attrName := "on" + eventType
-	re.element.SetAttribute(attrName, fmt.Sprintf("%s(event)", funcName))
+	re.element.Underlying().Call("addEventListener", eventType, jsFunc)
 
 	// Add cleanup function
 	re.cleanupFuncs = append(re.cleanupFuncs, func() {
-		re.element.RemoveAttribute(attrName)
-		ReleaseJSFunction(funcName)
+		re.element.Underlying().Call("removeEventListener", eventType, jsFunc)
+		jsFunc.Release()
 	})
 
 	return re
@@ -284,7 +284,7 @@ func (re *ReactiveElement) Cleanup() {
 // ReactiveElementManager manages multiple reactive elements
 type ReactiveElementManager struct {
 	elements []*ReactiveElement
-	mu sync.RWMutex
+	mu       sync.RWMutex
 }
 
 // NewReactiveElementManager creates a new manager

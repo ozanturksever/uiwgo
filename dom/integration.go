@@ -7,21 +7,22 @@ import (
 	"fmt"
 	"syscall/js"
 
+	"github.com/ozanturksever/uiwgo/comps"
+	reactivity "github.com/ozanturksever/uiwgo/reactivity"
 	"honnef.co/go/js/dom/v2"
 	g "maragu.dev/gomponents"
-	reactivity "github.com/ozanturksever/uiwgo/reactivity"
 )
 
 // GomponentsRenderer renders gomponents nodes to DOM using dom/v2
 type GomponentsRenderer struct {
-	container dom.Element
+	container        dom.Element
 	reactiveElements []*ReactiveElement
 }
 
 // NewGomponentsRenderer creates a new renderer for the given container
 func NewGomponentsRenderer(container dom.Element) *GomponentsRenderer {
 	return &GomponentsRenderer{
-		container: container,
+		container:        container,
 		reactiveElements: make([]*ReactiveElement, 0),
 	}
 }
@@ -142,14 +143,14 @@ func MountWithDOM(elementID string, root func() g.Node) (*GomponentsRenderer, er
 
 // ReactiveNodeBuilder provides a fluent interface for building reactive DOM nodes
 type ReactiveNodeBuilder struct {
-	element *ReactiveElement
+	element  *ReactiveElement
 	children []*ReactiveNodeBuilder
 }
 
 // NewReactiveNode creates a new reactive node builder
 func NewReactiveNode(tagName string) *ReactiveNodeBuilder {
 	return &ReactiveNodeBuilder{
-		element: CreateReactiveElement(tagName),
+		element:  CreateReactiveElement(tagName),
 		children: make([]*ReactiveNodeBuilder, 0),
 	}
 }
@@ -374,5 +375,27 @@ func CreateJSFunctionForCallback(callback func()) string {
 	return CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
 		callback()
 		return nil
+	})
+}
+
+// OnClick creates a mount callback that binds a click handler to an element with the given ID
+func OnClick(elementID string, handler func()) g.Node {
+	return comps.OnMount(func() {
+		fmt.Println("Mounting click handler for element with ID", elementID)
+		if el := GetElementByID(elementID); el != nil {
+			fmt.Println("Element found")
+			BindClickToCallback(el, handler)
+		}
+	})
+}
+
+// OnEvent creates a mount callback that binds any event type to an element
+func OnEvent(elementID string, eventType string, handler func()) g.Node {
+	return comps.OnMount(func() {
+		if el := GetElementByID(elementID); el != nil {
+			BindGenericEvent(el, eventType, func(event dom.Event) {
+				handler()
+			})
+		}
 	})
 }

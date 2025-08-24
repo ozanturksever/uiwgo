@@ -4,9 +4,9 @@ package main
 
 import (
 	"fmt"
-	"syscall/js"
 
 	comps "github.com/ozanturksever/uiwgo/comps"
+	dom "github.com/ozanturksever/uiwgo/dom"
 	reactivity "github.com/ozanturksever/uiwgo/reactivity"
 
 	. "maragu.dev/gomponents"
@@ -28,16 +28,25 @@ func CounterApp() Node {
 		fmt.Println("Count changed:", count.Get())
 	})
 
-	// Expose functions to window; we use onclick attributes to call them
-	incFn := js.FuncOf(func(this js.Value, args []js.Value) any { count.Set(count.Get() + 1); return nil })
-	decFn := js.FuncOf(func(this js.Value, args []js.Value) any { count.Set(count.Get() - 1); return nil })
-	resetFn := js.FuncOf(func(this js.Value, args []js.Value) any { count.Set(0); return nil })
-	js.Global().Set("incrementCounter", incFn)
-	js.Global().Set("decrementCounter", decFn)
-	js.Global().Set("resetCounter", resetFn)
+	// Setup DOM event handlers after mount
+	comps.OnMount(func() {
+		// Get DOM elements and bind events using the new DOM API
+		if incrementBtn := dom.GetElementByID("increment-btn"); incrementBtn != nil {
+			dom.BindClickToCallback(incrementBtn, func() {
+				count.Set(count.Get() + 1)
+			})
+		}
 
-	// Note: In a more advanced version, we'd register cleanup to release funcs.
-	// For this MVP demo, functions live for the page lifetime.
+		if decrementBtn := dom.GetElementByID("decrement-btn"); decrementBtn != nil {
+			dom.BindClickToCallback(decrementBtn, func() {
+				count.Set(count.Get() - 1)
+			})
+		}
+
+		if resetBtn := dom.GetElementByID("reset-btn"); resetBtn != nil {
+			dom.BindClickToSignal(resetBtn, count, 0)
+		}
+	})
 
 	return Div(
 		Style("font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; background-color: #f5f5f5; min-height: 100vh;"),
@@ -57,18 +66,17 @@ func CounterApp() Node {
 					ID("increment-btn"),
 					Style("font-size: 1.2em; padding: 10px 20px; margin: 0 10px; border: none; border-radius: 5px; cursor: pointer; background-color: #28a745; color: white; transition: background-color 0.2s;"),
 					Text("+ Increment"),
-					Attr("onclick", "window.incrementCounter()"),
 				),
 				Button(
+					ID("decrement-btn"),
 					Style("font-size: 1.2em; padding: 10px 20px; margin: 0 10px; border: none; border-radius: 5px; cursor: pointer; background-color: #dc3545; color: white; transition: background-color 0.2s;"),
 					Text("- Decrement"),
-					Attr("onclick", "window.decrementCounter()"),
 				),
 				Br(),
 				Button(
+					ID("reset-btn"),
 					Style("font-size: 1.2em; padding: 10px 20px; margin: 10px; border: none; border-radius: 5px; cursor: pointer; background-color: #6c757d; color: white; transition: background-color 0.2s;"),
 					Text("Reset"),
-					Attr("onclick", "window.resetCounter()"),
 				),
 			),
 
