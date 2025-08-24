@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -520,6 +521,70 @@ func TestForComponent(t *testing.T) {
 		t.Errorf("Expected %d items after removing, got: %d", beforeRemoveCount-1, itemCount)
 	}
 
+	// Test For component remove button functionality
+	var itemCountBefore, itemCountAfter int
+	err = chromedp.Run(ctx,
+		// Count items before removal
+		chromedp.Evaluate(`document.querySelectorAll('.list-item').length`, &itemCountBefore),
+		// Click the first remove button
+		chromedp.Click(`.remove-item`, chromedp.ByQuery),
+		chromedp.Sleep(500*time.Millisecond),
+		// Count items after removal
+		chromedp.Evaluate(`document.querySelectorAll('.list-item').length`, &itemCountAfter),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if itemCountAfter != itemCountBefore-1 {
+		t.Errorf("Expected %d items after removal, got %d", itemCountBefore-1, itemCountAfter)
+		return
+	}
+
+	t.Logf("For component remove button working correctly: %d -> %d items", itemCountBefore, itemCountAfter)
+
+	// Test Add Item button
+	err = chromedp.Run(ctx,
+		chromedp.Click(`#add-item-btn`, chromedp.ByID),
+		chromedp.Sleep(500*time.Millisecond),
+		chromedp.Evaluate(`document.querySelectorAll('.list-item').length`, &itemCountAfter),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if itemCountAfter <= itemCountBefore-1 {
+		t.Errorf("Expected more items after adding, got %d", itemCountAfter)
+		return
+	}
+
+	t.Logf("For component add button working correctly: added item, now %d items", itemCountAfter)
+
+	// Test Shuffle Items button
+	var itemTextsBefore, itemTextsAfter []string
+	err = chromedp.Run(ctx,
+		// Get item texts before shuffle
+		chromedp.Evaluate(`Array.from(document.querySelectorAll('.list-item span')).map(el => el.textContent)`, &itemTextsBefore),
+		// Click shuffle button
+		chromedp.Click(`#shuffle-items-btn`, chromedp.ByID),
+		chromedp.Sleep(500*time.Millisecond),
+		// Get item texts after shuffle
+		chromedp.Evaluate(`Array.from(document.querySelectorAll('.list-item span')).map(el => el.textContent)`, &itemTextsAfter),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	// Check that we have the same number of items but potentially different order
+	if len(itemTextsAfter) != len(itemTextsBefore) {
+		t.Errorf("Expected same number of items after shuffle, got %d vs %d", len(itemTextsAfter), len(itemTextsBefore))
+		return
+	}
+
+	t.Logf("For component shuffle button working correctly: %d items shuffled", len(itemTextsAfter))
 	t.Logf("Test passed! For component functionality working correctly")
 }
 
@@ -730,6 +795,62 @@ func TestSwitchMatchComponent(t *testing.T) {
 		t.Errorf("Expected to see Home Page content after clicking Home tab again, got: %s", pageContent)
 	}
 
+	// Test tab button functionality
+	var tabContent string
+	
+	// Test Home tab
+	err = chromedp.Run(ctx,
+		chromedp.Click(`#tab-home`, chromedp.ByID),
+		chromedp.Sleep(300*time.Millisecond),
+		chromedp.Text(`[data-uiwgo-switch]`, &tabContent, chromedp.ByQuery),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if !strings.Contains(tabContent, "Welcome to the home page") {
+		t.Errorf("Expected home tab content, got: %s", tabContent)
+		return
+	}
+
+	t.Logf("Home tab button working correctly")
+
+	// Test About tab
+	err = chromedp.Run(ctx,
+		chromedp.Click(`#tab-about`, chromedp.ByID),
+		chromedp.Sleep(300*time.Millisecond),
+		chromedp.Text(`[data-uiwgo-switch]`, &tabContent, chromedp.ByQuery),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if !strings.Contains(tabContent, "Learn more about us here") {
+		t.Errorf("Expected about tab content, got: %s", tabContent)
+		return
+	}
+
+	t.Logf("About tab button working correctly")
+
+	// Test Contact tab
+	err = chromedp.Run(ctx,
+		chromedp.Click(`#tab-contact`, chromedp.ByID),
+		chromedp.Sleep(300*time.Millisecond),
+		chromedp.Text(`[data-uiwgo-switch]`, &tabContent, chromedp.ByQuery),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if !strings.Contains(tabContent, "Get in touch with us") {
+		t.Errorf("Expected contact tab content, got: %s", tabContent)
+		return
+	}
+
+	t.Logf("Contact tab button working correctly")
 	t.Logf("Test passed! Switch/Match component functionality working correctly")
 }
 
@@ -818,6 +939,45 @@ func TestDynamicComponent(t *testing.T) {
 		return
 	}
 
+	// Test Dynamic Counter button functionality
+	var counterText string
+	err = chromedp.Run(ctx,
+		// Get initial counter value
+		chromedp.Text(`[data-uiwgo-dynamic] p`, &counterText, chromedp.ByQuery),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if !strings.Contains(counterText, "Count: 0") {
+		t.Errorf("Expected initial counter to be 0, got: %s", counterText)
+		return
+	}
+
+	// Click the dynamic counter button multiple times
+	err = chromedp.Run(ctx,
+		chromedp.Click(`.dyn-counter-btn`, chromedp.ByQuery),
+		chromedp.Sleep(300*time.Millisecond),
+		chromedp.Click(`.dyn-counter-btn`, chromedp.ByQuery),
+		chromedp.Sleep(300*time.Millisecond),
+		chromedp.Click(`.dyn-counter-btn`, chromedp.ByQuery),
+		chromedp.Sleep(300*time.Millisecond),
+		// Get updated counter value
+		chromedp.Text(`[data-uiwgo-dynamic] p`, &counterText, chromedp.ByQuery),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if !strings.Contains(counterText, "Count: 3") {
+		t.Errorf("Expected counter to be 3 after 3 clicks, got: %s", counterText)
+		return
+	}
+
+	t.Logf("Dynamic Counter button functionality working correctly: %s", counterText)
+
 	// Test clearing component
 	err = chromedp.Run(ctx,
 		chromedp.Click(`#clear-comp`, chromedp.ByID),
@@ -835,4 +995,82 @@ func TestDynamicComponent(t *testing.T) {
 	}
 
 	t.Logf("Test passed! Dynamic component functionality working correctly")
+}
+
+func TestDynamicCounterStressTest(t *testing.T) {
+	server := devserver.NewServer("dom_integration", "localhost:0")
+	if err := server.Start(); err != nil {
+		t.Fatalf("Failed to start dev server: %v", err)
+	}
+	defer server.Stop()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("headless", false),
+		chromedp.Flag("disable-gpu", false),
+		chromedp.Flag("no-sandbox", true),
+	)
+	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
+	defer cancel()
+
+	ctx, cancel = chromedp.NewContext(allocCtx)
+	defer cancel()
+
+	// Listen for console messages
+	chromedp.ListenTarget(ctx, func(ev interface{}) {
+		switch ev := ev.(type) {
+		case *runtime.EventConsoleAPICalled:
+			for _, arg := range ev.Args {
+				t.Logf("Console: %s", arg.Value)
+			}
+		}
+	})
+
+	var counterText string
+
+	err := chromedp.Run(ctx,
+		chromedp.Navigate(server.URL()),
+		chromedp.WaitVisible(`#load-counter-comp`, chromedp.ByID),
+		chromedp.Sleep(1*time.Second),
+
+		// Load the counter component
+		chromedp.Click(`#load-counter-comp`, chromedp.ByID),
+		chromedp.Sleep(1*time.Second),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	// Perform rapid clicks (stress test)
+	clickCount := 20
+	for i := 0; i < clickCount; i++ {
+		err = chromedp.Run(ctx,
+			chromedp.Click(`.dyn-counter-btn`, chromedp.ByQuery),
+			chromedp.Sleep(50*time.Millisecond), // Very rapid clicks
+		)
+		if err != nil {
+			t.Fatalf("Browser automation failed on click %d: %v", i+1, err)
+		}
+	}
+
+	// Wait a bit for all updates to process
+	err = chromedp.Run(ctx,
+		chromedp.Sleep(1*time.Second),
+		chromedp.Text(`[data-uiwgo-dynamic] p`, &counterText, chromedp.ByQuery),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	expectedText := fmt.Sprintf("Count: %d", clickCount)
+	if !strings.Contains(counterText, expectedText) {
+		t.Errorf("Expected counter to be %d after %d rapid clicks, got: %s", clickCount, clickCount, counterText)
+		return
+	}
+
+	t.Logf("Stress test passed! Dynamic Counter handled %d rapid clicks correctly: %s", clickCount, counterText)
 }

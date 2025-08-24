@@ -71,7 +71,7 @@ test-resource:
 	go test ./examples/resource -v
 
 test-dom-integration:
-	@echo "==> Running browser tests for counter example..."
+	@echo "==> Running browser tests for dom-integration example..."
 	go test ./examples/dom_integration -v
 
 # Run all browser tests for examples

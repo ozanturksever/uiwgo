@@ -290,6 +290,10 @@ func runApp() {
 	exposeGlobalFunctions(counter, name, isVisible, todos, newTodo, items, selectedTab, currentComponent)
 }
 
+// Global registry for dynamic counter instances
+var dynamicCounters = make(map[string]reactivity.Signal[int])
+var dynamicCounterID = 0
+
 func enhanceWithDOMv2(counter reactivity.Signal[int], name reactivity.Signal[string], isVisible reactivity.Signal[bool], todos reactivity.Signal[[]string], newTodo reactivity.Signal[string], items reactivity.Signal[[]string], selectedTab reactivity.Signal[string], currentComponent reactivity.Signal[func() gomponents.Node]) {
 	doc := domv2.GetWindow().Document()
 
@@ -431,11 +435,19 @@ func enhanceWithDOMv2(counter reactivity.Signal[int], name reactivity.Signal[str
 	}
 	if counterBtn := doc.GetElementByID("load-counter-comp"); counterBtn != nil {
 		dom.BindClickToCallback(counterBtn, func() {
+			// Create a unique ID for this counter instance
+			dynamicCounterID++
+			counterInstanceID := fmt.Sprintf("dyn-counter-%d", dynamicCounterID)
+			
+			// Create and register the counter signal
 			localCounter := reactivity.CreateSignal(0)
+			dynamicCounters[counterInstanceID] = localCounter
+			
 			currentComponent.Set(func() gomponents.Node {
 				return html.Div(
 					html.Class("counter-component"),
 					html.DataAttr("dynamic-component", "counter"),
+					html.DataAttr("counter-id", counterInstanceID),
 					html.H4(gomponents.Text("Dynamic Counter")),
 					html.P(
 						gomponents.Text("Count: "),
@@ -444,7 +456,8 @@ func enhanceWithDOMv2(counter reactivity.Signal[int], name reactivity.Signal[str
 						}),
 					),
 					html.Button(
-						html.ID("dyn-counter-btn"),
+						html.Class("dyn-counter-btn"),
+						html.DataAttr("counter-id", counterInstanceID),
 						gomponents.Text("Increment"),
 					),
 				)
@@ -453,16 +466,30 @@ func enhanceWithDOMv2(counter reactivity.Signal[int], name reactivity.Signal[str
 	}
 	if clearBtn := doc.GetElementByID("clear-comp"); clearBtn != nil {
 		dom.BindClickToCallback(clearBtn, func() {
+			// Clean up any dynamic counters before clearing
+			for id := range dynamicCounters {
+				delete(dynamicCounters, id)
+			}
 			currentComponent.Set(nil)
 		})
 	}
 
 	// Dynamic counter button delegation
 	if body := doc.QuerySelector("body"); body != nil {
-		dom.DelegateEvent(body, "click", "#dyn-counter-btn", func(event domv2.Event, target domv2.Element) {
-			// Find the dynamic counter component and increment its local counter
-			// This is a simplified approach - in a real app you'd want better state management
-			js.Global().Get("console").Call("log", "Dynamic counter button clicked")
+		dom.DelegateEvent(body, "click", ".dyn-counter-btn", func(event domv2.Event, target domv2.Element) {
+			// Get the counter ID from the button's data attribute
+			if counterID := target.GetAttribute("data-counter-id"); counterID != "" {
+				// Find the counter signal in our registry
+				if counter, exists := dynamicCounters[counterID]; exists {
+					// Increment the counter
+					counter.Set(counter.Get() + 1)
+					js.Global().Get("console").Call("log", fmt.Sprintf("Dynamic counter %s incremented to %d", counterID, counter.Get()))
+				} else {
+					js.Global().Get("console").Call("log", fmt.Sprintf("Counter %s not found in registry", counterID))
+				}
+			} else {
+				js.Global().Get("console").Call("log", "No counter ID found on button")
+			}
 		})
 	}
 }
