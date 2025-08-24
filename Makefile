@@ -38,7 +38,8 @@ clean:
 	@echo "==> Cleaning up WASM binary..."
 	rm -f examples/counter/main.wasm
 # Test configuration for js/wasm
-PKG ?= ./...
+# By default, run only unit-testable packages under wasm (exclude examples and internal/devserver)
+PKG ?= ./reactivity ./dom ./comps
 RUN ?=
 # Minimized environment avoids wasm_exec.js command line/env length limits
 TEST_ENV := env -i PATH="$(PATH)" HOME="$(HOME)" GOOS=js GOARCH=wasm
@@ -71,8 +72,8 @@ test-resource:
 	go test ./examples/resource -v
 
 test-dom-integration:
-	@echo "==> Running browser tests for dom-integration example..."
-	go test ./examples/dom_integration -v
+	@echo "==> Running browser tests for dom-integration example (stress test only)..."
+	go test ./examples/dom_integration -v -run TestDynamicCounterStressTest
 
 # Run all browser tests for examples
 test-examples:

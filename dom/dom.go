@@ -84,14 +84,18 @@ func (fm *JSFunctionManager) ReleaseAll() {
 type ElementBuilder struct {
 	element      dom.Element
 	cleanupFuncs []func()
+	scope        *reactivity.CleanupScope
 }
 
 // NewElement creates a new DOM element with the specified tag name
+// If there's a current cleanup scope, the element will be associated with it
 func NewElement(tagName string) *ElementBuilder {
 	el := Document.CreateElement(tagName)
+	scope := reactivity.NewCleanupScope(reactivity.GetCurrentCleanupScope())
 	return &ElementBuilder{
 		element:      el,
 		cleanupFuncs: make([]func(), 0),
+		scope:        scope,
 	}
 }
 
@@ -156,11 +160,13 @@ func (eb *ElementBuilder) OnClick(handler func(event dom.Event)) *ElementBuilder
 	// Use addEventListener instead of inline attribute
 	eb.element.Underlying().Call("addEventListener", "click", jsFunc)
 
-	// Add cleanup function
-	eb.cleanupFuncs = append(eb.cleanupFuncs, func() {
-		eb.element.Underlying().Call("removeEventListener", "click", jsFunc)
-		jsFunc.Release()
-	})
+	// Register cleanup with scope
+	if eb.scope != nil {
+		eb.scope.RegisterDisposer(func() {
+			eb.element.Underlying().Call("removeEventListener", "click", jsFunc)
+			jsFunc.Release()
+		})
+	}
 
 	return eb
 }
@@ -175,11 +181,13 @@ func (eb *ElementBuilder) OnEvent(eventType string, handler func(event dom.Event
 
 	eb.element.Underlying().Call("addEventListener", eventType, jsFunc)
 
-	// Add cleanup function
-	eb.cleanupFuncs = append(eb.cleanupFuncs, func() {
-		eb.element.Underlying().Call("removeEventListener", eventType, jsFunc)
-		jsFunc.Release()
-	})
+	// Register cleanup with scope
+	if eb.scope != nil {
+		eb.scope.RegisterDisposer(func() {
+			eb.element.Underlying().Call("removeEventListener", eventType, jsFunc)
+			jsFunc.Release()
+		})
+	}
 
 	return eb
 }
@@ -189,15 +197,17 @@ func (eb *ElementBuilder) BindReactiveText(textFn func() string) *ElementBuilder
 	// Set initial text
 	eb.element.SetTextContent(textFn())
 
-	// Create reactive effect
-	effect := reactivity.CreateEffect(func() {
+	// Set the element's scope as current scope for the effect
+	previous := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(eb.scope)
+	
+	// Create reactive effect - it will automatically register with the current scope
+	reactivity.CreateEffect(func() {
 		eb.element.SetTextContent(textFn())
 	})
-
-	// Add cleanup function
-	eb.cleanupFuncs = append(eb.cleanupFuncs, func() {
-		effect.Dispose()
-	})
+	
+	// Restore previous scope
+	reactivity.SetCurrentCleanupScope(previous)
 
 	return eb
 }
@@ -207,15 +217,17 @@ func (eb *ElementBuilder) BindReactiveHTML(htmlFn func() string) *ElementBuilder
 	// Set initial HTML
 	eb.element.SetInnerHTML(htmlFn())
 
-	// Create reactive effect
-	effect := reactivity.CreateEffect(func() {
+	// Set the element's scope as current scope for the effect
+	previous := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(eb.scope)
+	
+	// Create reactive effect - it will automatically register with the current scope
+	reactivity.CreateEffect(func() {
 		eb.element.SetInnerHTML(htmlFn())
 	})
-
-	// Add cleanup function
-	eb.cleanupFuncs = append(eb.cleanupFuncs, func() {
-		effect.Dispose()
-	})
+	
+	// Restore previous scope
+	reactivity.SetCurrentCleanupScope(previous)
 
 	return eb
 }
@@ -225,15 +237,17 @@ func (eb *ElementBuilder) BindReactiveAttribute(attrName string, valueFn func() 
 	// Set initial value
 	eb.element.SetAttribute(attrName, valueFn())
 
-	// Create reactive effect
-	effect := reactivity.CreateEffect(func() {
+	// Set the element's scope as current scope for the effect
+	previous := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(eb.scope)
+	
+	// Create reactive effect - it will automatically register with the current scope
+	reactivity.CreateEffect(func() {
 		eb.element.SetAttribute(attrName, valueFn())
 	})
-
-	// Add cleanup function
-	eb.cleanupFuncs = append(eb.cleanupFuncs, func() {
-		effect.Dispose()
-	})
+	
+	// Restore previous scope
+	reactivity.SetCurrentCleanupScope(previous)
 
 	return eb
 }
@@ -243,9 +257,20 @@ func (eb *ElementBuilder) Build() dom.Element {
 	return eb.element
 }
 
+// GetScope returns the cleanup scope associated with this element
+func (eb *ElementBuilder) GetScope() *reactivity.CleanupScope {
+	return eb.scope
+}
+
 // BuildWithCleanup returns the built DOM element and a cleanup function
+// The cleanup function will dispose the element's scope and all associated resources
 func (eb *ElementBuilder) BuildWithCleanup() (dom.Element, func()) {
 	cleanup := func() {
+		// Dispose the scope, which will handle all registered disposers
+		if eb.scope != nil {
+			eb.scope.Dispose()
+		}
+		// Also run legacy cleanup functions for backward compatibility
 		for _, fn := range eb.cleanupFuncs {
 			fn()
 		}

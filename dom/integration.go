@@ -226,13 +226,18 @@ func MountWithDOM(elementID string, root func() g.Node) (*GomponentsRenderer, er
 type ReactiveNodeBuilder struct {
 	element  *ReactiveElement
 	children []*ReactiveNodeBuilder
+	scope    *reactivity.CleanupScope
 }
 
 // NewReactiveNode creates a new reactive node builder
 func NewReactiveNode(tagName string) *ReactiveNodeBuilder {
+	// Use current cleanup scope as parent, or create root scope if none exists
+	parentScope := reactivity.GetCurrentCleanupScope()
+	scope := reactivity.NewCleanupScope(parentScope)
 	return &ReactiveNodeBuilder{
 		element:  CreateReactiveElement(tagName),
 		children: make([]*ReactiveNodeBuilder, 0),
+		scope:    scope,
 	}
 }
 
@@ -244,12 +249,22 @@ func (rnb *ReactiveNodeBuilder) SetText(text string) *ReactiveNodeBuilder {
 
 // BindText binds reactive text content
 func (rnb *ReactiveNodeBuilder) BindText(textSignal reactivity.Signal[string]) *ReactiveNodeBuilder {
+	// Temporarily set this node's scope as current
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(rnb.scope)
+	defer reactivity.SetCurrentCleanupScope(prevScope)
+	
 	rnb.element.BindText(textSignal)
 	return rnb
 }
 
 // BindTextFunc binds reactive text content using a function
 func (rnb *ReactiveNodeBuilder) BindTextFunc(textFn func() string) *ReactiveNodeBuilder {
+	// Temporarily set this node's scope as current
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(rnb.scope)
+	defer reactivity.SetCurrentCleanupScope(prevScope)
+	
 	rnb.element.BindTextFunc(textFn)
 	return rnb
 }
@@ -262,12 +277,22 @@ func (rnb *ReactiveNodeBuilder) SetAttribute(name, value string) *ReactiveNodeBu
 
 // BindAttribute binds a reactive attribute
 func (rnb *ReactiveNodeBuilder) BindAttribute(name string, valueSignal reactivity.Signal[string]) *ReactiveNodeBuilder {
+	// Temporarily set this node's scope as current
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(rnb.scope)
+	defer reactivity.SetCurrentCleanupScope(prevScope)
+	
 	rnb.element.BindAttribute(name, valueSignal)
 	return rnb
 }
 
 // BindAttributeFunc binds a reactive attribute using a function
 func (rnb *ReactiveNodeBuilder) BindAttributeFunc(name string, valueFn func() string) *ReactiveNodeBuilder {
+	// Temporarily set this node's scope as current
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(rnb.scope)
+	defer reactivity.SetCurrentCleanupScope(prevScope)
+	
 	rnb.element.BindAttributeFunc(name, valueFn)
 	return rnb
 }
@@ -279,12 +304,22 @@ func (rnb *ReactiveNodeBuilder) SetClass(className string) *ReactiveNodeBuilder 
 
 // BindClass binds a reactive class
 func (rnb *ReactiveNodeBuilder) BindClass(classSignal reactivity.Signal[string]) *ReactiveNodeBuilder {
+	// Temporarily set this node's scope as current
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(rnb.scope)
+	defer reactivity.SetCurrentCleanupScope(prevScope)
+	
 	rnb.element.BindClass(classSignal)
 	return rnb
 }
 
 // BindClassFunc binds a reactive class using a function
 func (rnb *ReactiveNodeBuilder) BindClassFunc(classFn func() string) *ReactiveNodeBuilder {
+	// Temporarily set this node's scope as current
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(rnb.scope)
+	defer reactivity.SetCurrentCleanupScope(prevScope)
+	
 	rnb.element.BindClassFunc(classFn)
 	return rnb
 }
@@ -296,12 +331,22 @@ func (rnb *ReactiveNodeBuilder) SetStyle(style string) *ReactiveNodeBuilder {
 
 // BindStyle binds a reactive style
 func (rnb *ReactiveNodeBuilder) BindStyle(styleSignal reactivity.Signal[string]) *ReactiveNodeBuilder {
+	// Temporarily set this node's scope as current
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(rnb.scope)
+	defer reactivity.SetCurrentCleanupScope(prevScope)
+	
 	rnb.element.BindStyle(styleSignal)
 	return rnb
 }
 
 // BindStyleFunc binds a reactive style using a function
 func (rnb *ReactiveNodeBuilder) BindStyleFunc(styleFn func() string) *ReactiveNodeBuilder {
+	// Temporarily set this node's scope as current
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(rnb.scope)
+	defer reactivity.SetCurrentCleanupScope(prevScope)
+	
 	rnb.element.BindStyleFunc(styleFn)
 	return rnb
 }
@@ -322,6 +367,12 @@ func (rnb *ReactiveNodeBuilder) OnEvent(eventType string, handler func(event dom
 func (rnb *ReactiveNodeBuilder) AppendChild(child *ReactiveNodeBuilder) *ReactiveNodeBuilder {
 	rnb.element.Element().AppendChild(child.element.Element())
 	rnb.children = append(rnb.children, child)
+	
+	// Establish parent-child scope relationship
+	if child.scope != nil && rnb.scope != nil {
+		child.scope.SetParent(rnb.scope)
+	}
+	
 	return rnb
 }
 
@@ -337,10 +388,21 @@ func (rnb *ReactiveNodeBuilder) BuildElement() dom.Element {
 
 // Cleanup cleans up the node and all its children
 func (rnb *ReactiveNodeBuilder) Cleanup() {
+	// Dispose the scope (this will handle all cleanup automatically)
+	if rnb.scope != nil {
+		rnb.scope.Dispose()
+	}
+
+	// Clean up children and element for backward compatibility
 	for _, child := range rnb.children {
 		child.Cleanup()
 	}
 	rnb.element.Cleanup()
+}
+
+// GetScope returns the cleanup scope for this reactive node builder
+func (rnb *ReactiveNodeBuilder) GetScope() *reactivity.CleanupScope {
+	return rnb.scope
 }
 
 // Helper functions for common HTML elements

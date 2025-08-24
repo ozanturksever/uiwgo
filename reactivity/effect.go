@@ -25,8 +25,16 @@ var currentEffect *effect
 
 // CreateEffect registers a reactive effect that runs immediately and then
 // re-runs whenever any of its dependent signals change.
+// If there's a current cleanup scope, the effect will be automatically
+// disposed when the scope is disposed.
 func CreateEffect(fn func()) Effect {
 	e := &effect{fn: fn, deps: make(map[depNode]struct{})}
+	
+	// Register with current cleanup scope if available
+	RegisterCleanup(func() {
+		e.Dispose()
+	})
+	
 	e.run()
 	return e
 }

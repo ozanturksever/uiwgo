@@ -15,15 +15,19 @@ type ReactiveElement struct {
 	element      dom.Element
 	effects      []reactivity.Effect
 	cleanupFuncs []func()
+	scope        *reactivity.CleanupScope
 	mu           sync.RWMutex
 }
 
 // NewReactiveElement creates a new reactive element wrapper
 func NewReactiveElement(element dom.Element) *ReactiveElement {
+	// Use current cleanup scope as parent, or create root scope if none exists
+	parentScope := reactivity.GetCurrentCleanupScope()
 	return &ReactiveElement{
 		element:      element,
 		effects:      make([]reactivity.Effect, 0),
 		cleanupFuncs: make([]func(), 0),
+		scope:        reactivity.NewCleanupScope(parentScope),
 	}
 }
 
@@ -45,10 +49,13 @@ func (re *ReactiveElement) BindText(textSignal reactivity.Signal[string]) *React
 	// Set initial value
 	re.element.SetTextContent(textSignal.Get())
 
-	// Create reactive effect
+	// Set element's scope as current scope for effect creation
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(re.scope)
 	effect := reactivity.CreateEffect(func() {
 		re.element.SetTextContent(textSignal.Get())
 	})
+	reactivity.SetCurrentCleanupScope(prevScope)
 
 	re.effects = append(re.effects, effect)
 	return re
@@ -62,10 +69,13 @@ func (re *ReactiveElement) BindTextFunc(textFn func() string) *ReactiveElement {
 	// Set initial value
 	re.element.SetTextContent(textFn())
 
-	// Create reactive effect
+	// Set element's scope as current scope for effect creation
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(re.scope)
 	effect := reactivity.CreateEffect(func() {
 		re.element.SetTextContent(textFn())
 	})
+	reactivity.SetCurrentCleanupScope(prevScope)
 
 	re.effects = append(re.effects, effect)
 	return re
@@ -79,10 +89,13 @@ func (re *ReactiveElement) BindHTML(htmlSignal reactivity.Signal[string]) *React
 	// Set initial value
 	re.element.SetInnerHTML(htmlSignal.Get())
 
-	// Create reactive effect
+	// Set element's scope as current scope for effect creation
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(re.scope)
 	effect := reactivity.CreateEffect(func() {
 		re.element.SetInnerHTML(htmlSignal.Get())
 	})
+	reactivity.SetCurrentCleanupScope(prevScope)
 
 	re.effects = append(re.effects, effect)
 	return re
@@ -96,10 +109,13 @@ func (re *ReactiveElement) BindHTMLFunc(htmlFn func() string) *ReactiveElement {
 	// Set initial value
 	re.element.SetInnerHTML(htmlFn())
 
-	// Create reactive effect
+	// Set element's scope as current scope for effect creation
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(re.scope)
 	effect := reactivity.CreateEffect(func() {
 		re.element.SetInnerHTML(htmlFn())
 	})
+	reactivity.SetCurrentCleanupScope(prevScope)
 
 	re.effects = append(re.effects, effect)
 	return re
@@ -113,10 +129,13 @@ func (re *ReactiveElement) BindAttribute(attrName string, valueSignal reactivity
 	// Set initial value
 	re.element.SetAttribute(attrName, valueSignal.Get())
 
-	// Create reactive effect
+	// Set element's scope as current scope for effect creation
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(re.scope)
 	effect := reactivity.CreateEffect(func() {
 		re.element.SetAttribute(attrName, valueSignal.Get())
 	})
+	reactivity.SetCurrentCleanupScope(prevScope)
 
 	re.effects = append(re.effects, effect)
 	return re
@@ -130,10 +149,13 @@ func (re *ReactiveElement) BindAttributeFunc(attrName string, valueFn func() str
 	// Set initial value
 	re.element.SetAttribute(attrName, valueFn())
 
-	// Create reactive effect
+	// Set element's scope as current scope for effect creation
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(re.scope)
 	effect := reactivity.CreateEffect(func() {
 		re.element.SetAttribute(attrName, valueFn())
 	})
+	reactivity.SetCurrentCleanupScope(prevScope)
 
 	re.effects = append(re.effects, effect)
 	return re
@@ -171,7 +193,9 @@ func (re *ReactiveElement) BindVisibility(visibleSignal reactivity.Signal[bool])
 		re.element.SetAttribute("style", "display: none;")
 	}
 
-	// Create reactive effect
+	// Set element's scope as current scope for effect creation
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(re.scope)
 	effect := reactivity.CreateEffect(func() {
 		if visibleSignal.Get() {
 			re.element.SetAttribute("style", "display: block;")
@@ -179,6 +203,7 @@ func (re *ReactiveElement) BindVisibility(visibleSignal reactivity.Signal[bool])
 			re.element.SetAttribute("style", "display: none;")
 		}
 	})
+	reactivity.SetCurrentCleanupScope(prevScope)
 
 	re.effects = append(re.effects, effect)
 	return re
@@ -196,7 +221,9 @@ func (re *ReactiveElement) BindVisibilityFunc(visibleFn func() bool) *ReactiveEl
 		re.element.SetAttribute("style", "display: none;")
 	}
 
-	// Create reactive effect
+	// Set element's scope as current scope for effect creation
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(re.scope)
 	effect := reactivity.CreateEffect(func() {
 		if visibleFn() {
 			re.element.SetAttribute("style", "display: block;")
@@ -204,6 +231,7 @@ func (re *ReactiveElement) BindVisibilityFunc(visibleFn func() bool) *ReactiveEl
 			re.element.SetAttribute("style", "display: none;")
 		}
 	})
+	reactivity.SetCurrentCleanupScope(prevScope)
 
 	re.effects = append(re.effects, effect)
 	return re
@@ -223,8 +251,8 @@ func (re *ReactiveElement) OnClick(handler func(event dom.Event)) *ReactiveEleme
 	// Attach listener
 	re.element.Underlying().Call("addEventListener", "click", jsFunc)
 
-	// Add cleanup function
-	re.cleanupFuncs = append(re.cleanupFuncs, func() {
+	// Register cleanup with scope
+	re.scope.RegisterDisposer(func() {
 		re.element.Underlying().Call("removeEventListener", "click", jsFunc)
 		jsFunc.Release()
 	})
@@ -245,8 +273,8 @@ func (re *ReactiveElement) OnEvent(eventType string, handler func(event dom.Even
 
 	re.element.Underlying().Call("addEventListener", eventType, jsFunc)
 
-	// Add cleanup function
-	re.cleanupFuncs = append(re.cleanupFuncs, func() {
+	// Register cleanup with scope
+	re.scope.RegisterDisposer(func() {
 		re.element.Underlying().Call("removeEventListener", eventType, jsFunc)
 		jsFunc.Release()
 	})
@@ -259,7 +287,7 @@ func (re *ReactiveElement) AddCleanup(cleanup func()) *ReactiveElement {
 	re.mu.Lock()
 	defer re.mu.Unlock()
 
-	re.cleanupFuncs = append(re.cleanupFuncs, cleanup)
+	re.scope.RegisterDisposer(cleanup)
 	return re
 }
 
@@ -268,17 +296,21 @@ func (re *ReactiveElement) Cleanup() {
 	re.mu.Lock()
 	defer re.mu.Unlock()
 
-	// Dispose all effects
-	for _, effect := range re.effects {
-		effect.Dispose()
+	// Dispose the scope (this will handle all effects and cleanup functions)
+	if re.scope != nil {
+		re.scope.Dispose()
 	}
-	re.effects = re.effects[:0]
 
-	// Run all cleanup functions
-	for _, cleanup := range re.cleanupFuncs {
-		cleanup()
-	}
+	// Clear arrays for backward compatibility
+	re.effects = re.effects[:0]
 	re.cleanupFuncs = re.cleanupFuncs[:0]
+}
+
+// GetScope returns the cleanup scope for this reactive element
+func (re *ReactiveElement) GetScope() *reactivity.CleanupScope {
+	re.mu.RLock()
+	defer re.mu.RUnlock()
+	return re.scope
 }
 
 // ReactiveElementManager manages multiple reactive elements
