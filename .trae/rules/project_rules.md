@@ -1,7 +1,11 @@
-AGENTS.md — Running, Testing, and Dev Server Features
+---
+trigger: always_on
+alwaysApply: true
+---
 
-Audience and Purpose
-- This guide enables automation agents to run the dev server, build and test individual examples, execute the full test suite, and add new examples without modifying build scripts.
+Following is the guide/rules to run/develop the project
+
+- This is how you run the dev server, build and test individual examples, execute the full test suite, and add new examples without modifying build scripts.
 
 Prerequisites
 - Go toolchain with WebAssembly support (GOOS=js, GOARCH=wasm).
