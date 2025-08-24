@@ -1,5 +1,7 @@
 package reactivity
 
+import "syscall/js"
+
 // effect is the internal implementation of a reactive effect.
 // Not concurrency-safe; designed for single-threaded JS/WASM and tests.
 type effect struct {
@@ -14,6 +16,7 @@ type effect struct {
 // Effect represents a running reactive computation that can be disposed.
 type Effect interface {
 	Dispose()
+	IsDisposed() bool
 }
 
 // depNode is implemented by signals that can remove a dependent effect.
@@ -30,6 +33,11 @@ var currentEffect *effect
 func CreateEffect(fn func()) Effect {
 	e := &effect{fn: fn, deps: make(map[depNode]struct{})}
 	
+	// Debug: Log effect creation
+	if js.Global().Truthy() {
+		js.Global().Get("console").Call("log", "[Effect] Creating effect")
+	}
+	
 	// Register with current cleanup scope if available
 	RegisterCleanup(func() {
 		e.Dispose()
@@ -39,9 +47,30 @@ func CreateEffect(fn func()) Effect {
 	return e
 }
 
+// CreatePersistentEffect creates a reactive effect that persists across cleanup scopes.
+// This is useful for components that need to remain active even when parent scopes are cleaned up.
+// The caller is responsible for manually disposing this effect.
+func CreatePersistentEffect(fn func()) Effect {
+	e := &effect{fn: fn, deps: make(map[depNode]struct{})}
+	
+	// Debug: Log persistent effect creation
+	if js.Global().Truthy() {
+		js.Global().Get("console").Call("log", "[Effect] Creating persistent effect (no auto-cleanup)")
+	}
+	
+	// Do NOT register with cleanup scope - this effect persists
+	
+	e.run()
+	return e
+}
+
 func (e *effect) run() {
 	if e.disposed {
 		return
+	}
+	// Debug: Log effect execution
+	if js.Global().Truthy() {
+		js.Global().Get("console").Call("log", "[Effect] Effect running")
 	}
 	// Cleanup previous run
 	for _, c := range e.cleanups {
@@ -55,9 +84,14 @@ func (e *effect) run() {
 	e.deps = make(map[depNode]struct{})
 	// Run with this effect set as current
 	prev := currentEffect
+	if js.Global().Truthy() {
+		js.Global().Get("console").Call("log", "[Effect] Setting current effect")
+	}
 	currentEffect = e
 	e.fn()
-
+	if js.Global().Truthy() {
+		js.Global().Get("console").Call("log", "[Effect] Restoring previous effect")
+	}
 	currentEffect = prev
 }
 
@@ -65,6 +99,10 @@ func (e *effect) run() {
 func (e *effect) Dispose() {
 	if e.disposed {
 		return
+	}
+	// Debug: Log effect disposal
+	if js.Global().Truthy() {
+		js.Global().Get("console").Call("log", "[Effect] Effect being disposed")
 	}
 	e.disposed = true
 	for _, c := range e.cleanups {
@@ -75,4 +113,9 @@ func (e *effect) Dispose() {
 		d.removeEffect(e)
 	}
 	e.deps = nil
+}
+
+// IsDisposed returns true if the effect has been disposed.
+func (e *effect) IsDisposed() bool {
+	return e.disposed
 }

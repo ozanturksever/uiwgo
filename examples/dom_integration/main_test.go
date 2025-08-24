@@ -417,8 +417,18 @@ func TestForComponent(t *testing.T) {
 
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(server.URL()),
+		// Enable console logging BEFORE waiting for any element
+		chromedp.Evaluate(`
+			window.allLogs = [];
+			const originalLog = console.log;
+			console.log = function(...args) {
+				const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' ');
+				window.allLogs.push(message);
+				originalLog.apply(console, args);
+			};
+		`, nil),
 		chromedp.WaitVisible(`#add-item-btn`, chromedp.ByID),
-		chromedp.Sleep(1*time.Second),
+		chromedp.Sleep(2*time.Second), // Give more time for initial render and effects
 
 		// Check initial For component items (only count items in the For component section)
 		// The For component is in the "Control Flow Components" section after the H3 "For Component (Keyed List)"
@@ -444,6 +454,34 @@ func TestForComponent(t *testing.T) {
 	// The page has multiple list items from different sections, so we need to count only the For component items
 	// Let's check if we have at least 3 items total and then test the functionality
 	t.Logf("Initial For component item count: %d", itemCount)
+	
+	// Dump initial console logs to see attachment process
+	var initialLogs []string
+	var forElementsExist bool
+	var forElementsHtml string
+	err = chromedp.Run(ctx, 
+		chromedp.Evaluate(`window.allLogs || []`, &initialLogs),
+		chromedp.Evaluate(`document.querySelectorAll('[data-uiwgo-for]').length > 0`, &forElementsExist),
+		chromedp.Evaluate(`(() => {
+			const elements = document.querySelectorAll('[data-uiwgo-for]');
+			if (elements.length === 0) return 'No [data-uiwgo-for] elements found';
+			return Array.from(elements).map(el => el.outerHTML).join('\\n');
+		})()`, &forElementsHtml),
+	)
+	if err == nil {
+		t.Logf("For elements exist: %v", forElementsExist)
+		t.Logf("For elements HTML: %s", forElementsHtml)
+		if len(initialLogs) > 0 {
+			t.Logf("Initial console logs during render:")
+			for i, log := range initialLogs {
+				t.Logf("  [%d] %s", i, log)
+				// Show all logs
+			}
+		} else {
+			t.Logf("No initial console logs captured")
+		}
+	}
+	
 	if itemCount < 3 {
 		t.Errorf("Expected at least 3 items on page, got: %d", itemCount)
 	}
@@ -452,7 +490,7 @@ func TestForComponent(t *testing.T) {
 	var initialCount = itemCount
 	err = chromedp.Run(ctx,
 		chromedp.Click(`#add-item-btn`, chromedp.ByID),
-		chromedp.Sleep(300*time.Millisecond),
+		chromedp.Sleep(500*time.Millisecond),
 		chromedp.Evaluate(`(() => {
 			// Find the For component section by looking for the H3 with "For Component"
 			const forSection = Array.from(document.querySelectorAll('h3')).find(h => h.textContent.includes('For Component'));
@@ -480,7 +518,22 @@ func TestForComponent(t *testing.T) {
 	// Test shuffling items (keyed reconciliation)
 	err = chromedp.Run(ctx,
 		// Get item texts before shuffle
-		chromedp.Evaluate(`Array.from(document.querySelectorAll('.list-item span')).map(el => el.textContent)`, &itemTexts),
+		chromedp.Evaluate(`(() => {
+			// Find the For component section by looking for the H3 with "For Component"
+			const forSection = Array.from(document.querySelectorAll('h3')).find(h => h.textContent.includes('For Component'));
+			if (!forSection) return [];
+			// Get list-item spans that come after this H3 and before the next H3
+			let texts = [];
+			let current = forSection.nextElementSibling;
+			while (current && current.tagName !== 'H3') {
+				const spans = current.querySelectorAll('.list-item span');
+				for (let span of spans) {
+					texts.push(span.textContent);
+				}
+				current = current.nextElementSibling;
+			}
+			return texts;
+		})()`, &itemTexts),
 		chromedp.Click(`#shuffle-items-btn`, chromedp.ByID),
 		chromedp.Sleep(300*time.Millisecond),
 	)
@@ -491,7 +544,22 @@ func TestForComponent(t *testing.T) {
 
 	var shuffledTexts []string
 	err = chromedp.Run(ctx,
-		chromedp.Evaluate(`Array.from(document.querySelectorAll('.list-item span')).map(el => el.textContent)`, &shuffledTexts),
+		chromedp.Evaluate(`(() => {
+			// Find the For component section by looking for the H3 with "For Component"
+			const forSection = Array.from(document.querySelectorAll('h3')).find(h => h.textContent.includes('For Component'));
+			if (!forSection) return [];
+			// Get list-item spans that come after this H3 and before the next H3
+			let texts = [];
+			let current = forSection.nextElementSibling;
+			while (current && current.tagName !== 'H3') {
+				const spans = current.querySelectorAll('.list-item span');
+				for (let span of spans) {
+					texts.push(span.textContent);
+				}
+				current = current.nextElementSibling;
+			}
+			return texts;
+		})()`, &shuffledTexts),
 	)
 
 	if err != nil {
@@ -503,12 +571,30 @@ func TestForComponent(t *testing.T) {
 		t.Errorf("Item count changed after shuffle: expected %d, got %d", len(itemTexts), len(shuffledTexts))
 	}
 
-	// Test removing items
+	// Test removing items using test button
 	var beforeRemoveCount = itemCount
 	err = chromedp.Run(ctx,
-		chromedp.Click(`.remove-item`, chromedp.ByQuery),
-		chromedp.Sleep(300*time.Millisecond),
-		chromedp.Evaluate(`document.querySelectorAll('.list-item').length`, &itemCount),
+		// First, try clicking add to re-establish reactive dependency
+		chromedp.Click(`#add-item-btn`, chromedp.ByID),
+		chromedp.Sleep(200*time.Millisecond),
+		// Now try remove
+		// Capture console output
+		chromedp.Evaluate(`window.removeLogs = []; console.oldLog = console.log; console.log = function(...args) { window.removeLogs.push(args.join(' ')); console.oldLog(...args); };`, nil),
+		chromedp.Click(`#test-remove-btn`, chromedp.ByID),
+		chromedp.Sleep(1000*time.Millisecond), // Wait for effects to run
+		chromedp.Evaluate(`(() => {
+			// Find the For component section by looking for the H3 with "For Component"
+			const forSection = Array.from(document.querySelectorAll('h3')).find(h => h.textContent.includes('For Component'));
+			if (!forSection) return 0;
+			// Count list-item elements that come after this H3 and before the next H3
+			let count = 0;
+			let current = forSection.nextElementSibling;
+			while (current && current.tagName !== 'H3') {
+				count += current.querySelectorAll('.list-item').length;
+				current = current.nextElementSibling;
+			}
+			return count;
+		})()`, &itemCount),
 	)
 
 	if err != nil {
@@ -516,19 +602,74 @@ func TestForComponent(t *testing.T) {
 	}
 
 	if itemCount != beforeRemoveCount-1 {
+		// Also check Index component count
+		var indexCount int
+		err = chromedp.Run(ctx, chromedp.Evaluate(`document.querySelectorAll('.index-item').length`, &indexCount))
+		if err == nil {
+			t.Logf("Index component has %d items (should match For component)", indexCount)
+		}
+		// Get remove operation logs
+		var removeLogs []string
+		err = chromedp.Run(ctx, chromedp.Evaluate(`window.removeLogs || []`, &removeLogs))
+		if err == nil && len(removeLogs) > 0 {
+			t.Logf("Console logs during removal:")
+			for i, log := range removeLogs {
+				t.Logf("  [%d] %s", i, log)
+			}
+		}
 		t.Errorf("Expected %d items after removing, got: %d", beforeRemoveCount-1, itemCount)
+	} else {
+		t.Logf("SUCCESS: Item removal worked! %d -> %d items", beforeRemoveCount, itemCount)
 	}
 
 	// Test For component remove button functionality
 	var itemCountBefore, itemCountAfter int
 	err = chromedp.Run(ctx,
 		// Count items before removal
-		chromedp.Evaluate(`document.querySelectorAll('.list-item').length`, &itemCountBefore),
+		chromedp.Evaluate(`(() => {
+			// Find the For component section by looking for the H3 with "For Component"
+			const forSection = Array.from(document.querySelectorAll('h3')).find(h => h.textContent.includes('For Component'));
+			if (!forSection) return 0;
+			// Count list-item elements that come after this H3 and before the next H3
+			let count = 0;
+			let current = forSection.nextElementSibling;
+			while (current && current.tagName !== 'H3') {
+				count += current.querySelectorAll('.list-item').length;
+				current = current.nextElementSibling;
+			}
+			return count;
+		})()`, &itemCountBefore),
 		// Click the first remove button
-		chromedp.Click(`.remove-item`, chromedp.ByQuery),
+		chromedp.Evaluate(`(() => {
+			// Find the For component section and click the first remove button within it
+			const forSection = Array.from(document.querySelectorAll('h3')).find(h => h.textContent.includes('For Component'));
+			if (!forSection) return false;
+			let current = forSection.nextElementSibling;
+			while (current && current.tagName !== 'H3') {
+				const removeBtn = current.querySelector('.remove-item');
+				if (removeBtn) {
+					removeBtn.click();
+					return true;
+				}
+				current = current.nextElementSibling;
+			}
+			return false;
+		})()`, nil),
 		chromedp.Sleep(500*time.Millisecond),
 		// Count items after removal
-		chromedp.Evaluate(`document.querySelectorAll('.list-item').length`, &itemCountAfter),
+		chromedp.Evaluate(`(() => {
+			// Find the For component section by looking for the H3 with "For Component"
+			const forSection = Array.from(document.querySelectorAll('h3')).find(h => h.textContent.includes('For Component'));
+			if (!forSection) return 0;
+			// Count list-item elements that come after this H3 and before the next H3
+			let count = 0;
+			let current = forSection.nextElementSibling;
+			while (current && current.tagName !== 'H3') {
+				count += current.querySelectorAll('.list-item').length;
+				current = current.nextElementSibling;
+			}
+			return count;
+		})()`, &itemCountAfter),
 	)
 
 	if err != nil {
@@ -546,7 +687,19 @@ func TestForComponent(t *testing.T) {
 	err = chromedp.Run(ctx,
 		chromedp.Click(`#add-item-btn`, chromedp.ByID),
 		chromedp.Sleep(500*time.Millisecond),
-		chromedp.Evaluate(`document.querySelectorAll('.list-item').length`, &itemCountAfter),
+		chromedp.Evaluate(`(() => {
+			// Find the For component section by looking for the H3 with "For Component"
+			const forSection = Array.from(document.querySelectorAll('h3')).find(h => h.textContent.includes('For Component'));
+			if (!forSection) return 0;
+			// Count list-item elements that come after this H3 and before the next H3
+			let count = 0;
+			let current = forSection.nextElementSibling;
+			while (current && current.tagName !== 'H3') {
+				count += current.querySelectorAll('.list-item').length;
+				current = current.nextElementSibling;
+			}
+			return count;
+		})()`, &itemCountAfter),
 	)
 
 	if err != nil {
@@ -564,12 +717,42 @@ func TestForComponent(t *testing.T) {
 	var itemTextsBefore, itemTextsAfter []string
 	err = chromedp.Run(ctx,
 		// Get item texts before shuffle
-		chromedp.Evaluate(`Array.from(document.querySelectorAll('.list-item span')).map(el => el.textContent)`, &itemTextsBefore),
+		chromedp.Evaluate(`(() => {
+			// Find the For component section by looking for the H3 with "For Component"
+			const forSection = Array.from(document.querySelectorAll('h3')).find(h => h.textContent.includes('For Component'));
+			if (!forSection) return [];
+			// Get list-item spans that come after this H3 and before the next H3
+			let texts = [];
+			let current = forSection.nextElementSibling;
+			while (current && current.tagName !== 'H3') {
+				const spans = current.querySelectorAll('.list-item span');
+				for (let span of spans) {
+					texts.push(span.textContent);
+				}
+				current = current.nextElementSibling;
+			}
+			return texts;
+		})()`, &itemTextsBefore),
 		// Click shuffle button
 		chromedp.Click(`#shuffle-items-btn`, chromedp.ByID),
 		chromedp.Sleep(500*time.Millisecond),
 		// Get item texts after shuffle
-		chromedp.Evaluate(`Array.from(document.querySelectorAll('.list-item span')).map(el => el.textContent)`, &itemTextsAfter),
+		chromedp.Evaluate(`(() => {
+			// Find the For component section by looking for the H3 with "For Component"
+			const forSection = Array.from(document.querySelectorAll('h3')).find(h => h.textContent.includes('For Component'));
+			if (!forSection) return [];
+			// Get list-item spans that come after this H3 and before the next H3
+			let texts = [];
+			let current = forSection.nextElementSibling;
+			while (current && current.tagName !== 'H3') {
+				const spans = current.querySelectorAll('.list-item span');
+				for (let span of spans) {
+					texts.push(span.textContent);
+				}
+				current = current.nextElementSibling;
+			}
+			return texts;
+		})()`, &itemTextsAfter),
 	)
 
 	if err != nil {

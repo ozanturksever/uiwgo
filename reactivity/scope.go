@@ -1,5 +1,10 @@
 package reactivity
 
+import (
+	"fmt"
+	"syscall/js"
+)
+
 // CleanupScope represents a container-scoped cleanup context that manages
 // disposers for effects, event listeners, and other resources tied to a subtree.
 type CleanupScope struct {
@@ -73,6 +78,11 @@ func (s *CleanupScope) SetParent(newParent *CleanupScope) {
 func (s *CleanupScope) Dispose() {
 	if s.disposed {
 		return
+	}
+	
+	// Debug: Log scope disposal
+	if js.Global().Truthy() {
+		js.Global().Get("console").Call("log", fmt.Sprintf("[CleanupScope] Disposing scope with %d disposers", len(s.disposers)))
 	}
 	
 	s.disposed = true
