@@ -23,7 +23,10 @@ type Todo struct {
 }
 
 func main() {
-	comps.Mount("app", func() Node { return TodoApp() })
+	// Mount the app and get a disposer function
+	disposer := comps.Mount("app", func() Node { return TodoApp() })
+	_ = disposer // We don't use it in this example since the app runs indefinitely
+	
 	// Prevent exit
 	select {}
 }

@@ -280,8 +280,9 @@ func runApp() {
 		),
 	)
 
-	// Mount the app using traditional comps.Mount
-	comps.Mount("app", func() comps.Node { return app })
+	// Mount the app using traditional comps.Mount and get a disposer function
+	disposer := comps.Mount("app", func() comps.Node { return app })
+	_ = disposer // We don't use it in this example since the app runs indefinitely
 
 	// Now enhance with dom/v2 event bindings
 	enhanceWithDOMv2(counter, name, isVisible, todos, newTodo, items, selectedTab, currentComponent)

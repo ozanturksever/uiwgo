@@ -16,35 +16,155 @@ import (
 
 var (
 	idCounter    uint64
-	textRegistry = map[string]func() string{}
-	htmlRegistry = map[string]func() g.Node{}
+	textRegistry = map[string]textBinder{}
+	htmlRegistry = map[string]htmlBinder{}
 	showRegistry = map[string]showBinder{}
 	forRegistry  = map[string]forBinder{}
 	indexRegistry = map[string]indexBinder{}
 	switchRegistry = map[string]switchBinder{}
 	dynamicRegistry = map[string]dynamicBinder{}
+	currentMountContainer string // tracks the current mount container during binding
 )
 
+// getCurrentMountContainer returns the current mount container ID
+func getCurrentMountContainer() string {
+	return currentMountContainer
+}
+
+// setCurrentMountContainer sets the current mount container ID
+func setCurrentMountContainer(containerID string) {
+	currentMountContainer = containerID
+}
+
+// cleanupRegistriesForContainer removes all registry entries for a specific container
+func cleanupRegistriesForContainer(containerID string) {
+	// Clean up text registry
+	for id, binder := range textRegistry {
+		if binder.container == containerID {
+			if binder.effect != nil {
+				binder.effect.Dispose()
+			}
+			delete(textRegistry, id)
+		}
+	}
+	
+	// Clean up html registry
+	for id, binder := range htmlRegistry {
+		if binder.container == containerID {
+			if binder.effect != nil {
+				binder.effect.Dispose()
+			}
+			delete(htmlRegistry, id)
+		}
+	}
+	
+	// Clean up show registry
+	for id, binder := range showRegistry {
+		if binder.container == containerID {
+			delete(showRegistry, id)
+		}
+	}
+	
+	// Clean up for registry
+	for id, binder := range forRegistry {
+		if binder.mountContainer == containerID {
+			// Dispose the effect if it exists
+			if binder.effect != nil {
+				binder.effect.Dispose()
+			}
+			// Clean up child records
+			for _, record := range binder.childRecords {
+				if record.cleanup != nil {
+					record.cleanup()
+				}
+			}
+			delete(forRegistry, id)
+		}
+	}
+	
+	// Clean up index registry
+	for id, binder := range indexRegistry {
+		if binder.mountContainer == containerID {
+			// Dispose the effect if it exists
+			if binder.effect != nil {
+				binder.effect.Dispose()
+			}
+			// Clean up child records
+			for _, record := range binder.childRecords {
+				if record.cleanup != nil {
+					record.cleanup()
+				}
+			}
+			delete(indexRegistry, id)
+		}
+	}
+	
+	// Clean up switch registry
+	for id, binder := range switchRegistry {
+		if binder.mountContainer == containerID {
+			// Dispose the effect if it exists
+			if binder.effect != nil {
+				binder.effect.Dispose()
+			}
+			// Clean up current component
+			if binder.currentCleanup != nil {
+				binder.currentCleanup()
+			}
+			delete(switchRegistry, id)
+		}
+	}
+	
+	// Clean up dynamic registry
+	for id, binder := range dynamicRegistry {
+		if binder.mountContainer == containerID {
+			// Dispose the effect if it exists
+			if binder.effect != nil {
+				binder.effect.Dispose()
+			}
+			// Clean up current component
+			if binder.currentCleanup != nil {
+				binder.currentCleanup()
+			}
+			delete(dynamicRegistry, id)
+		}
+	}
+}
+
+type textBinder struct {
+	fn        func() string
+	container string // elementID of the mounted container
+	effect    reactivity.Effect // effect for reactive updates
+}
+
+type htmlBinder struct {
+	fn        func() g.Node
+	container string // elementID of the mounted container
+	effect    reactivity.Effect // effect for reactive updates
+}
+
 type showBinder struct {
-	when reactivity.Signal[bool]
-	html string
+	when      reactivity.Signal[bool]
+	html      string
+	container string // elementID of the mounted container
 }
 
 type forBinder struct {
-	items     any // reactivity.Signal[[]T] or func() []T
-	keyFn     any // func(T) string
-	childrenFn any // func(item T, index int) g.Node
+	items        any // reactivity.Signal[[]T] or func() []T
+	keyFn        any // func(T) string
+	childrenFn   any // func(item T, index int) g.Node
 	childRecords map[string]*childRecord
 	container    js.Value
 	effect       reactivity.Effect
+	mountContainer string // elementID of the mounted container
 }
 
 type indexBinder struct {
-	items     any // reactivity.Signal[[]T] or func() []T
-	childrenFn any // func(getItem func() T, index int) g.Node
-	childRecords []*childRecord
-	container    js.Value
-	effect       reactivity.Effect
+	items          any // reactivity.Signal[[]T] or func() []T
+	childrenFn     any // func(getItem func() T, index int) g.Node
+	childRecords   []*childRecord
+	container      js.Value
+	effect         reactivity.Effect
+	mountContainer string // elementID of the mounted container
 }
 
 type childRecord struct {
@@ -55,12 +175,13 @@ type childRecord struct {
 }
 
 type switchBinder struct {
-	whenFn     any // reactivity.Signal[any] or func() any
-	cases      []matchCase
-	fallback   g.Node
-	container  js.Value
-	effect     reactivity.Effect
+	whenFn         any // reactivity.Signal[any] or func() any
+	cases          []matchCase
+	fallback       g.Node
+	container      js.Value
+	effect         reactivity.Effect
 	currentCleanup func()
+	mountContainer string // elementID of the mounted container
 }
 
 type matchCase struct {
@@ -69,10 +190,11 @@ type matchCase struct {
 }
 
 type dynamicBinder struct {
-	component  any // reactivity.Signal[ComponentFunc] or func() ComponentFunc
-	container  js.Value
-	effect     reactivity.Effect
+	component      any // reactivity.Signal[ComponentFunc] or func() ComponentFunc
+	container      js.Value
+	effect         reactivity.Effect
 	currentCleanup func()
+	mountContainer string // elementID of the mounted container
 }
 
 func nextID(prefix string) string {
@@ -95,7 +217,9 @@ var OnCleanup = reactivity.OnCleanup
 // the computation for post-mount reactive updates.
 func BindText(fn func() string) g.Node {
 	id := nextID("t")
-	textRegistry[id] = fn
+	// Get current mount container from context if available
+	containerID := getCurrentMountContainer()
+	textRegistry[id] = textBinder{fn: fn, container: containerID}
 	// Compute initial text without tracking
 	initial := fn()
 	return g.El("span", g.Attr("data-uiwgo-txt", id), g.Text(initial))
@@ -106,7 +230,9 @@ func BindText(fn func() string) g.Node {
 // It uses a <div> wrapper as the container.
 func BindHTML(fn func() g.Node) g.Node {
 	id := nextID("h")
-	htmlRegistry[id] = fn
+	// Get current mount container from context if available
+	containerID := getCurrentMountContainer()
+	htmlRegistry[id] = htmlBinder{fn: fn, container: containerID}
 	// Render initial content
 	var buf bytes.Buffer
 	_ = fn().Render(&buf)
@@ -117,7 +243,10 @@ func BindHTML(fn func() g.Node) g.Node {
 // This is useful to keep valid HTML structure (e.g., <li> inside <ul>).
 func BindHTMLAs(tag string, fn func() g.Node, attrs ...g.Node) g.Node {
 	id := nextID("h")
-	htmlRegistry[id] = fn
+	htmlRegistry[id] = htmlBinder{
+		fn:        fn,
+		container: getCurrentMountContainer(),
+	}
 	var buf bytes.Buffer
 	_ = fn().Render(&buf)
 	// Place attrs before the initial HTML content
@@ -149,11 +278,15 @@ func attachTextBindersIn(root js.Value) {
 		el.Call("setAttribute", "data-uiwgo-bound-text", "1")
 
 		id := el.Call("getAttribute", "data-uiwgo-txt").String()
-		if fn, ok := textRegistry[id]; ok {
+		if binder, ok := textRegistry[id]; ok {
 			// Create a reactive effect that updates textContent
-			reactivity.CreateEffect(func() {
-				el.Set("textContent", fn())
+			effect := reactivity.CreateEffect(func() {
+				newText := binder.fn()
+				el.Set("textContent", newText)
 			})
+			// Store the effect in the binder for cleanup
+			binder.effect = effect
+			textRegistry[id] = binder
 		}
 	}
 }
@@ -204,7 +337,8 @@ func Show(p ShowProps) g.Node {
 	var buf bytes.Buffer
 	_ = p.Children.Render(&buf)
 	html := buf.String()
-	showRegistry[id] = showBinder{when: p.When, html: html}
+	containerID := getCurrentMountContainer()
+	showRegistry[id] = showBinder{when: p.When, html: html, container: containerID}
 
 	if p.When.Get() {
 		return g.El("span", g.Attr("data-uiwgo-show", id), g.Raw(html))
@@ -217,11 +351,13 @@ func Show(p ShowProps) g.Node {
 // efficient insertion/removal/move operations based on keys.
 func For[T any](p ForProps[T]) g.Node {
 	id := nextID("f")
+	containerID := getCurrentMountContainer()
 	forRegistry[id] = forBinder{
-		items:        p.Items,
-		keyFn:        p.Key,
-		childrenFn:   p.Children,
-		childRecords: make(map[string]*childRecord),
+		items:          p.Items,
+		keyFn:          p.Key,
+		childrenFn:     p.Children,
+		childRecords:   make(map[string]*childRecord),
+		mountContainer: containerID,
 	}
 	return g.El("div", g.Attr("data-uiwgo-for", id))
 }
@@ -231,10 +367,12 @@ func For[T any](p ForProps[T]) g.Node {
 // stable child components that reactively track their items by index.
 func Index[T any](p IndexProps[T]) g.Node {
 	id := nextID("i")
+	containerID := getCurrentMountContainer()
 	indexRegistry[id] = indexBinder{
-		items:        p.Items,
-		childrenFn:   p.Children,
-		childRecords: make([]*childRecord, 0),
+		items:          p.Items,
+		childrenFn:     p.Children,
+		childRecords:   make([]*childRecord, 0),
+		mountContainer: containerID,
 	}
 	return g.El("div", g.Attr("data-uiwgo-index", id))
 }
@@ -246,10 +384,12 @@ func Switch(p SwitchProps) g.Node {
 	id := nextID("sw")
 	// Extract match cases from children - will be populated by extractMatchCases
 	cases := make([]matchCase, 0)
+	containerID := getCurrentMountContainer()
 	switchRegistry[id] = switchBinder{
-		whenFn:   p.When,
-		cases:    cases,
-		fallback: p.Fallback,
+		whenFn:         p.When,
+		cases:          cases,
+		fallback:       p.Fallback,
+		mountContainer: containerID,
 	}
 	// Include the Match children as templates inside the switch container
 	children := []g.Node{g.Attr("data-uiwgo-switch", id)}
@@ -275,8 +415,10 @@ func Match(p MatchProps) g.Node {
 // switches between different components with proper cleanup.
 func Dynamic(p DynamicProps) g.Node {
 	id := nextID("dyn")
+	containerID := getCurrentMountContainer()
 	dynamicRegistry[id] = dynamicBinder{
-		component: p.Component,
+		component:      p.Component,
+		mountContainer: containerID,
 	}
 	return g.El("div", g.Attr("data-uiwgo-dynamic", id))
 }
@@ -324,14 +466,17 @@ func attachHTMLBindersIn(root js.Value) {
 		el.Call("setAttribute", "data-uiwgo-bound-html", "1")
 
 		id := el.Call("getAttribute", "data-uiwgo-html").String()
-		if fn, ok := htmlRegistry[id]; ok {
-			reactivity.CreateEffect(func() {
+		if binder, ok := htmlRegistry[id]; ok {
+			effect := reactivity.CreateEffect(func() {
 				var buf bytes.Buffer
-				_ = fn().Render(&buf)
+				_ = binder.fn().Render(&buf)
 				el.Set("innerHTML", buf.String())
 				// bind nested newly-rendered content
 				attachBinders(el)
 			})
+			// Store the effect in the binder for cleanup
+			binder.effect = effect
+			htmlRegistry[id] = binder
 		}
 	}
 }

@@ -14,7 +14,11 @@ import (
 )
 
 func main() {
-	comps.Mount("app", func() Node { return CounterApp() })
+	// Mount the app and get a disposer function
+	// In a real app, you might want to store this disposer to clean up when needed
+	disposer := comps.Mount("app", func() Node { return CounterApp() })
+	_ = disposer // We don't use it in this example since the app runs indefinitely
+	
 	// Prevent exit
 	select {}
 }

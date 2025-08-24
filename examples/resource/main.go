@@ -22,11 +22,13 @@ type User struct {
 
 func main() {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
-	comps.Mount("app", func() Node { return UserProfileApp() })
+	// Mount the app and get a disposer function
+	disposer := comps.Mount("app", func() Node { return UserProfileApp() })
+	_ = disposer // We don't use it in this example since the app runs indefinitely
+	
 	// Prevent exit
 	select {}
 }
-
 func UserProfileApp() Node {
 	// Source signal: current user ID to load
 	userID := reactivity.CreateSignal(1)

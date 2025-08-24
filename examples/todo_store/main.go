@@ -25,7 +25,11 @@ type AppState struct {
 }
 
 func main() {
-	comps.Mount("app", func() Node { return TodoStoreApp() })
+	// Mount the app and get a disposer function
+	disposer := comps.Mount("app", func() Node { return TodoStoreApp() })
+	_ = disposer // We don't use it in this example since the app runs indefinitely
+	
+	// Prevent exit
 	select {}
 }
 
