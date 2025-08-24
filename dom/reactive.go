@@ -23,12 +23,19 @@ type ReactiveElement struct {
 func NewReactiveElement(element dom.Element) *ReactiveElement {
 	// Use current cleanup scope as parent, or create root scope if none exists
 	parentScope := reactivity.GetCurrentCleanupScope()
-	return &ReactiveElement{
+	scope := reactivity.NewCleanupScope(parentScope)
+	
+	re := &ReactiveElement{
 		element:      element,
 		effects:      make([]reactivity.Effect, 0),
 		cleanupFuncs: make([]func(), 0),
-		scope:        reactivity.NewCleanupScope(parentScope),
+		scope:        scope,
 	}
+	
+	// Register the element with its scope for automatic cleanup
+	RegisterElementScope(element.Underlying(), scope)
+	
+	return re
 }
 
 // WrapElement wraps an existing DOM element with reactive capabilities

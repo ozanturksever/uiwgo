@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"syscall/js"
 
+	"github.com/ozanturksever/uiwgo/dom"
 	"github.com/ozanturksever/uiwgo/reactivity"
 	g "maragu.dev/gomponents"
 )
@@ -287,6 +288,11 @@ func attachTextBindersIn(root js.Value) {
 			// Store the effect in the binder for cleanup
 			binder.effect = effect
 			textRegistry[id] = binder
+			
+			// Register element with current scope for mutation observer tracking
+			if currentScope := reactivity.GetCurrentCleanupScope(); currentScope != nil {
+				dom.RegisterElementScope(el, currentScope)
+			}
 		}
 	}
 }
@@ -477,6 +483,11 @@ func attachHTMLBindersIn(root js.Value) {
 			// Store the effect in the binder for cleanup
 			binder.effect = effect
 			htmlRegistry[id] = binder
+			
+			// Register element with current scope for mutation observer tracking
+			if currentScope := reactivity.GetCurrentCleanupScope(); currentScope != nil {
+				dom.RegisterElementScope(el, currentScope)
+			}
 		}
 	}
 }

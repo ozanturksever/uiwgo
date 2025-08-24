@@ -254,6 +254,10 @@ func (eb *ElementBuilder) BindReactiveAttribute(attrName string, valueFn func() 
 
 // Build returns the built DOM element
 func (eb *ElementBuilder) Build() dom.Element {
+	// Register the element with its scope for automatic cleanup
+	if eb.scope != nil {
+		RegisterElementScope(eb.element.Underlying(), eb.scope)
+	}
 	return eb.element
 }
 

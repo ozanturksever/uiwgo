@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"syscall/js"
 
+	"github.com/ozanturksever/uiwgo/dom"
 	"github.com/ozanturksever/uiwgo/reactivity"
 	g "maragu.dev/gomponents"
 )
@@ -69,11 +70,16 @@ func Mount(elementID string, root func() Node) func() {
 		callback()
 	}
 	
+	// Start MutationObserver for automatic cleanup
+	dom.StartContainerObserver(elementID, container)
+	
 	// Restore previous cleanup scope
 	reactivity.SetCurrentCleanupScope(previous)
 
 	// Create disposer function
 	disposer := func() {
+		// Stop MutationObserver for this container
+		dom.StopContainerObserver(elementID)
 		// Remove from mounted containers registry
 		delete(mountedContainers, elementID)
 		// Dispose the cleanup scope (this will clean up all effects and listeners)

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"syscall/js"
 
-	"github.com/ozanturksever/uiwgo/comps"
 	reactivity "github.com/ozanturksever/uiwgo/reactivity"
 	"honnef.co/go/js/dom/v2"
 	g "maragu.dev/gomponents"
@@ -518,30 +517,5 @@ func CreateJSFunctionForCallback(callback func()) string {
 	return CreateJSFunctionOnTheFly(func(this js.Value, args []js.Value) any {
 		callback()
 		return nil
-	})
-}
-
-// OnClick creates a delegated click handler that works even if the element is added later
-func OnClick(elementID string, handler func()) g.Node {
-	return comps.OnMount(func() {
-		// Use event delegation from <body> so the element can appear later (e.g., via Show/BindHTML)
-		if body := QuerySelector("body"); body != nil {
-			selector := fmt.Sprintf("#%s", elementID)
-			DelegateEvent(body, "click", selector, func(e dom.Event, target dom.Element) {
-				handler()
-			})
-		}
-	})
-}
-
-// OnEvent creates a delegated handler for any event type using CSS selector matching on body
-func OnEvent(elementID string, eventType string, handler func()) g.Node {
-	return comps.OnMount(func() {
-		if body := QuerySelector("body"); body != nil {
-			selector := fmt.Sprintf("#%s", elementID)
-			DelegateEvent(body, eventType, selector, func(e dom.Event, target dom.Element) {
-				handler()
-			})
-		}
 	})
 }
