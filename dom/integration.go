@@ -378,22 +378,25 @@ func CreateJSFunctionForCallback(callback func()) string {
 	})
 }
 
-// OnClick creates a mount callback that binds a click handler to an element with the given ID
+// OnClick creates a delegated click handler that works even if the element is added later
 func OnClick(elementID string, handler func()) g.Node {
 	return comps.OnMount(func() {
-		fmt.Println("Mounting click handler for element with ID", elementID)
-		if el := GetElementByID(elementID); el != nil {
-			fmt.Println("Element found")
-			BindClickToCallback(el, handler)
+		// Use event delegation from <body> so the element can appear later (e.g., via Show/BindHTML)
+		if body := QuerySelector("body"); body != nil {
+			selector := fmt.Sprintf("#%s", elementID)
+			DelegateEvent(body, "click", selector, func(e dom.Event, target dom.Element) {
+				handler()
+			})
 		}
 	})
 }
 
-// OnEvent creates a mount callback that binds any event type to an element
+// OnEvent creates a delegated handler for any event type using CSS selector matching on body
 func OnEvent(elementID string, eventType string, handler func()) g.Node {
 	return comps.OnMount(func() {
-		if el := GetElementByID(elementID); el != nil {
-			BindGenericEvent(el, eventType, func(event dom.Event) {
+		if body := QuerySelector("body"); body != nil {
+			selector := fmt.Sprintf("#%s", elementID)
+			DelegateEvent(body, eventType, selector, func(e dom.Event, target dom.Element) {
 				handler()
 			})
 		}
