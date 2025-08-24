@@ -5,6 +5,7 @@ package comps
 import (
 	"bytes"
 	"fmt"
+	"hash/fnv"
 	"reflect"
 	"strconv"
 	"sync/atomic"
@@ -62,6 +63,9 @@ func cleanupRegistriesForContainer(containerID string) {
 	// Clean up show registry
 	for id, binder := range showRegistry {
 		if binder.container == containerID {
+			if binder.effect != nil {
+				binder.effect.Dispose()
+			}
 			delete(showRegistry, id)
 		}
 	}
@@ -147,6 +151,7 @@ type showBinder struct {
 	when      reactivity.Signal[bool]
 	html      string
 	container string // elementID of the mounted container
+	effect    reactivity.Effect // effect for reactive updates
 }
 
 type forBinder struct {
@@ -196,6 +201,13 @@ type dynamicBinder struct {
 	effect         reactivity.Effect
 	currentCleanup func()
 	mountContainer string // elementID of the mounted container
+}
+
+// hash creates a simple hash of a string for ID generation
+func hash(s string) uint32 {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return h.Sum32()
 }
 
 func nextID(prefix string) string {
@@ -338,13 +350,24 @@ type DynamicProps struct {
 // It outputs a <span data-uiwgo-show="id">[initial child html]</span>
 // and attaches a reactive toggle after mount.
 func Show(p ShowProps) g.Node {
-	id := nextID("s")
-	// Pre-render children to HTML for quick toggle
+	// Generate a unique ID that combines signal pointer with content hash for stability
+	// This ensures each Show component gets a unique ID even when sharing the same signal
 	var buf bytes.Buffer
 	_ = p.Children.Render(&buf)
 	html := buf.String()
+	
+	// Create a stable ID based on signal pointer and content hash
+	signalPtr := fmt.Sprintf("%p", p.When)
+	contentHash := fmt.Sprintf("%x", hash(html))
+	id := "s" + signalPtr + "_" + contentHash
+	
 	containerID := getCurrentMountContainer()
-	showRegistry[id] = showBinder{when: p.When, html: html, container: containerID}
+	
+	// Store the binder with container info, but don't store effect yet
+	// Only update if not already registered to preserve existing effects
+	if _, exists := showRegistry[id]; !exists {
+		showRegistry[id] = showBinder{when: p.When, html: html, container: containerID}
+	}
 
 	if p.When.Get() {
 		return g.El("span", g.Attr("data-uiwgo-show", id), g.Raw(html))
@@ -434,28 +457,40 @@ func attachShowBindersIn(root js.Value) {
 	ln := nodes.Get("length").Int()
 	for i := 0; i < ln; i++ {
 		el := nodes.Call("item", i)
-		// avoid duplicate attachment
-		if el.Call("hasAttribute", "data-uiwgo-bound-show").Bool() {
-			continue
-		}
-		el.Call("setAttribute", "data-uiwgo-bound-show", "1")
-
 		id := el.Call("getAttribute", "data-uiwgo-show").String()
 		if b, ok := showRegistry[id]; ok {
-			// Track visibility and update innerHTML
-			var visible bool
-			reactivity.CreateEffect(func() {
-				v := b.when.Get()
-				if v && !visible {
+			// Skip if already bound
+			if el.Call("hasAttribute", "data-uiwgo-bound-show").Bool() {
+				continue
+			}
+			
+			// Dispose of existing effect if it exists
+			if b.effect != nil {
+				b.effect.Dispose()
+			}
+			
+			// Update container to current mount container if it was empty
+			if b.container == "" {
+				b.container = getCurrentMountContainer()
+			}
+			
+			// Create effect within the current cleanup scope context
+			// This ensures Show components within For items are properly cleaned up
+			effect := reactivity.CreateEffect(func() {
+				if b.when.Get() {
 					el.Set("innerHTML", b.html)
 					// new content may contain binders
 					attachBinders(el)
-					visible = true
-				} else if !v && visible {
+				} else {
 					el.Set("innerHTML", "")
-					visible = false
 				}
 			})
+			// Store the effect in the binder for cleanup
+			b.effect = effect
+			showRegistry[id] = b
+			
+			// Mark as bound to prevent duplicate attachment
+			el.Call("setAttribute", "data-uiwgo-bound-show", "1")
 		}
 	}
 }
@@ -663,10 +698,16 @@ func reconcileForList(id string) {
 
 
 
+
+
 	// Build new keys
 	newKeys := make([]string, len(items))
 	for i, item := range items {
 		key := callKeyFunc(binder.keyFn, item)
+		if key == "" {
+			// Use index-based key when no key function or key function returns empty
+			key = fmt.Sprintf("__index_%d", i)
+		}
 		newKeys[i] = key
 	}
 
@@ -696,20 +737,14 @@ func reconcileForList(id string) {
 
 	// Process new items and reorder
 	for i, key := range newKeys {
-		if record, exists := oldRecords[key]; exists {
-			// Reuse existing record
-			record.index = i
-			newRecords[key] = record
-		} else {
-			// Create new item
-			item := items[i]
-			element, cleanup := createItemElement(binder.childrenFn, item, i)
-			newRecords[key] = &childRecord{
-				key:     key,
-				index:   i,
-				element: element,
-				cleanup: cleanup,
-			}
+		// Always recreate elements to ensure content is up-to-date
+		item := items[i]
+		element, cleanup := createItemElement(binder.childrenFn, item, i, binder.mountContainer)
+		newRecords[key] = &childRecord{
+			key:     key,
+			index:   i,
+			element: element,
+			cleanup: cleanup,
 		}
 	}
 
@@ -726,6 +761,9 @@ func reconcileForList(id string) {
 		record := newRecords[key]
 		container.Call("appendChild", record.element)
 	}
+
+	// Re-attach binders after DOM manipulation
+	attachBinders(container)
 
 	// Update registry
 	binder.childRecords = newRecords
@@ -954,7 +992,7 @@ func reconcileIndexList(binder *indexBinder) {
 		if binder.childRecords[i] == nil {
 			// Create new record with getter function
 			getItem := createItemGetter(binder.items, i)
-			element, cleanup := createIndexItemElement(binder.childrenFn, getItem, i)
+			element, cleanup := createIndexItemElement(binder.childrenFn, getItem, i, binder.mountContainer)
 			binder.childRecords[i] = &childRecord{
 				key:     strconv.Itoa(i),
 				index:   i,
@@ -1026,6 +1064,12 @@ func callKeyFunc(keyFn any, item any) string {
 		return ""
 	}
 	v := reflect.ValueOf(keyFn)
+	if !v.IsValid() {
+		return ""
+	}
+	if v.IsNil() {
+		return ""
+	}
 	if v.Kind() != reflect.Func {
 		return ""
 	}
@@ -1038,7 +1082,7 @@ func callKeyFunc(keyFn any, item any) string {
 }
 
 // createItemElement creates a DOM element for a For item
-func createItemElement(childrenFn any, item any, index int) (js.Value, func()) {
+func createItemElement(childrenFn any, item any, index int, mountContainer string) (js.Value, func()) {
 	if childrenFn == nil {
 		return js.Undefined(), nil
 	}
@@ -1048,13 +1092,31 @@ func createItemElement(childrenFn any, item any, index int) (js.Value, func()) {
 		return js.Undefined(), nil
 	}
 
-	// Call childrenFn(item, index)
+	// Store the current mount container context
+	prevContainer := getCurrentMountContainer()
+	
+	// Set the mount container to the For component's container for proper Show component binding
+	setCurrentMountContainer(mountContainer)
+	
+	// Create a reactivity scope for this item to ensure proper cleanup
+	var element js.Value
+	
+	// Create a new cleanup scope for this item
+	scope := reactivity.NewCleanupScope(reactivity.GetCurrentCleanupScope())
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(scope)
+	
+	// Call childrenFn(item, index) within the scope
 	args := []reflect.Value{
 		reflect.ValueOf(item),
 		reflect.ValueOf(index),
 	}
 	results := v.Call(args)
 	if len(results) == 0 {
+		// Restore previous scope and container context
+		reactivity.SetCurrentCleanupScope(prevScope)
+		setCurrentMountContainer(prevContainer)
+		scope.Dispose()
 		return js.Undefined(), nil
 	}
 
@@ -1070,36 +1132,44 @@ func createItemElement(childrenFn any, item any, index int) (js.Value, func()) {
 	wrapper.Set("innerHTML", html)
 
 	// Extract the first child as the actual element
-	var element js.Value
 	if wrapper.Get("firstElementChild").Truthy() {
 		element = wrapper.Get("firstElementChild")
 	} else {
 		element = wrapper
 	}
 
-	// Attach only text binders to the new element to avoid re-attaching Index binders
+	// Attach binders to the new element within the scope
 	// Note: Only attach if not already attached to prevent duplication
 	if !element.Call("hasAttribute", "data-uiwgo-attached").Bool() {
 		element.Call("setAttribute", "data-uiwgo-attached", "1")
-		attachTextBindersIn(element)
+		// Skip attachTextBindersIn to prevent duplicate text elements
 		attachHTMLBindersIn(element)
 		attachShowBindersIn(element)
-		// Skip attachIndexBindersIn to prevent recursive attachment
+		attachForBindersIn(element)
+		attachIndexBindersIn(element)
 		attachSwitchBindersIn(element)
 		attachDynamicBindersIn(element)
 	}
+	
+	// Restore previous scope and container context
+	reactivity.SetCurrentCleanupScope(prevScope)
+	setCurrentMountContainer(prevContainer)
+	
+	if element.IsUndefined() {
+		scope.Dispose()
+		return js.Undefined(), nil
+	}
 
-	// Create cleanup function
+	// Create cleanup function that disposes the scope
 	cleanup := func() {
-		// Cleanup will be handled by the reactive system
-		// when effects are disposed
+		scope.Dispose()
 	}
 
 	return element, cleanup
 }
 
 // createIndexItemElement creates a DOM element for an Index item
-func createIndexItemElement(childrenFn any, getItem func() any, index int) (js.Value, func()) {
+func createIndexItemElement(childrenFn any, getItem func() any, index int, mountContainer string) (js.Value, func()) {
 	if childrenFn == nil {
 		return js.Undefined(), nil
 	}
@@ -1132,13 +1202,29 @@ func createIndexItemElement(childrenFn any, getItem func() any, index int) (js.V
 		return []reflect.Value{reflect.ValueOf(item)}
 	})
 
-	// Call childrenFn(typedGetItem, index)
+	// Store current mount container and set the new one
+	prevMountContainer := getCurrentMountContainer()
+	setCurrentMountContainer(mountContainer)
+	
+	// Create a reactivity scope for this item to ensure proper cleanup
+	var element js.Value
+	
+	// Create a new cleanup scope for this item
+	scope := reactivity.NewCleanupScope(reactivity.GetCurrentCleanupScope())
+	prevScope := reactivity.GetCurrentCleanupScope()
+	reactivity.SetCurrentCleanupScope(scope)
+	
+	// Call childrenFn(typedGetItem, index) within the scope
 	args := []reflect.Value{
 		wrapperFn,
 		reflect.ValueOf(index),
 	}
 	results := v.Call(args)
 	if len(results) == 0 {
+		// Restore previous scope and container context
+		reactivity.SetCurrentCleanupScope(prevScope)
+		setCurrentMountContainer(prevMountContainer)
+		scope.Dispose()
 		return js.Undefined(), nil
 	}
 
@@ -1154,14 +1240,13 @@ func createIndexItemElement(childrenFn any, getItem func() any, index int) (js.V
 	wrapper.Set("innerHTML", html)
 
 	// Extract the first child as the actual element
-	var element js.Value
 	if wrapper.Get("firstElementChild").Truthy() {
 		element = wrapper.Get("firstElementChild")
 	} else {
 		element = wrapper
 	}
 
-	// Attach binders to the new element
+	// Attach binders to the new element within the scope
 	// Note: Only attach if not already attached to prevent duplication
 	if !element.Call("hasAttribute", "data-uiwgo-attached").Bool() {
 		element.Call("setAttribute", "data-uiwgo-attached", "1")
@@ -1173,10 +1258,19 @@ func createIndexItemElement(childrenFn any, getItem func() any, index int) (js.V
 		attachSwitchBindersIn(element)
 		attachDynamicBindersIn(element)
 	}
+	
+	// Restore previous scope and container context
+	reactivity.SetCurrentCleanupScope(prevScope)
+	setCurrentMountContainer(prevMountContainer)
+	
+	if element.IsUndefined() {
+		scope.Dispose()
+		return js.Undefined(), nil
+	}
 
-	// Create cleanup function
+	// Create cleanup function that disposes the scope
 	cleanup := func() {
-		// Cleanup will be handled by the reactive system
+		scope.Dispose()
 	}
 
 	return element, cleanup

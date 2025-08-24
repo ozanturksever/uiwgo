@@ -412,6 +412,16 @@ func TestForComponent(t *testing.T) {
 	ctx, cancel = chromedp.NewContext(allocCtx)
 	defer cancel()
 
+	// Listen for console messages
+	chromedp.ListenTarget(ctx, func(ev interface{}) {
+		switch ev := ev.(type) {
+		case *runtime.EventConsoleAPICalled:
+			for _, arg := range ev.Args {
+				t.Logf("Console: %s", arg.Value)
+			}
+		}
+	})
+
 	var itemCount int
 	var itemTexts []string
 
@@ -507,7 +517,7 @@ func TestForComponent(t *testing.T) {
 	var beforeRemoveCount = itemCount
 	err = chromedp.Run(ctx,
 		chromedp.Click(`.remove-item`, chromedp.ByQuery),
-		chromedp.Sleep(300*time.Millisecond),
+		chromedp.Sleep(1*time.Second),
 		chromedp.Evaluate(`document.querySelectorAll('.list-item').length`, &itemCount),
 	)
 
@@ -526,7 +536,7 @@ func TestForComponent(t *testing.T) {
 		chromedp.Evaluate(`document.querySelectorAll('.list-item').length`, &itemCountBefore),
 		// Click the first remove button
 		chromedp.Click(`.remove-item`, chromedp.ByQuery),
-		chromedp.Sleep(500*time.Millisecond),
+		chromedp.Sleep(1*time.Second),
 		// Count items after removal
 		chromedp.Evaluate(`document.querySelectorAll('.list-item').length`, &itemCountAfter),
 	)

@@ -48,7 +48,6 @@ func Mount(elementID string, root func() Node) func() {
 
 	// Set current mount container during component rendering and mounting
 	setCurrentMountContainer(elementID)
-	defer setCurrentMountContainer("") // Reset after everything is done
 	
 	// Render the component to HTML
 	var buf bytes.Buffer
@@ -63,6 +62,9 @@ func Mount(elementID string, root func() Node) func() {
 	reactivity.SetCurrentCleanupScope(cleanupScope)
 	
 	attachBinders(container)
+	
+	// Reset current mount container after binders are attached
+	setCurrentMountContainer("")
 	// Execute queued OnMount callbacks
 	for len(mountQueue) > 0 {
 		callback := mountQueue[0]

@@ -1,0 +1,8 @@
+=== RUN   TestIndexComponent
+2025/08/24 08:33:34 ==> Building WASM binary for 'dom_integration' example...
+2025/08/24 08:33:34 ==> Serving http://127.0.0.1:51932 (example: dom_integration)
+    main_test.go:579: Browser automation failed: exception "Uncaught" (6:3): SyntaxError: Illegal return statement
+--- FAIL: TestIndexComponent (2.07s)
+FAIL
+exit status 1
+FAIL	github.com/ozanturksever/uiwgo/examples/dom_integration	2.084s

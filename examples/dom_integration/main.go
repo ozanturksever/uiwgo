@@ -178,14 +178,12 @@ func runApp() {
 				Children: func(item string, index int) gomponents.Node {
 					return html.Div(
 						html.Class("list-item"),
-						html.Span(comps.BindText(func() string {
-							return fmt.Sprintf("%d: %s", index, item)
-						})),
+						html.Span(gomponents.Text(fmt.Sprintf("%d: %s", index, item))),
 						html.Button(
-							html.Class("remove-item"),
-							html.DataAttr("index", strconv.Itoa(index)),
-							gomponents.Text("Remove"),
-						),
+						html.Class("remove-item"),
+						html.DataAttr("item", item),
+						gomponents.Text("Remove"),
+					),
 					)
 				},
 			}),
@@ -391,18 +389,37 @@ func enhanceWithDOMv2(counter reactivity.Signal[int], name reactivity.Signal[str
 	}
 
 	// Remove item button delegation for For component
+	logutil.Log("Setting up remove item event delegation")
+	
+	// Add a timeout to check if buttons exist
+	go func() {
+		time.Sleep(1 * time.Second)
+		removeButtons := doc.QuerySelectorAll(".remove-item")
+		logutil.Logf("Found %d remove buttons after 1 second", len(removeButtons))
+		for i, btn := range removeButtons {
+			logutil.Logf("Button %d: class=%s, data-item=%s", i, btn.GetAttribute("class"), btn.GetAttribute("data-item"))
+		}
+	}()
+	
 	if body := doc.QuerySelector("body"); body != nil {
 		dom.DelegateEvent(body, "click", ".remove-item", func(event domv2.Event, target domv2.Element) {
-			if indexStr := target.GetAttribute("data-index"); indexStr != "" {
-				if index, err := strconv.Atoi(indexStr); err == nil {
-					currentItems := items.Get()
-					if index >= 0 && index < len(currentItems) {
-						updatedItems := append(currentItems[:index], currentItems[index+1:]...)
-						items.Set(updatedItems)
+			
+			
+			if itemToRemove := target.GetAttribute("data-item"); itemToRemove != "" {
+				currentItems := items.Get()
+				updatedItems := make([]string, 0, len(currentItems))
+				for _, item := range currentItems {
+					if item != itemToRemove {
+						updatedItems = append(updatedItems, item)
 					}
 				}
+	
+				items.Set(updatedItems)
 			}
 		})
+		logutil.Log("Event delegation set up successfully")
+	} else {
+		logutil.Log("Body element not found for event delegation")
 	}
 
 	// Tab navigation buttons
