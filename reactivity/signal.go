@@ -1,9 +1,7 @@
 package reactivity
 
 import (
-	"fmt"
 	"reflect"
-	"syscall/js"
 )
 
 // Signal is the basic reactive primitive. It holds a value and notifies
@@ -39,29 +37,15 @@ func CreateSignal[T any](initial T) Signal[T] {
 
 func (s *baseSignal[T]) Get() T {
 	if currentEffect != nil && !currentEffect.disposed {
-		// Debug: Log dependency registration
-		if js.Global().Truthy() {
-			js.Global().Get("console").Call("log", "[Signal] Registering effect dependency")
-		}
 		// Register dependency both ways
 		s.deps[currentEffect] = struct{}{}
 		currentEffect.deps[s] = struct{}{}
-	} else {
-		// Debug: Log when no current effect
-		if js.Global().Truthy() {
-			js.Global().Get("console").Call("log", "[Signal] No current effect to register")
-		}
 	}
 	return s.value
 }
 
 func (s *baseSignal[T]) Set(v T) {
-	isEqual := reflect.DeepEqual(s.value, v)
-	// Debug: Log the comparison for slices
-	if js.Global().Truthy() {
-		js.Global().Get("console").Call("log", fmt.Sprintf("[Signal] Set called. Equal: %v", isEqual))
-	}
-	if isEqual {
+	if reflect.DeepEqual(s.value, v) {
 		return
 	}
 	s.value = v
@@ -69,9 +53,6 @@ func (s *baseSignal[T]) Set(v T) {
 	effects := make([]*effect, 0, len(s.deps))
 	for e := range s.deps {
 		effects = append(effects, e)
-	}
-	if js.Global().Truthy() {
-		js.Global().Get("console").Call("log", fmt.Sprintf("[Signal] Triggering %d effects", len(effects)))
 	}
 	for _, e := range effects {
 		if e.disposed {

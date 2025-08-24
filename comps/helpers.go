@@ -256,30 +256,15 @@ func BindHTMLAs(tag string, fn func() g.Node, attrs ...g.Node) g.Node {
 	return g.El(tag, nodes...)
 }
 
-// AttachBinders scans the mounted DOM (or a subtree) and attaches reactive behaviors.
-// This is exported so it can be called manually to re-establish effects if needed.
-func AttachBinders(root js.Value) {
-	attachBinders(root)
-}
-
 // attachBinders scans the mounted DOM (or a subtree) and attaches reactive behaviors.
 func attachBinders(root js.Value) {
-	js.Global().Get("console").Call("log", "[attachBinders] Starting binder attachment")
 	attachTextBindersIn(root)
-	js.Global().Get("console").Call("log", "[attachBinders] Text binders attached")
 	attachHTMLBindersIn(root)
-	js.Global().Get("console").Call("log", "[attachBinders] HTML binders attached")
 	attachShowBindersIn(root)
-	js.Global().Get("console").Call("log", "[attachBinders] Show binders attached")
 	attachForBindersIn(root)
-	js.Global().Get("console").Call("log", "[attachBinders] For binders attached")
 	attachIndexBindersIn(root)
-	js.Global().Get("console").Call("log", "[attachBinders] Index binders attached")
 	attachSwitchBindersIn(root)
-	js.Global().Get("console").Call("log", "[attachBinders] Switch binders attached")
 	attachDynamicBindersIn(root)
-	js.Global().Get("console").Call("log", "[attachBinders] Dynamic binders attached")
-	js.Global().Get("console").Call("log", "[attachBinders] All binders attached")
 }
 
 func attachTextBindersIn(root js.Value) {
@@ -373,7 +358,6 @@ func Show(p ShowProps) g.Node {
 func For[T any](p ForProps[T]) g.Node {
 	id := nextID("f")
 	containerID := getCurrentMountContainer()
-	js.Global().Get("console").Call("log", fmt.Sprintf("[For] Creating For component with ID: %s, container: %s", id, containerID))
 	forRegistry[id] = forBinder{
 		items:          p.Items,
 		keyFn:          p.Key,
@@ -381,7 +365,6 @@ func For[T any](p ForProps[T]) g.Node {
 		childRecords:   make(map[string]*childRecord),
 		mountContainer: containerID,
 	}
-	js.Global().Get("console").Call("log", fmt.Sprintf("[For] Registered For component in registry. Total For components: %d", len(forRegistry)))
 	return g.El("div", g.Attr("data-uiwgo-for", id))
 }
 
@@ -510,50 +493,40 @@ func attachHTMLBindersIn(root js.Value) {
 }
 
 func attachForBindersIn(root js.Value) {
-	// Debug: Log root element info
-	js.Global().Get("console").Call("log", fmt.Sprintf("[attachForBindersIn] Root element: %s, id: %s", root.Get("tagName").String(), root.Get("id").String()))
 	nodes := root.Call("querySelectorAll", "[data-uiwgo-for]")
 	ln := nodes.Get("length").Int()
-	js.Global().Get("console").Call("log", fmt.Sprintf("[attachForBindersIn] Found %d For components", ln))
 	for i := 0; i < ln; i++ {
 		el := nodes.Call("item", i)
+		// avoid duplicate attachment
+		if el.Call("hasAttribute", "data-uiwgo-bound-for").Bool() {
+			continue
+		}
+		el.Call("setAttribute", "data-uiwgo-bound-for", "1")
+
 		id := el.Call("getAttribute", "data-uiwgo-for").String()
-		js.Global().Get("console").Call("log", fmt.Sprintf("[attachForBindersIn] Processing For component with ID: %s", id))
-		
 		if binder, ok := forRegistry[id]; ok {
-			// Check if already bound and effect is active
-			alreadyBound := el.Call("hasAttribute", "data-uiwgo-bound-for").Bool()
-			effectActive := binder.effect != nil && !binder.effect.IsDisposed()
-			
-			js.Global().Get("console").Call("log", fmt.Sprintf("[attachForBindersIn] For %s - alreadyBound: %v, effectActive: %v", id, alreadyBound, effectActive))
-			
-			// Only recreate effect if not already active
-			if !effectActive {
-				el.Call("setAttribute", "data-uiwgo-bound-for", "1")
-				
-				// Set container BEFORE creating effect so reconciliation can access it
-				binder.container = el
-				forRegistry[id] = binder
-				
-				// Dispose old effect if it exists
-				if binder.effect != nil {
-					binder.effect.Dispose()
+			binder.container = el
+			forRegistry[id] = binder
+			// Create reactive effect for list reconciliation
+			effect := reactivity.CreateEffect(func() {
+				reconcileForList(id)
+			})
+			binder.effect = effect
+			forRegistry[id] = binder
+			// Register cleanup
+			reactivity.OnCleanup(func() {
+				if b, exists := forRegistry[id]; exists {
+					for _, record := range b.childRecords {
+						if record.cleanup != nil {
+							record.cleanup()
+						}
+					}
+					if b.effect != nil {
+						b.effect.Dispose()
+					}
+					delete(forRegistry, id)
 				}
-				
-				// Create persistent reactive effect for list reconciliation
-				// Use CreatePersistentEffect to avoid automatic disposal by cleanup scopes
-				js.Global().Get("console").Call("log", fmt.Sprintf("[attachForBindersIn] Creating persistent effect for For component %s", id))
-				effect := reactivity.CreatePersistentEffect(func() {
-					reconcileForList(id)
-				})
-				binder.effect = effect
-				forRegistry[id] = binder
-				js.Global().Get("console").Call("log", fmt.Sprintf("[attachForBindersIn] Effect created and stored for For component %s", id))
-			} else {
-				js.Global().Get("console").Call("log", fmt.Sprintf("[attachForBindersIn] For component %s already has active effect, skipping", id))
-			}
-		} else {
-			js.Global().Get("console").Call("log", fmt.Sprintf("[attachForBindersIn] For component %s not found in registry", id))
+			})
 		}
 	}
 }
@@ -677,47 +650,16 @@ func attachDynamicBindersIn(root js.Value) {
 
 // reconcileForList implements keyed diffing for For components
 func reconcileForList(id string) {
-	js.Global().Get("console").Call("log", fmt.Sprintf("[For] reconcileForList called for %s", id))
 	binder, ok := forRegistry[id]
 	if !ok {
-		js.Global().Get("console").Call("log", fmt.Sprintf("[For] Binder not found for %s", id))
 		return
 	}
 
-	// Check if container is ready
-	if binder.container.IsUndefined() {
-		js.Global().Get("console").Call("log", fmt.Sprintf("[For] Container not ready for %s, deferring reconciliation", id))
-		return
-	}
-
-	// Debug: Check effect context before signal access
-	js.Global().Get("console").Call("log", "[For] reconcileForList called for", id)
-
-	// Get current items - CRITICAL: Must call signal.Get() directly to establish dependency
-	var items []any
-	
-	// Direct type assertion to ensure proper reactive dependency tracking
-	if signal, ok := binder.items.(reactivity.Signal[[]string]); ok {
-		js.Global().Get("console").Call("log", fmt.Sprintf("[For] About to call signal.Get() directly on signal %p", signal))
-		// Direct call to Get() establishes reactive dependency
-		sliceItems := signal.Get()
-		js.Global().Get("console").Call("log", "[For] signal.Get() completed")
-		items = make([]any, len(sliceItems))
-		for i, item := range sliceItems {
-			items[i] = item
-		}
-	} else {
-		js.Global().Get("console").Call("log", "[For] Type assertion failed, using fallback")
-		// Fallback for other types (still has the dependency issue)
-		items = getItemsFromSource(binder.items)
-	}
-	
+	// Get current items using reflection to handle both Signal and func types
+	items := getItemsFromSource(binder.items)
 	if items == nil {
 		return
 	}
-
-	// Debug: Log the reconciliation
-	js.Global().Get("console").Call("log", fmt.Sprintf("[For] Reconciling list with %d items", len(items)))
 
 
 
@@ -727,8 +669,6 @@ func reconcileForList(id string) {
 		key := callKeyFunc(binder.keyFn, item)
 		newKeys[i] = key
 	}
-
-	js.Global().Get("console").Call("log", fmt.Sprintf("[For] Processing %d keys, %d old records", len(newKeys), len(binder.childRecords)))
 
 	// Track which keys are new, removed, or moved
 	oldRecords := binder.childRecords
@@ -775,12 +715,6 @@ func reconcileForList(id string) {
 
 	// Reorder DOM elements to match new order
 	container := binder.container
-	
-	// Check if container is valid before manipulating DOM
-	if container.IsUndefined() {
-		js.Global().Get("console").Call("log", fmt.Sprintf("[For] Container is undefined for %s, skipping DOM manipulation", id))
-		return
-	}
 	
 	// Clear container first to avoid duplication
 	for container.Get("firstChild").Truthy() {
@@ -983,21 +917,8 @@ func getComponentFromSource(source any) func() g.Node {
 
 // reconcileIndexList implements index-based reconciliation for Index components
 func reconcileIndexList(binder *indexBinder) {
-	// Get current items - Direct signal access for proper dependency tracking
-	var items []any
-	
-	if signal, ok := binder.items.(reactivity.Signal[[]string]); ok {
-		// Direct call to Get() establishes reactive dependency
-		sliceItems := signal.Get()
-		items = make([]any, len(sliceItems))
-		for i, item := range sliceItems {
-			items[i] = item
-		}
-	} else {
-		// Fallback for other types
-		items = getItemsFromSource(binder.items)
-	}
-	
+	// Get current items
+	items := getItemsFromSource(binder.items)
 	if items == nil {
 		return
 	}
@@ -1062,7 +983,6 @@ func getItemsFromSource(source any) []any {
 		return nil
 	}
 
-	// Always use reflection to ensure consistent reactive tracking
 	v := reflect.ValueOf(source)
 	if v.Kind() == reflect.Func {
 		// Call the function to get items
@@ -1074,12 +994,11 @@ func getItemsFromSource(source any) []any {
 		return interfaceSliceFromReflect(sliceVal)
 	}
 
-	// Assume it's a Signal - call Get() method via reflection
+	// Assume it's a Signal - call Get() method
 	getMethod := v.MethodByName("Get")
 	if !getMethod.IsValid() {
 		return nil
 	}
-	// This reflection call should establish the reactive dependency
 	results := getMethod.Call(nil)
 	if len(results) == 0 {
 		return nil

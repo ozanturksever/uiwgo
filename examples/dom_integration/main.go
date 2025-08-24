@@ -182,7 +182,7 @@ func runApp() {
 					})),
 						html.Button(
 							html.Class("remove-item"),
-							html.DataAttr("item-value", item),
+							html.DataAttr("index", strconv.Itoa(index)),
 							gomponents.Text("Remove"),
 						),
 					)
@@ -191,10 +191,6 @@ func runApp() {
 			html.Button(
 				html.ID("add-item-btn"),
 				gomponents.Text("Add Item"),
-			),
-			html.Button(
-				html.ID("test-remove-btn"),
-				gomponents.Text("Test Remove"),
 			),
 			html.Button(
 				html.ID("shuffle-items-btn"),
@@ -378,24 +374,6 @@ func enhanceWithDOMv2(counter reactivity.Signal[int], name reactivity.Signal[str
 		})
 	}
 
-	// Test remove button (direct signal manipulation)
-	if testRemoveBtn := doc.GetElementByID("test-remove-btn"); testRemoveBtn != nil {
-		dom.BindClickToCallback(testRemoveBtn, func() {
-			js.Global().Get("console").Call("log", "=== TEST REMOVE BUTTON CLICKED ===")
-			js.Global().Get("console").Call("log", fmt.Sprintf("[EventHandler] Updating signal %p", items))
-			currentItems := items.Get()
-			if len(currentItems) > 0 {
-				// Remove the first item - create a completely new slice
-				updatedItems := make([]string, len(currentItems)-1)
-				copy(updatedItems, currentItems[1:])
-				js.Global().Get("console").Call("log", fmt.Sprintf("Items before: %v, after: %v", currentItems, updatedItems))
-				js.Global().Get("console").Call("log", "Setting updated items...")
-				items.Set(updatedItems)
-				js.Global().Get("console").Call("log", "Items set completed")
-			}
-		})
-	}
-
 	// Shuffle items button
 	if shuffleBtn := doc.GetElementByID("shuffle-items-btn"); shuffleBtn != nil {
 		dom.BindClickToCallback(shuffleBtn, func() {
@@ -414,20 +392,14 @@ func enhanceWithDOMv2(counter reactivity.Signal[int], name reactivity.Signal[str
 	// Remove item button delegation for For component
 	if body := doc.QuerySelector("body"); body != nil {
 		dom.DelegateEvent(body, "click", ".remove-item", func(event domv2.Event, target domv2.Element) {
-			if itemValue := target.GetAttribute("data-item-value"); itemValue != "" {
-				js.Global().Get("console").Call("log", fmt.Sprintf("Removing item: %s", itemValue))
-				currentItems := items.Get()
-				js.Global().Get("console").Call("log", fmt.Sprintf("Current items before removal: %v", currentItems))
-				updatedItems := make([]string, 0, len(currentItems))
-				for _, item := range currentItems {
-					if item != itemValue {
-						updatedItems = append(updatedItems, item)
+			if indexStr := target.GetAttribute("data-index"); indexStr != "" {
+				if index, err := strconv.Atoi(indexStr); err == nil {
+					currentItems := items.Get()
+					if index >= 0 && index < len(currentItems) {
+						updatedItems := append(currentItems[:index], currentItems[index+1:]...)
+						items.Set(updatedItems)
 					}
 				}
-				js.Global().Get("console").Call("log", fmt.Sprintf("Updated items after removal: %v", updatedItems))
-				items.Set(updatedItems)
-			} else {
-				js.Global().Get("console").Call("log", "No item-value attribute found on remove button")
 			}
 		})
 	}
