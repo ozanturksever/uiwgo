@@ -10,6 +10,7 @@ import (
 
 	"github.com/ozanturksever/uiwgo/comps"
 	"github.com/ozanturksever/uiwgo/dom"
+	"github.com/ozanturksever/uiwgo/logutil"
 	"github.com/ozanturksever/uiwgo/reactivity"
 	domv2 "honnef.co/go/js/dom/v2"
 	"maragu.dev/gomponents"
@@ -40,7 +41,7 @@ func runApp() {
 	isVisible := reactivity.CreateSignal(true)
 	todos := reactivity.CreateSignal([]string{"Learn Go", "Build WASM app", "Use dom/v2"})
 	newTodo := reactivity.CreateSignal("")
-	
+
 	// Control flow examples
 	items := reactivity.CreateSignal([]string{"Apple", "Banana", "Cherry"})
 	selectedTab := reactivity.CreateSignal("home")
@@ -165,21 +166,21 @@ func runApp() {
 		html.Div(
 			html.Class("section"),
 			html.H2(gomponents.Text("Control Flow Components")),
-			
+
 			// For component example
 			html.H3(gomponents.Text("For Component (Keyed List)")),
 			html.P(gomponents.Text("Efficiently renders lists with keyed reconciliation:")),
 			comps.For(comps.ForProps[string]{
 				Items: items,
 				Key: func(item string) string {
-				return item // Use item as key
-			},
+					return item // Use item as key
+				},
 				Children: func(item string, index int) gomponents.Node {
 					return html.Div(
 						html.Class("list-item"),
 						html.Span(comps.BindText(func() string {
-						return fmt.Sprintf("%d: %s", index, item)
-					})),
+							return fmt.Sprintf("%d: %s", index, item)
+						})),
 						html.Button(
 							html.Class("remove-item"),
 							html.DataAttr("index", strconv.Itoa(index)),
@@ -196,7 +197,7 @@ func runApp() {
 				html.ID("shuffle-items-btn"),
 				gomponents.Text("Shuffle Items"),
 			),
-			
+
 			// Index component example
 			html.H3(gomponents.Text("Index Component (Index-based)")),
 			html.P(gomponents.Text("Renders lists with index-based reconciliation:")),
@@ -204,14 +205,14 @@ func runApp() {
 				Items: items,
 				Children: func(getItem func() string, index int) gomponents.Node {
 					return html.Div(
-					html.Class("index-item"),
-					comps.BindText(func() string {
-						return fmt.Sprintf("Index %d: %s", index, getItem())
-					}),
-				)
+						html.Class("index-item"),
+						comps.BindText(func() string {
+							return fmt.Sprintf("Index %d: %s", index, getItem())
+						}),
+					)
 				},
 			}),
-			
+
 			// Switch/Match component example
 			html.H3(gomponents.Text("Switch/Match Component")),
 			html.P(gomponents.Text("Conditionally renders content based on a value:")),
@@ -230,7 +231,7 @@ func runApp() {
 				),
 			),
 			comps.Switch(comps.SwitchProps{
-				When: selectedTab,
+				When:     selectedTab,
 				Fallback: html.P(gomponents.Text("Unknown tab selected")),
 				Children: []gomponents.Node{
 					comps.Match(comps.MatchProps{
@@ -256,7 +257,7 @@ func runApp() {
 					}),
 				},
 			}),
-			
+
 			// Dynamic component example
 			html.H3(gomponents.Text("Dynamic Component")),
 			html.P(gomponents.Text("Dynamically renders different components:")),
@@ -363,7 +364,7 @@ func enhanceWithDOMv2(counter reactivity.Signal[int], name reactivity.Signal[str
 	}
 
 	// Control flow examples event handlers
-	
+
 	// Add item button
 	if addItemBtn := doc.GetElementByID("add-item-btn"); addItemBtn != nil {
 		dom.BindClickToCallback(addItemBtn, func() {
@@ -439,11 +440,11 @@ func enhanceWithDOMv2(counter reactivity.Signal[int], name reactivity.Signal[str
 			// Create a unique ID for this counter instance
 			dynamicCounterID++
 			counterInstanceID := fmt.Sprintf("dyn-counter-%d", dynamicCounterID)
-			
+
 			// Create and register the counter signal
 			localCounter := reactivity.CreateSignal(0)
 			dynamicCounters[counterInstanceID] = localCounter
-			
+
 			currentComponent.Set(func() gomponents.Node {
 				return html.Div(
 					html.Class("counter-component"),
@@ -484,12 +485,12 @@ func enhanceWithDOMv2(counter reactivity.Signal[int], name reactivity.Signal[str
 				if counter, exists := dynamicCounters[counterID]; exists {
 					// Increment the counter
 					counter.Set(counter.Get() + 1)
-					js.Global().Get("console").Call("log", fmt.Sprintf("Dynamic counter %s incremented to %d", counterID, counter.Get()))
+					logutil.Logf("Dynamic counter %s incremented to %d", counterID, counter.Get())
 				} else {
-					js.Global().Get("console").Call("log", fmt.Sprintf("Counter %s not found in registry", counterID))
+					logutil.Logf("Counter %s not found in registry", counterID)
 				}
 			} else {
-				js.Global().Get("console").Call("log", "No counter ID found on button")
+				logutil.Log("No counter ID found on button")
 			}
 		})
 	}
@@ -613,13 +614,13 @@ func exposeGlobalFunctions(counter reactivity.Signal[int], name reactivity.Signa
 		return nil
 	})
 
-	fmt.Println("Global functions exposed:")
-	fmt.Println("- incrementCounter()")
-	fmt.Println("- decrementCounter()")
-	fmt.Println("- setCounter(value)")
-	fmt.Println("- setName(name)")
-	fmt.Println("- toggleVisibility()")
-	fmt.Println("- addTodoFromJS(todo)")
-	fmt.Println("- clearTodos()")
-	fmt.Println("- cleanupAll()")
+	logutil.Log("Global functions exposed:")
+	logutil.Log("- incrementCounter()")
+	logutil.Log("- decrementCounter()")
+	logutil.Log("- setCounter(value)")
+	logutil.Log("- setName(name)")
+	logutil.Log("- toggleVisibility()")
+	logutil.Log("- addTodoFromJS(todo)")
+	logutil.Log("- clearTodos()")
+	logutil.Log("- cleanupAll()")
 }

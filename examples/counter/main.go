@@ -7,6 +7,7 @@ import (
 
 	comps "github.com/ozanturksever/uiwgo/comps"
 	dom "github.com/ozanturksever/uiwgo/dom"
+	"github.com/ozanturksever/uiwgo/logutil"
 	reactivity "github.com/ozanturksever/uiwgo/reactivity"
 
 	. "maragu.dev/gomponents"
@@ -18,7 +19,7 @@ func main() {
 	// In a real app, you might want to store this disposer to clean up when needed
 	disposer := comps.Mount("app", func() Node { return CounterApp() })
 	_ = disposer // We don't use it in this example since the app runs indefinitely
-	
+
 	// Prevent exit
 	select {}
 }
@@ -29,7 +30,7 @@ func CounterApp() Node {
 
 	// Effect logging to console
 	reactivity.CreateEffect(func() {
-		fmt.Println("Count changed:", count.Get())
+		logutil.Log("Count changed:", count.Get())
 	})
 
 	// Setup DOM event handlers after mount

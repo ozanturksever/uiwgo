@@ -100,6 +100,15 @@ JS/DOM Interop Preference
 - Rationale: it is statically typed and provides better safety and discoverability compared to syscall/js.
 - Use syscall/js only when an API is unavailable in honnef.co/go/js/dom/v2 or when dynamic JS interop is strictly required.
 
+Logging Guidelines
+- Always use the logutil package for logging instead of fmt.Println or console.log.
+- Rationale: logutil provides cross-platform logging that works correctly in both standard Go builds and WebAssembly/browser environments.
+- Available functions:
+  - logutil.Log(args ...any): Logs arguments to console (browser) or stdout (standard Go)
+  - logutil.Logf(format string, args ...any): Formatted logging with printf-style formatting
+- The logutil package automatically handles JS/WASM vs standard Go builds through build tags.
+- Safe to use with any mix of Go values, JS values, and primitive types.
+
 Documentation Lookup
 - Use Context7 to fetch the latest documentation when it is available.
 - For Go packages, use Go Docs (pkg.go.dev) to get the latest package documentation.

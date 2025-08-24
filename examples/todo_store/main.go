@@ -8,6 +8,7 @@ import (
 	"syscall/js"
 
 	comps "github.com/ozanturksever/uiwgo/comps"
+	"github.com/ozanturksever/uiwgo/logutil"
 	reactivity "github.com/ozanturksever/uiwgo/reactivity"
 
 	. "maragu.dev/gomponents"
@@ -28,7 +29,7 @@ func main() {
 	// Mount the app and get a disposer function
 	disposer := comps.Mount("app", func() Node { return TodoStoreApp() })
 	_ = disposer // We don't use it in this example since the app runs indefinitely
-	
+
 	// Prevent exit
 	select {}
 }
@@ -158,7 +159,7 @@ func TodoItemView(store reactivity.Store[AppState], i int) Node {
 		title := reactivity.Adapt[string](store.Select("Todos", i, "Title")).Get()
 		completed := reactivity.Adapt[bool](store.Select("Todos", i, "Completed")).Get()
 		renders++
-		fmt.Printf("[Item %d] render count=%d completed=%v\n", id, renders, completed)
+		logutil.Logf("[Item %d] render count=%d completed=%v", id, renders, completed)
 
 		checkbox := Input(Class("todo-toggle"), Type("checkbox"), Attr("onclick", fmt.Sprintf("window.toggleTodo(%d)", i)))
 		if completed {

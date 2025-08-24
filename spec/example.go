@@ -5,6 +5,7 @@ package spec
 import (
 	"fmt"
 	comps "github.com/ozanturksever/uiwgo/comps"
+	"github.com/ozanturksever/uiwgo/logutil"
 	reactivity "github.com/ozanturksever/uiwgo/reactivity"
 
 	. "maragu.dev/gomponents"
@@ -34,14 +35,14 @@ func CounterComponent() Node {
 	return Div(
 		// Lifecycle hooks
 		comps.OnMount(func() {
-			fmt.Println("CounterComponent mounted")
+			logutil.Log("CounterComponent mounted")
 		}),
 		// Effect runs whenever accessed signals inside change (e.g., count)
 		reactivity.Effect(func() {
-			fmt.Println("CounterComponent count changed:", count.Get())
+			logutil.Log("CounterComponent count changed:", count.Get())
 		}),
 		comps.OnCleanup(func() {
-			fmt.Println("CounterComponent unmounted")
+			logutil.Log("CounterComponent unmounted")
 		}),
 
 		// Composition: child components for display and controls

@@ -9,6 +9,7 @@ import (
 
 	comps "github.com/ozanturksever/uiwgo/comps"
 	dom "github.com/ozanturksever/uiwgo/dom"
+	"github.com/ozanturksever/uiwgo/logutil"
 	reactivity "github.com/ozanturksever/uiwgo/reactivity"
 	domv2 "honnef.co/go/js/dom/v2"
 
@@ -26,7 +27,7 @@ func main() {
 	// Mount the app and get a disposer function
 	disposer := comps.Mount("app", func() Node { return TodoApp() })
 	_ = disposer // We don't use it in this example since the app runs indefinitely
-	
+
 	// Prevent exit
 	select {}
 }
@@ -57,8 +58,8 @@ func TodoApp() Node {
 
 	// Lifecycle: log stats on changes with cleanup
 	reactivity.CreateEffect(func() {
-		comps.OnCleanup(func() { fmt.Println("[TodoApp] cleanup before stats recompute") })
-		fmt.Printf("[TodoApp] todos=%d remaining=%d\n", len(todos.Get()), remaining.Get())
+		comps.OnCleanup(func() { logutil.Log("[TodoApp] cleanup before stats recompute") })
+		logutil.Logf("[TodoApp] todos=%d remaining=%d", len(todos.Get()), remaining.Get())
 	})
 
 	// Helper functions for todo operations
@@ -229,7 +230,7 @@ func StatsFooter(remaining reactivity.Signal[int], hasCompleted reactivity.Signa
 			ID("clear-completed-btn"),
 			Text("Clear completed"),
 			dom.OnClick("clear-completed-btn", func() {
-				fmt.Println("[TodoApp] clear completed button")
+				logutil.Log("[TodoApp] clear completed button")
 				clearCompleted()
 			}),
 		)}),
