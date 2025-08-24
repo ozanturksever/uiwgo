@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chromedp/chromedp"
 	"github.com/chromedp/cdproto/runtime"
+	"github.com/chromedp/chromedp"
 	"github.com/ozanturksever/uiwgo/internal/devserver"
 )
 
@@ -28,7 +28,7 @@ func TestDOMIntegrationCounter(t *testing.T) {
 
 	// Create chromedp context
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
+		chromedp.Flag("headless", true),
 		chromedp.Flag("disable-gpu", false),
 		chromedp.Flag("no-sandbox", true),
 	)
@@ -112,7 +112,7 @@ func TestDOMIntegrationNameInput(t *testing.T) {
 
 	// Create chromedp context
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
+		chromedp.Flag("headless", true),
 		chromedp.Flag("disable-gpu", false),
 		chromedp.Flag("no-sandbox", true),
 	)
@@ -121,8 +121,6 @@ func TestDOMIntegrationNameInput(t *testing.T) {
 
 	ctx, cancel = chromedp.NewContext(allocCtx)
 	defer cancel()
-
-
 
 	var greetingText string
 	err := chromedp.Run(ctx,
@@ -173,7 +171,7 @@ func TestDOMIntegrationVisibilityToggle(t *testing.T) {
 
 	// Create chromedp context
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
+		chromedp.Flag("headless", true),
 		chromedp.Flag("disable-gpu", false),
 		chromedp.Flag("no-sandbox", true),
 	)
@@ -251,7 +249,7 @@ func TestDOMIntegrationTodoList(t *testing.T) {
 
 	// Create chromedp context
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
+		chromedp.Flag("headless", true),
 		chromedp.Flag("disable-gpu", false),
 		chromedp.Flag("no-sandbox", true),
 	)
@@ -326,7 +324,7 @@ func TestDOMIntegrationDynamicElements(t *testing.T) {
 
 	// Create chromedp context
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
+		chromedp.Flag("headless", true),
 		chromedp.Flag("disable-gpu", false),
 		chromedp.Flag("no-sandbox", true),
 	)
@@ -404,7 +402,7 @@ func TestForComponent(t *testing.T) {
 	defer cancel()
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
+		chromedp.Flag("headless", true),
 		chromedp.Flag("disable-gpu", false),
 		chromedp.Flag("no-sandbox", true),
 	)
@@ -600,7 +598,7 @@ func TestIndexComponent(t *testing.T) {
 	defer cancel()
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
+		chromedp.Flag("headless", true),
 		chromedp.Flag("disable-gpu", false),
 		chromedp.Flag("no-sandbox", true),
 	)
@@ -609,8 +607,6 @@ func TestIndexComponent(t *testing.T) {
 
 	ctx, cancel = chromedp.NewContext(allocCtx)
 	defer cancel()
-
-
 
 	var itemCount int
 	var indexTexts []string
@@ -648,11 +644,9 @@ func TestIndexComponent(t *testing.T) {
 		t.Fatalf("Browser automation failed: %v", err)
 	}
 
-
-	
 	// Debug: Print all found texts
 	t.Logf("Found %d index texts: %v", len(indexTexts), indexTexts)
-	
+
 	// Remove duplicates for verification
 	uniqueTexts := make([]string, 0)
 	seen := make(map[string]bool)
@@ -662,14 +656,14 @@ func TestIndexComponent(t *testing.T) {
 			seen[text] = true
 		}
 	}
-	
+
 	t.Logf("Unique index texts: %v", uniqueTexts)
-	
+
 	// Verify we have exactly 3 unique items
 	if len(uniqueTexts) != 3 {
 		t.Errorf("Expected 3 unique index texts, got: %d", len(uniqueTexts))
 	}
-	
+
 	// Verify index format (should be "Index 0: Apple", "Index 1: Banana", etc.)
 	expectedTexts := []string{"Index 0: Apple", "Index 1: Banana", "Index 2: Cherry"}
 	for i, expected := range expectedTexts {
@@ -681,7 +675,7 @@ func TestIndexComponent(t *testing.T) {
 			t.Errorf("Missing expected index text: %s", expected)
 		}
 	}
-	
+
 	// Check for duplicates
 	if len(indexTexts) != len(uniqueTexts) {
 		t.Errorf("Found duplicate index texts. Total: %d, Unique: %d", len(indexTexts), len(uniqueTexts))
@@ -717,7 +711,7 @@ func TestSwitchMatchComponent(t *testing.T) {
 	defer cancel()
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
+		chromedp.Flag("headless", true),
 		chromedp.Flag("disable-gpu", false),
 		chromedp.Flag("no-sandbox", true),
 	)
@@ -797,7 +791,7 @@ func TestSwitchMatchComponent(t *testing.T) {
 
 	// Test tab button functionality
 	var tabContent string
-	
+
 	// Test Home tab
 	err = chromedp.Run(ctx,
 		chromedp.Click(`#tab-home`, chromedp.ByID),
@@ -866,7 +860,7 @@ func TestDynamicComponent(t *testing.T) {
 	defer cancel()
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
+		chromedp.Flag("headless", true),
 		chromedp.Flag("disable-gpu", false),
 		chromedp.Flag("no-sandbox", true),
 	)
@@ -910,7 +904,7 @@ func TestDynamicComponent(t *testing.T) {
 	err = chromedp.Run(ctx,
 		chromedp.Click(`#load-hello-comp`, chromedp.ByID),
 		chromedp.Sleep(1*time.Second),
-		
+
 		chromedp.Text(`[data-uiwgo-dynamic]`, &dynamicContent, chromedp.ByQuery),
 	)
 
@@ -1008,7 +1002,7 @@ func TestDynamicCounterStressTest(t *testing.T) {
 	defer cancel()
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
+		chromedp.Flag("headless", true),
 		chromedp.Flag("disable-gpu", false),
 		chromedp.Flag("no-sandbox", true),
 	)
