@@ -41,7 +41,7 @@ func Mount(elementID string, root func() Node) {
 	container.Set("innerHTML", buf.String())
 
 	// Attach reactive binders (BindText, Show, etc.)
-	attachBinders(doc)
+	attachBinders(container)
 
 	// Run queued OnMount callbacks
 	for _, f := range mountQueue {

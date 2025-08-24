@@ -71,6 +71,27 @@ func (gr *GomponentsRenderer) enhanceReactiveElements() {
 	for _, el := range showElements {
 		gr.enhanceShowElement(el)
 	}
+
+	// Control flow components
+	forElements := gr.container.QuerySelectorAll("[data-uiwgo-for]")
+	for _, el := range forElements {
+		gr.enhanceForElement(el)
+	}
+
+	indexElements := gr.container.QuerySelectorAll("[data-uiwgo-index]")
+	for _, el := range indexElements {
+		gr.enhanceIndexElement(el)
+	}
+
+	switchElements := gr.container.QuerySelectorAll("[data-uiwgo-switch]")
+	for _, el := range switchElements {
+		gr.enhanceSwitchElement(el)
+	}
+
+	dynamicElements := gr.container.QuerySelectorAll("[data-uiwgo-dynamic]")
+	for _, el := range dynamicElements {
+		gr.enhanceDynamicElement(el)
+	}
 }
 
 // enhanceTextElement enhances a text element with reactive capabilities
@@ -106,6 +127,66 @@ func (gr *GomponentsRenderer) enhanceHTMLElement(el dom.Element) {
 // enhanceShowElement enhances a show element with reactive capabilities
 func (gr *GomponentsRenderer) enhanceShowElement(el dom.Element) {
 	id := el.GetAttribute("data-uiwgo-show")
+	if id == "" {
+		return
+	}
+
+	// Create reactive element wrapper
+	reactiveEl := WrapElement(el)
+	gr.reactiveElements = append(gr.reactiveElements, reactiveEl)
+
+	// Mark as enhanced to avoid duplicate processing
+	el.SetAttribute("data-uiwgo-enhanced", "true")
+}
+
+// enhanceForElement enhances a For element with reactive capabilities
+func (gr *GomponentsRenderer) enhanceForElement(el dom.Element) {
+	id := el.GetAttribute("data-uiwgo-for")
+	if id == "" {
+		return
+	}
+
+	// Create reactive element wrapper
+	reactiveEl := WrapElement(el)
+	gr.reactiveElements = append(gr.reactiveElements, reactiveEl)
+
+	// Mark as enhanced to avoid duplicate processing
+	el.SetAttribute("data-uiwgo-enhanced", "true")
+}
+
+// enhanceIndexElement enhances an Index element with reactive capabilities
+func (gr *GomponentsRenderer) enhanceIndexElement(el dom.Element) {
+	id := el.GetAttribute("data-uiwgo-index")
+	if id == "" {
+		return
+	}
+
+	// Create reactive element wrapper
+	reactiveEl := WrapElement(el)
+	gr.reactiveElements = append(gr.reactiveElements, reactiveEl)
+
+	// Mark as enhanced to avoid duplicate processing
+	el.SetAttribute("data-uiwgo-enhanced", "true")
+}
+
+// enhanceSwitchElement enhances a Switch element with reactive capabilities
+func (gr *GomponentsRenderer) enhanceSwitchElement(el dom.Element) {
+	id := el.GetAttribute("data-uiwgo-switch")
+	if id == "" {
+		return
+	}
+
+	// Create reactive element wrapper
+	reactiveEl := WrapElement(el)
+	gr.reactiveElements = append(gr.reactiveElements, reactiveEl)
+
+	// Mark as enhanced to avoid duplicate processing
+	el.SetAttribute("data-uiwgo-enhanced", "true")
+}
+
+// enhanceDynamicElement enhances a Dynamic element with reactive capabilities
+func (gr *GomponentsRenderer) enhanceDynamicElement(el dom.Element) {
+	id := el.GetAttribute("data-uiwgo-dynamic")
 	if id == "" {
 		return
 	}

@@ -434,9 +434,9 @@ func BindClickToCallback(element dom.Element, callback func()) *EventBinding {
 func BindInputToSignal(element dom.Element, signal reactivity.Signal[string]) *EventBinding {
 	return BindInput(element, func(event dom.Event) {
 		if target := event.Target(); target != nil {
-			if input, ok := target.(dom.HTMLInputElement); ok {
-				signal.Set(input.Value())
-			}
+			// Use the underlying JavaScript value to get the input value
+			value := target.Underlying().Get("value").String()
+			signal.Set(value)
 		}
 	})
 }
@@ -445,13 +445,9 @@ func BindInputToSignal(element dom.Element, signal reactivity.Signal[string]) *E
 func BindChangeToSignal(element dom.Element, signal reactivity.Signal[string]) *EventBinding {
 	return BindChange(element, func(event dom.Event) {
 		if target := event.Target(); target != nil {
-			if input, ok := target.(dom.HTMLInputElement); ok {
-				signal.Set(input.Value())
-			} else if textarea, ok := target.(dom.HTMLTextAreaElement); ok {
-				signal.Set(textarea.Value())
-			} else if selectEl, ok := target.(dom.HTMLSelectElement); ok {
-				signal.Set(selectEl.Value())
-			}
+			// Use the underlying JavaScript value to get the element value
+			value := target.Underlying().Get("value").String()
+			signal.Set(value)
 		}
 	})
 }

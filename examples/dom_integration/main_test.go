@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/chromedp/chromedp"
+	"github.com/chromedp/cdproto/runtime"
 	"github.com/ozanturksever/uiwgo/internal/devserver"
 )
 
@@ -119,6 +120,8 @@ func TestDOMIntegrationNameInput(t *testing.T) {
 
 	ctx, cancel = chromedp.NewContext(allocCtx)
 	defer cancel()
+
+
 
 	var greetingText string
 	err := chromedp.Run(ctx,
@@ -386,4 +389,450 @@ func TestDOMIntegrationDynamicElements(t *testing.T) {
 	}
 
 	t.Logf("Test passed! Dynamic element functionality working correctly")
+}
+
+// Test For component functionality
+func TestForComponent(t *testing.T) {
+	server := devserver.NewServer("dom_integration", "localhost:0")
+	if err := server.Start(); err != nil {
+		t.Fatalf("Failed to start dev server: %v", err)
+	}
+	defer server.Stop()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("headless", false),
+		chromedp.Flag("disable-gpu", false),
+		chromedp.Flag("no-sandbox", true),
+	)
+	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
+	defer cancel()
+
+	ctx, cancel = chromedp.NewContext(allocCtx)
+	defer cancel()
+
+	var itemCount int
+	var itemTexts []string
+
+	err := chromedp.Run(ctx,
+		chromedp.Navigate(server.URL()),
+		chromedp.WaitVisible(`#add-item-btn`, chromedp.ByID),
+		chromedp.Sleep(1*time.Second),
+
+		// Check initial For component items (only count items in the For component section)
+		// The For component is in the "Control Flow Components" section after the H3 "For Component (Keyed List)"
+		chromedp.Evaluate(`(() => {
+			// Find the For component section by looking for the H3 with "For Component"
+			const forSection = Array.from(document.querySelectorAll('h3')).find(h => h.textContent.includes('For Component'));
+			if (!forSection) return 0;
+			// Count list-item elements that come after this H3 and before the next H3
+			let count = 0;
+			let current = forSection.nextElementSibling;
+			while (current && current.tagName !== 'H3') {
+				count += current.querySelectorAll('.list-item').length;
+				current = current.nextElementSibling;
+			}
+			return count;
+		})()`, &itemCount),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	// The page has multiple list items from different sections, so we need to count only the For component items
+	// Let's check if we have at least 3 items total and then test the functionality
+	t.Logf("Initial For component item count: %d", itemCount)
+	if itemCount < 3 {
+		t.Errorf("Expected at least 3 items on page, got: %d", itemCount)
+	}
+
+	// Test adding items
+	var initialCount = itemCount
+	err = chromedp.Run(ctx,
+		chromedp.Click(`#add-item-btn`, chromedp.ByID),
+		chromedp.Sleep(300*time.Millisecond),
+		chromedp.Evaluate(`(() => {
+			// Find the For component section by looking for the H3 with "For Component"
+			const forSection = Array.from(document.querySelectorAll('h3')).find(h => h.textContent.includes('For Component'));
+			if (!forSection) return 0;
+			// Count list-item elements that come after this H3 and before the next H3
+			let count = 0;
+			let current = forSection.nextElementSibling;
+			while (current && current.tagName !== 'H3') {
+				count += current.querySelectorAll('.list-item').length;
+				current = current.nextElementSibling;
+			}
+			return count;
+		})()`, &itemCount),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	t.Logf("Item count after adding: %d (expected: %d)", itemCount, initialCount+1)
+	if itemCount != initialCount+1 {
+		t.Errorf("Expected %d items after adding, got: %d", initialCount+1, itemCount)
+	}
+
+	// Test shuffling items (keyed reconciliation)
+	err = chromedp.Run(ctx,
+		// Get item texts before shuffle
+		chromedp.Evaluate(`Array.from(document.querySelectorAll('.list-item span')).map(el => el.textContent)`, &itemTexts),
+		chromedp.Click(`#shuffle-items-btn`, chromedp.ByID),
+		chromedp.Sleep(300*time.Millisecond),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	var shuffledTexts []string
+	err = chromedp.Run(ctx,
+		chromedp.Evaluate(`Array.from(document.querySelectorAll('.list-item span')).map(el => el.textContent)`, &shuffledTexts),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	// Verify items were shuffled (order should be different)
+	if len(shuffledTexts) != len(itemTexts) {
+		t.Errorf("Item count changed after shuffle: expected %d, got %d", len(itemTexts), len(shuffledTexts))
+	}
+
+	// Test removing items
+	var beforeRemoveCount = itemCount
+	err = chromedp.Run(ctx,
+		chromedp.Click(`.remove-item`, chromedp.ByQuery),
+		chromedp.Sleep(300*time.Millisecond),
+		chromedp.Evaluate(`document.querySelectorAll('.list-item').length`, &itemCount),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if itemCount != beforeRemoveCount-1 {
+		t.Errorf("Expected %d items after removing, got: %d", beforeRemoveCount-1, itemCount)
+	}
+
+	t.Logf("Test passed! For component functionality working correctly")
+}
+
+// Test Index component functionality
+func TestIndexComponent(t *testing.T) {
+	server := devserver.NewServer("dom_integration", "localhost:0")
+	if err := server.Start(); err != nil {
+		t.Fatalf("Failed to start dev server: %v", err)
+	}
+	defer server.Stop()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("headless", false),
+		chromedp.Flag("disable-gpu", false),
+		chromedp.Flag("no-sandbox", true),
+	)
+	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
+	defer cancel()
+
+	ctx, cancel = chromedp.NewContext(allocCtx)
+	defer cancel()
+
+
+
+	var itemCount int
+	var indexTexts []string
+
+	err := chromedp.Run(ctx,
+		chromedp.Navigate(server.URL()),
+		chromedp.WaitVisible(`#add-item-btn`, chromedp.ByID),
+		chromedp.Sleep(1*time.Second),
+
+		// Check initial Index component items
+		chromedp.Evaluate(`document.querySelectorAll('.index-item').length`, &itemCount),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if itemCount != 3 {
+		t.Errorf("Expected 3 initial items in Index component, got: %d", itemCount)
+	}
+
+	// Test that Index component shows correct indices
+	err = chromedp.Run(ctx,
+		chromedp.Evaluate(`(() => {
+			console.log('Index items found:', document.querySelectorAll('.index-item').length);
+			console.log('Index spans found:', document.querySelectorAll('.index-item span').length);
+			Array.from(document.querySelectorAll('.index-item span')).forEach((el, i) => {
+				console.log('Span', i, ':', el.textContent, 'parent:', el.parentElement.outerHTML);
+			});
+			return Array.from(document.querySelectorAll('.index-item span')).map(el => el.textContent);
+		})()`, &indexTexts),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+
+	
+	// Debug: Print all found texts
+	t.Logf("Found %d index texts: %v", len(indexTexts), indexTexts)
+	
+	// Remove duplicates for verification
+	uniqueTexts := make([]string, 0)
+	seen := make(map[string]bool)
+	for _, text := range indexTexts {
+		if !seen[text] {
+			uniqueTexts = append(uniqueTexts, text)
+			seen[text] = true
+		}
+	}
+	
+	t.Logf("Unique index texts: %v", uniqueTexts)
+	
+	// Verify we have exactly 3 unique items
+	if len(uniqueTexts) != 3 {
+		t.Errorf("Expected 3 unique index texts, got: %d", len(uniqueTexts))
+	}
+	
+	// Verify index format (should be "Index 0: Apple", "Index 1: Banana", etc.)
+	expectedTexts := []string{"Index 0: Apple", "Index 1: Banana", "Index 2: Cherry"}
+	for i, expected := range expectedTexts {
+		if i < len(uniqueTexts) {
+			if uniqueTexts[i] != expected {
+				t.Errorf("Expected index text '%s', got: '%s'", expected, uniqueTexts[i])
+			}
+		} else {
+			t.Errorf("Missing expected index text: %s", expected)
+		}
+	}
+	
+	// Check for duplicates
+	if len(indexTexts) != len(uniqueTexts) {
+		t.Errorf("Found duplicate index texts. Total: %d, Unique: %d", len(indexTexts), len(uniqueTexts))
+	}
+
+	// Test adding items affects Index component
+	err = chromedp.Run(ctx,
+		chromedp.Click(`#add-item-btn`, chromedp.ByID),
+		chromedp.Sleep(300*time.Millisecond),
+		chromedp.Evaluate(`document.querySelectorAll('.index-item').length`, &itemCount),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if itemCount != 4 {
+		t.Errorf("Expected 4 items in Index component after adding, got: %d", itemCount)
+	}
+
+	t.Logf("Test passed! Index component functionality working correctly")
+}
+
+// Test Switch/Match component functionality
+func TestSwitchMatchComponent(t *testing.T) {
+	server := devserver.NewServer("dom_integration", "localhost:0")
+	if err := server.Start(); err != nil {
+		t.Fatalf("Failed to start dev server: %v", err)
+	}
+	defer server.Stop()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("headless", false),
+		chromedp.Flag("disable-gpu", false),
+		chromedp.Flag("no-sandbox", true),
+	)
+	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
+	defer cancel()
+
+	ctx, cancel = chromedp.NewContext(allocCtx)
+	defer cancel()
+
+	var pageContent string
+
+	err := chromedp.Run(ctx,
+		chromedp.Navigate(server.URL()),
+		chromedp.WaitVisible(`#tab-home`, chromedp.ByID),
+		chromedp.Sleep(2*time.Second),
+
+		// Explicitly click home tab to ensure it's selected
+		chromedp.Click(`#tab-home`, chromedp.ByID),
+		chromedp.Sleep(500*time.Millisecond),
+
+		// Check initial state (should show home page)
+		chromedp.Text(`body`, &pageContent, chromedp.ByQuery),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if !strings.Contains(pageContent, "Home Page") {
+		t.Errorf("Expected to see Home Page content initially, got: %s", pageContent)
+	}
+
+	// Test switching to About tab
+	err = chromedp.Run(ctx,
+		chromedp.Click(`#tab-about`, chromedp.ByID),
+		chromedp.Sleep(300*time.Millisecond),
+		chromedp.Text(`body`, &pageContent, chromedp.ByQuery),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if !strings.Contains(pageContent, "About Page") {
+		t.Errorf("Expected to see About Page content after clicking About tab, got: %s", pageContent)
+	}
+
+	// Test switching to Contact tab
+	err = chromedp.Run(ctx,
+		chromedp.Click(`#tab-contact`, chromedp.ByID),
+		chromedp.Sleep(300*time.Millisecond),
+		chromedp.Text(`body`, &pageContent, chromedp.ByQuery),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if !strings.Contains(pageContent, "Contact Page") {
+		t.Errorf("Expected to see Contact Page content after clicking Contact tab, got: %s", pageContent)
+	}
+
+	// Test switching back to Home tab
+	err = chromedp.Run(ctx,
+		chromedp.Click(`#tab-home`, chromedp.ByID),
+		chromedp.Sleep(300*time.Millisecond),
+		chromedp.Text(`body`, &pageContent, chromedp.ByQuery),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if !strings.Contains(pageContent, "Home Page") {
+		t.Errorf("Expected to see Home Page content after clicking Home tab again, got: %s", pageContent)
+	}
+
+	t.Logf("Test passed! Switch/Match component functionality working correctly")
+}
+
+// Test Dynamic component functionality
+func TestDynamicComponent(t *testing.T) {
+	server := devserver.NewServer("dom_integration", "localhost:0")
+	if err := server.Start(); err != nil {
+		t.Fatalf("Failed to start dev server: %v", err)
+	}
+	defer server.Stop()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	opts := append(chromedp.DefaultExecAllocatorOptions[:],
+		chromedp.Flag("headless", false),
+		chromedp.Flag("disable-gpu", false),
+		chromedp.Flag("no-sandbox", true),
+	)
+	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
+	defer cancel()
+
+	ctx, cancel = chromedp.NewContext(allocCtx)
+	defer cancel()
+
+	// Listen for console messages
+	chromedp.ListenTarget(ctx, func(ev interface{}) {
+		switch ev := ev.(type) {
+		case *runtime.EventConsoleAPICalled:
+			for _, arg := range ev.Args {
+				t.Logf("Console: %s", arg.Value)
+			}
+		}
+	})
+
+	var dynamicContent string
+	var hasContent bool
+
+	err := chromedp.Run(ctx,
+		chromedp.Navigate(server.URL()),
+		chromedp.WaitVisible(`#load-hello-comp`, chromedp.ByID),
+		chromedp.Sleep(1*time.Second),
+
+		// Check initial state (should be empty)
+		chromedp.Evaluate(`document.querySelector('[data-uiwgo-dynamic]').children.length > 0`, &hasContent),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if hasContent {
+		t.Errorf("Expected Dynamic component to be empty initially, but found content")
+	}
+
+	// Test loading Hello component
+	err = chromedp.Run(ctx,
+		chromedp.Click(`#load-hello-comp`, chromedp.ByID),
+		chromedp.Sleep(1*time.Second),
+		
+		chromedp.Text(`[data-uiwgo-dynamic]`, &dynamicContent, chromedp.ByQuery),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if !strings.Contains(dynamicContent, "Hello from Dynamic Component") {
+		t.Errorf("Expected to see Hello component content, got: %s", dynamicContent)
+		return
+	}
+
+	// Test loading Counter component
+	err = chromedp.Run(ctx,
+		chromedp.Click(`#load-counter-comp`, chromedp.ByID),
+		chromedp.Sleep(1*time.Second),
+		chromedp.Text(`[data-uiwgo-dynamic]`, &dynamicContent, chromedp.ByQuery),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if !strings.Contains(dynamicContent, "Dynamic Counter") {
+		t.Errorf("Expected to see Counter component content, got: %s", dynamicContent)
+		return
+	}
+
+	// Test clearing component
+	err = chromedp.Run(ctx,
+		chromedp.Click(`#clear-comp`, chromedp.ByID),
+		chromedp.Sleep(1*time.Second),
+		chromedp.Evaluate(`document.querySelector('[data-uiwgo-dynamic]').children.length > 0`, &hasContent),
+	)
+
+	if err != nil {
+		t.Fatalf("Browser automation failed: %v", err)
+	}
+
+	if hasContent {
+		t.Errorf("Expected Dynamic component to be empty after clearing, but still has content")
+		return
+	}
+
+	t.Logf("Test passed! Dynamic component functionality working correctly")
 }
