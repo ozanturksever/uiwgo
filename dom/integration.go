@@ -252,7 +252,7 @@ func (rnb *ReactiveNodeBuilder) BindText(textSignal reactivity.Signal[string]) *
 	prevScope := reactivity.GetCurrentCleanupScope()
 	reactivity.SetCurrentCleanupScope(rnb.scope)
 	defer reactivity.SetCurrentCleanupScope(prevScope)
-	
+
 	rnb.element.BindText(textSignal)
 	return rnb
 }
@@ -263,7 +263,7 @@ func (rnb *ReactiveNodeBuilder) BindTextFunc(textFn func() string) *ReactiveNode
 	prevScope := reactivity.GetCurrentCleanupScope()
 	reactivity.SetCurrentCleanupScope(rnb.scope)
 	defer reactivity.SetCurrentCleanupScope(prevScope)
-	
+
 	rnb.element.BindTextFunc(textFn)
 	return rnb
 }
@@ -280,7 +280,7 @@ func (rnb *ReactiveNodeBuilder) BindAttribute(name string, valueSignal reactivit
 	prevScope := reactivity.GetCurrentCleanupScope()
 	reactivity.SetCurrentCleanupScope(rnb.scope)
 	defer reactivity.SetCurrentCleanupScope(prevScope)
-	
+
 	rnb.element.BindAttribute(name, valueSignal)
 	return rnb
 }
@@ -291,7 +291,7 @@ func (rnb *ReactiveNodeBuilder) BindAttributeFunc(name string, valueFn func() st
 	prevScope := reactivity.GetCurrentCleanupScope()
 	reactivity.SetCurrentCleanupScope(rnb.scope)
 	defer reactivity.SetCurrentCleanupScope(prevScope)
-	
+
 	rnb.element.BindAttributeFunc(name, valueFn)
 	return rnb
 }
@@ -307,7 +307,7 @@ func (rnb *ReactiveNodeBuilder) BindClass(classSignal reactivity.Signal[string])
 	prevScope := reactivity.GetCurrentCleanupScope()
 	reactivity.SetCurrentCleanupScope(rnb.scope)
 	defer reactivity.SetCurrentCleanupScope(prevScope)
-	
+
 	rnb.element.BindClass(classSignal)
 	return rnb
 }
@@ -318,7 +318,7 @@ func (rnb *ReactiveNodeBuilder) BindClassFunc(classFn func() string) *ReactiveNo
 	prevScope := reactivity.GetCurrentCleanupScope()
 	reactivity.SetCurrentCleanupScope(rnb.scope)
 	defer reactivity.SetCurrentCleanupScope(prevScope)
-	
+
 	rnb.element.BindClassFunc(classFn)
 	return rnb
 }
@@ -334,7 +334,7 @@ func (rnb *ReactiveNodeBuilder) BindStyle(styleSignal reactivity.Signal[string])
 	prevScope := reactivity.GetCurrentCleanupScope()
 	reactivity.SetCurrentCleanupScope(rnb.scope)
 	defer reactivity.SetCurrentCleanupScope(prevScope)
-	
+
 	rnb.element.BindStyle(styleSignal)
 	return rnb
 }
@@ -345,7 +345,7 @@ func (rnb *ReactiveNodeBuilder) BindStyleFunc(styleFn func() string) *ReactiveNo
 	prevScope := reactivity.GetCurrentCleanupScope()
 	reactivity.SetCurrentCleanupScope(rnb.scope)
 	defer reactivity.SetCurrentCleanupScope(prevScope)
-	
+
 	rnb.element.BindStyleFunc(styleFn)
 	return rnb
 }
@@ -366,12 +366,12 @@ func (rnb *ReactiveNodeBuilder) OnEvent(eventType string, handler func(event dom
 func (rnb *ReactiveNodeBuilder) AppendChild(child *ReactiveNodeBuilder) *ReactiveNodeBuilder {
 	rnb.element.Element().AppendChild(child.element.Element())
 	rnb.children = append(rnb.children, child)
-	
+
 	// Establish parent-child scope relationship
 	if child.scope != nil && rnb.scope != nil {
 		child.scope.SetParent(rnb.scope)
 	}
-	
+
 	return rnb
 }
 
@@ -518,4 +518,35 @@ func CreateJSFunctionForCallback(callback func()) string {
 		callback()
 		return nil
 	})
+}
+
+// OnClick creates a delegated click handler that works even if the element is added later
+func OnClick(elementID string, handler func()) g.Node {
+	// Create an effect that sets up event delegation immediately
+	reactivity.CreateEffect(func() {
+		// Use event delegation from <body> so the element can appear later (e.g., via Show/BindHTML)
+		if body := QuerySelector("body"); body != nil {
+			selector := fmt.Sprintf("#%s", elementID)
+			DelegateEvent(body, "click", selector, func(e dom.Event, target dom.Element) {
+				handler()
+			})
+		}
+	})
+	// Return a no-op node
+	return g.Group([]g.Node{})
+}
+
+// OnEvent creates a delegated handler for any event type using CSS selector matching on body
+func OnEvent(elementID string, eventType string, handler func()) g.Node {
+	// Create an effect that sets up event delegation immediately
+	reactivity.CreateEffect(func() {
+		if body := QuerySelector("body"); body != nil {
+			selector := fmt.Sprintf("#%s", elementID)
+			DelegateEvent(body, eventType, selector, func(e dom.Event, target dom.Element) {
+				handler()
+			})
+		}
+	})
+	// Return a no-op node
+	return g.Group([]g.Node{})
 }

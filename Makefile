@@ -36,12 +36,13 @@ kill:
 	lsof -ti:8080 | xargs kill -9 || true
 
 run: kill
-	@echo "==> Starting dev server with live reload for example: $(EXAMPLE) ..."
+	@set -e; trap '$(MAKE) clean' EXIT INT TERM; \
+	echo "==> Starting dev server with live reload for example: $(EXAMPLE) ..."; \
 	go run ./spec/dev.go --example $(EXAMPLE)
 
 clean:
 	@echo "==> Cleaning up WASM binaries under examples/..."
-	rm -f examples/*/main.wasm
+	@rm -f examples/*/main.wasm || true
 
 # Test configuration for js/wasm
 # By default, run only unit-testable packages under wasm (exclude examples and internal/devserver)
@@ -58,22 +59,22 @@ TEST_ENV := env -i PATH="$(PATH)" HOME="$(HOME)" GOOS=js GOARCH=wasm
 #   make test PKG=./reactivity RUN=Signal
 test:
 	@echo "==> Running WASM tests for $(PKG) ..."
-	@$(TEST_ENV) go test $(PKG) $(if $(RUN),-run $(RUN),)
+	@set -e; trap '$(MAKE) clean' EXIT INT TERM; $(TEST_ENV) go test $(PKG) $(if $(RUN),-run $(RUN),)
 
 # Generic browser test for a single example (accepts positional arg or EX variable)
 test-example:
 	@echo "==> Running browser tests for example: $(EXAMPLE) ..."
-	go test ./examples/$(EXAMPLE) -v
+	@set -e; trap '$(MAKE) clean' EXIT INT TERM; go test ./examples/$(EXAMPLE) -v
 
 # Pattern target to run browser tests for a named example: make test-foo
 test-%:
 	@echo "==> Running browser tests for $* example..."
-	go test ./examples/$* -v
+	@set -e; trap '$(MAKE) clean' EXIT INT TERM; go test ./examples/$* -v
 
 # Run all browser tests for discovered examples
 test-examples:
 	@echo "==> Running browser tests for all examples ($(EXAMPLES))..."
-	@set -e; \
+	@set -e; trap '$(MAKE) clean' EXIT INT TERM; \
 	for ex in $(EXAMPLES); do \
 	  echo "==> Running browser tests for $$ex example..."; \
 	  go test ./examples/$$ex -v; \
@@ -83,5 +84,5 @@ test-examples:
 test-all:
 	@echo "==> Running all tests (unit + browser)..."
 	@echo "==> Running WASM unit tests (excluding examples)..."
-	@$(TEST_ENV) go test $(PKG) $(if $(RUN),-run $(RUN),)
+	@set -e; trap '$(MAKE) clean' EXIT INT TERM; $(TEST_ENV) go test $(PKG) $(if $(RUN),-run $(RUN),)
 	@$(MAKE) test-examples
