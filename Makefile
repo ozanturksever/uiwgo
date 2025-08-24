@@ -1,26 +1,32 @@
-.PHONY: build test serve run clean test-counter test-todo test-todo-store test-resource test-examples test-all
+.PHONY: build test serve run clean test-examples test-all test-example
 
 # Extract example name from command or variable
 # Usage:
-#   make run                 -> uses default 'counter'
-#   make run counter         -> selects 'counter' (or any other example)
-#   make run EX=counter      -> selects via variable
+#   make run                    -> uses default 'counter'
+#   make run counter            -> selects 'counter' (or any other example)
+#   make run EX=counter         -> selects via variable
+#   make build todo             -> builds 'todo' example
+#   make test-example todo      -> tests 'todo' example
 EX ?=
-EXAMPLE_RAW := $(firstword $(filter-out run,$(MAKECMDGOALS)))
+EXAMPLE_RAW := $(firstword $(filter-out run build test-example,$(MAKECMDGOALS)))
 EXAMPLE := $(or $(EXAMPLE_RAW),$(EX),counter)
 
 # Swallow extra goal (the example name) so make doesn't try to build it
-ifeq ($(firstword $(MAKECMDGOALS)),run)
-  OTHER_GOALS := $(filter-out run,$(MAKECMDGOALS))
+ifneq (,$(filter run build test-example,$(firstword $(MAKECMDGOALS))))
+  OTHER_GOALS := $(filter-out run build test-example,$(MAKECMDGOALS))
   .PHONY: $(OTHER_GOALS)
   $(OTHER_GOALS):
 	@:
 endif
 
-# Default target
+# Auto-discover example directories under ./examples
+EXAMPLE_DIRS := $(sort $(filter %/,$(wildcard examples/*/)))
+EXAMPLES := $(notdir $(EXAMPLE_DIRS))
+
+# Default target: build selected example
 build:
-	@echo "==> Building WASM binary for counter example..."
-	GOOS=js GOARCH=wasm go build -o examples/counter/main.wasm examples/counter/main.go
+	@echo "==> Building WASM binary for example: $(EXAMPLE) ..."
+	GOOS=js GOARCH=wasm go build -o examples/$(EXAMPLE)/main.wasm examples/$(EXAMPLE)/main.go
 
 serve:
 	@echo "==> Serving http://localhost:8080"
@@ -33,10 +39,10 @@ run: kill
 	@echo "==> Starting dev server with live reload for example: $(EXAMPLE) ..."
 	go run ./spec/dev.go --example $(EXAMPLE)
 
-
 clean:
-	@echo "==> Cleaning up WASM binary..."
-	rm -f examples/counter/main.wasm
+	@echo "==> Cleaning up WASM binaries under examples/..."
+	rm -f examples/*/main.wasm
+
 # Test configuration for js/wasm
 # By default, run only unit-testable packages under wasm (exclude examples and internal/devserver)
 PKG ?= ./reactivity ./dom ./comps
@@ -54,39 +60,28 @@ test:
 	@echo "==> Running WASM tests for $(PKG) ..."
 	@$(TEST_ENV) go test $(PKG) $(if $(RUN),-run $(RUN),)
 
-# Browser tests for individual examples
-test-counter:
-	@echo "==> Running browser tests for counter example..."
-	go test ./examples/counter -v
+# Generic browser test for a single example (accepts positional arg or EX variable)
+test-example:
+	@echo "==> Running browser tests for example: $(EXAMPLE) ..."
+	go test ./examples/$(EXAMPLE) -v
 
-test-todo:
-	@echo "==> Running browser tests for todo example..."
-	go test ./examples/todo -v
+# Pattern target to run browser tests for a named example: make test-foo
+test-%:
+	@echo "==> Running browser tests for $* example..."
+	go test ./examples/$* -v
 
-test-todo-store:
-	@echo "==> Running browser tests for todo_store example..."
-	go test ./examples/todo_store -v
-
-test-resource:
-	@echo "==> Running browser tests for resource example..."
-	go test ./examples/resource -v
-
-test-dom-integration:
-	@echo "==> Running browser tests for dom-integration example (stress test only)..."
-	go test ./examples/dom_integration -v -run TestDynamicCounterStressTest
-
-# Run all browser tests for examples
+# Run all browser tests for discovered examples
 test-examples:
-	@echo "==> Running browser tests for all examples..."
-	@$(MAKE) test-counter
-	@$(MAKE) test-todo
-	@$(MAKE) test-todo-store
-	@$(MAKE) test-resource
-	@$(MAKE) test-dom-integration
+	@echo "==> Running browser tests for all examples ($(EXAMPLES))..."
+	@set -e; \
+	for ex in $(EXAMPLES); do \
+	  echo "==> Running browser tests for $$ex example..."; \
+	  go test ./examples/$$ex -v; \
+	done
 
 # Run all tests (unit tests + browser tests)
 test-all:
 	@echo "==> Running all tests (unit + browser)..."
 	@echo "==> Running WASM unit tests (excluding examples)..."
-	@$(TEST_ENV) go test ./reactivity ./comps $(if $(RUN),-run $(RUN),)
+	@$(TEST_ENV) go test $(PKG) $(if $(RUN),-run $(RUN),)
 	@$(MAKE) test-examples

@@ -84,6 +84,19 @@ func NewServer(example, addr string) *Server {
 	}
 }
 
+// Handle registers a handler on the server's mux
+func (s *Server) Handle(pattern string, handler http.Handler) {
+	if s.mux == nil {
+		s.mux = http.NewServeMux()
+	}
+	s.mux.Handle(pattern, handler)
+}
+
+// HandleFunc registers a handler function on the server's mux
+func (s *Server) HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request)) {
+	s.Handle(pattern, http.HandlerFunc(handler))
+}
+
 // Start starts the development server
 func (s *Server) Start() error {
 	// Build WASM first
