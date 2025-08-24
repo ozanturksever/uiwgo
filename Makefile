@@ -20,8 +20,8 @@ ifneq (,$(filter run build test-example,$(firstword $(MAKECMDGOALS))))
 endif
 
 # Auto-discover example directories under ./examples
-EXAMPLE_DIRS := $(sort $(filter %/,$(wildcard examples/*/)))
-EXAMPLES := $(notdir $(EXAMPLE_DIRS))
+EXAMPLE_DIRS := $(shell test -d examples && find examples -mindepth 1 -maxdepth 1 -type d -print 2>/dev/null | sort)
+EXAMPLES := $(patsubst %/,%,$(notdir $(EXAMPLE_DIRS)))
 
 # Default target: build selected example
 build:
