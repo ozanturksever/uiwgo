@@ -50,9 +50,9 @@ func (h *sseHub) broadcast(msg string) {
 	}
 }
 
-func addLiveReloadEndpoint(hub *sseHub) {
+func addLiveReloadEndpoint(server *devserver.Server, hub *sseHub) {
 	// SSE endpoint for live reload
-	http.HandleFunc("/__livereload", func(w http.ResponseWriter, r *http.Request) {
+	server.HandleFunc("/__livereload", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
@@ -179,7 +179,7 @@ func main() {
 
 	// Add live reload endpoint
 	hub := newSSEHub()
-	addLiveReloadEndpoint(hub)
+	addLiveReloadEndpoint(server, hub)
 
 	ctx, stop := context.WithCancel(context.Background())
 	defer stop()
