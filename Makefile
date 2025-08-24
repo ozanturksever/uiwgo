@@ -70,6 +70,10 @@ test-resource:
 	@echo "==> Running browser tests for resource example..."
 	go test ./examples/resource -v
 
+test-dom-integration:
+	@echo "==> Running browser tests for counter example..."
+	go test ./examples/dom_integration -v
+
 # Run all browser tests for examples
 test-examples:
 	@echo "==> Running browser tests for all examples..."
@@ -77,6 +81,7 @@ test-examples:
 	@$(MAKE) test-todo
 	@$(MAKE) test-todo-store
 	@$(MAKE) test-resource
+	@$(MAKE) test-dom-integration
 
 # Run all tests (unit tests + browser tests)
 test-all:
