@@ -159,6 +159,7 @@ func main() {
 	log.SetFlags(log.Ltime | log.Lshortfile)
 
 	example := flag.String("example", "counter", "example directory under ./examples to run")
+	port := flag.Int("port", 8080, "port to serve the dev server on")
 	flag.Parse()
 
 	exampleDir := filepath.Join("examples", *example)
@@ -171,7 +172,7 @@ func main() {
 	}
 
 	// Create and start the development server
-	server := devserver.NewServer(*example, ":8080")
+	server := devserver.NewServer(*example, fmt.Sprintf(":%d", *port))
 	if err := server.Start(); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}

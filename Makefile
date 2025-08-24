@@ -8,6 +8,7 @@
 #   make build todo             -> builds 'todo' example
 #   make test-example todo      -> tests 'todo' example
 EX ?=
+PORT ?= 8080
 EXAMPLE_RAW := $(firstword $(filter-out run build test-example,$(MAKECMDGOALS)))
 EXAMPLE := $(or $(EXAMPLE_RAW),$(EX),counter)
 
@@ -33,12 +34,12 @@ serve:
 	go run ./server.go
 
 kill:
-	lsof -ti:8080 | xargs kill -9 || true
+	lsof -ti:$(PORT) | xargs kill -9 || true
 
 run: kill
 	@set -e; trap '$(MAKE) clean' EXIT INT TERM; \
-	echo "==> Starting dev server with live reload for example: $(EXAMPLE) ..."; \
-	go run ./spec/dev.go --example $(EXAMPLE)
+	echo "==> Starting dev server with live reload for example: $(EXAMPLE) on port $(PORT) ..."; \
+	go run ./spec/dev.go --example $(EXAMPLE) --port $(PORT)
 
 clean:
 	@echo "==> Cleaning up WASM binaries under examples/..."
