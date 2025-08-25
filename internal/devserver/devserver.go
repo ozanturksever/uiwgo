@@ -16,6 +16,9 @@ import (
 	_ "embed"
 )
 
+//go:embed wasm_exec-tinygo.js
+var wasmExecJSTinyGo []byte
+
 //go:embed wasm_exec.js
 var wasmExecJS []byte
 
@@ -49,6 +52,7 @@ func BuildWASM(example string) error {
 	}
 
 	cmd := exec.Command("go", "build", "-o", outPath, srcPath)
+	//cmd := exec.Command("tinygo", "build", "-o", outPath, srcPath)
 	cmd.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
 	cmd.Dir = workDir
 	out, err := cmd.CombinedOutput()
@@ -171,6 +175,7 @@ func (s *Server) Start() error {
 	mux.HandleFunc("/wasm_exec.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript")
 		_, _ = w.Write(wasmExecJS)
+		//_, _ = w.Write(wasmExecJSTinyGo)
 	})
 
 	// Create listener to get actual port
