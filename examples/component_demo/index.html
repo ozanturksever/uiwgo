@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Component System Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        #app {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .component-section {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .test-controls {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>Loading Component System Demo...</h1>
+        <p>If you see this message for more than a few seconds, check the console for errors.</p>
+    </div>
+
+    <script src="/wasm_exec.js"></script>
+    <script>
+        // Wait for DOM to be fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if WebAssembly is supported
+            if (!WebAssembly) {
+                document.getElementById('app').innerHTML = '<h1>WebAssembly is not supported in this browser</h1>';
+                return;
+            }
+
+            // Load the WebAssembly module
+            const go = new Go();
+            WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject)
+                .then((result) => {
+                    go.run(result.instance);
+                })
+                .catch((err) => {
+                    console.error('Error loading WASM module:', err);
+                    document.getElementById('app').innerHTML = '<h1>Error loading application</h1><p>Check console for details.</p>';
+                });
+        });
+    </script>
+</body>
+</html>

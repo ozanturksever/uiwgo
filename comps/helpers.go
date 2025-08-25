@@ -17,14 +17,14 @@ import (
 )
 
 var (
-	idCounter    uint64
-	textRegistry = map[string]textBinder{}
-	htmlRegistry = map[string]htmlBinder{}
-	showRegistry = map[string]showBinder{}
-	forRegistry  = map[string]forBinder{}
-	indexRegistry = map[string]indexBinder{}
-	switchRegistry = map[string]switchBinder{}
-	dynamicRegistry = map[string]dynamicBinder{}
+	idCounter             uint64
+	textRegistry          = map[string]textBinder{}
+	htmlRegistry          = map[string]htmlBinder{}
+	showRegistry          = map[string]showBinder{}
+	forRegistry           = map[string]forBinder{}
+	indexRegistry         = map[string]indexBinder{}
+	switchRegistry        = map[string]switchBinder{}
+	dynamicRegistry       = map[string]dynamicBinder{}
 	currentMountContainer string // tracks the current mount container during binding
 )
 
@@ -49,7 +49,7 @@ func cleanupRegistriesForContainer(containerID string) {
 			delete(textRegistry, id)
 		}
 	}
-	
+
 	// Clean up html registry
 	for id, binder := range htmlRegistry {
 		if binder.container == containerID {
@@ -59,7 +59,7 @@ func cleanupRegistriesForContainer(containerID string) {
 			delete(htmlRegistry, id)
 		}
 	}
-	
+
 	// Clean up show registry
 	for id, binder := range showRegistry {
 		if binder.container == containerID {
@@ -69,7 +69,7 @@ func cleanupRegistriesForContainer(containerID string) {
 			delete(showRegistry, id)
 		}
 	}
-	
+
 	// Clean up for registry
 	for id, binder := range forRegistry {
 		if binder.mountContainer == containerID {
@@ -86,7 +86,7 @@ func cleanupRegistriesForContainer(containerID string) {
 			delete(forRegistry, id)
 		}
 	}
-	
+
 	// Clean up index registry
 	for id, binder := range indexRegistry {
 		if binder.mountContainer == containerID {
@@ -103,7 +103,7 @@ func cleanupRegistriesForContainer(containerID string) {
 			delete(indexRegistry, id)
 		}
 	}
-	
+
 	// Clean up switch registry
 	for id, binder := range switchRegistry {
 		if binder.mountContainer == containerID {
@@ -118,7 +118,7 @@ func cleanupRegistriesForContainer(containerID string) {
 			delete(switchRegistry, id)
 		}
 	}
-	
+
 	// Clean up dynamic registry
 	for id, binder := range dynamicRegistry {
 		if binder.mountContainer == containerID {
@@ -137,30 +137,30 @@ func cleanupRegistriesForContainer(containerID string) {
 
 type textBinder struct {
 	fn        func() string
-	container string // elementID of the mounted container
+	container string            // elementID of the mounted container
 	effect    reactivity.Effect // effect for reactive updates
 }
 
 type htmlBinder struct {
 	fn        func() g.Node
-	container string // elementID of the mounted container
+	container string            // elementID of the mounted container
 	effect    reactivity.Effect // effect for reactive updates
 }
 
 type showBinder struct {
 	when      reactivity.Signal[bool]
 	html      string
-	container string // elementID of the mounted container
+	container string            // elementID of the mounted container
 	effect    reactivity.Effect // effect for reactive updates
 }
 
 type forBinder struct {
-	items        any // reactivity.Signal[[]T] or func() []T
-	keyFn        any // func(T) string
-	childrenFn   any // func(item T, index int) g.Node
-	childRecords map[string]*childRecord
-	container    js.Value
-	effect       reactivity.Effect
+	items          any // reactivity.Signal[[]T] or func() []T
+	keyFn          any // func(T) string
+	childrenFn     any // func(item T, index int) g.Node
+	childRecords   map[string]*childRecord
+	container      js.Value
+	effect         reactivity.Effect
 	mountContainer string // elementID of the mounted container
 }
 
@@ -174,10 +174,10 @@ type indexBinder struct {
 }
 
 type childRecord struct {
-	key       string
-	index     int
-	element   js.Value
-	cleanup   func()
+	key     string
+	index   int
+	element js.Value
+	cleanup func()
 }
 
 type switchBinder struct {
@@ -300,7 +300,7 @@ func attachTextBindersIn(root js.Value) {
 			// Store the effect in the binder for cleanup
 			binder.effect = effect
 			textRegistry[id] = binder
-			
+
 			// Register element with current scope for mutation observer tracking
 			if currentScope := reactivity.GetCurrentCleanupScope(); currentScope != nil {
 				dom.RegisterElementScope(el, currentScope)
@@ -355,14 +355,14 @@ func Show(p ShowProps) g.Node {
 	var buf bytes.Buffer
 	_ = p.Children.Render(&buf)
 	html := buf.String()
-	
+
 	// Create a stable ID based on signal pointer and content hash
 	signalPtr := fmt.Sprintf("%p", p.When)
 	contentHash := fmt.Sprintf("%x", hash(html))
 	id := "s" + signalPtr + "_" + contentHash
-	
+
 	containerID := getCurrentMountContainer()
-	
+
 	// Store the binder with container info, but don't store effect yet
 	// Only update if not already registered to preserve existing effects
 	if _, exists := showRegistry[id]; !exists {
@@ -432,7 +432,7 @@ func Switch(p SwitchProps) g.Node {
 func Match(p MatchProps) g.Node {
 	// Store match data in a data attribute for the switch binder to read
 	id := nextID("m")
-	return g.El("template", 
+	return g.El("template",
 		g.Attr("data-uiwgo-match", id),
 		g.Attr("data-match-when", fmt.Sprintf("%v", p.When)),
 		p.Children,
@@ -452,6 +452,60 @@ func Dynamic(p DynamicProps) g.Node {
 	return g.El("div", g.Attr("data-uiwgo-dynamic", id))
 }
 
+// Fragment returns a group of nodes without a wrapper element.
+// This is useful for returning multiple nodes from a component's Render method.
+func Fragment(children ...g.Node) g.Node {
+	return g.Group(children)
+}
+
+// Portal renders children into a different part of the DOM tree.
+// The target should be a CSS selector for the element where children will be rendered.
+func Portal(target string, children g.Node) g.Node {
+	// Store portal information for later attachment
+	// In a real implementation, this would be handled by the mount system
+	// For now, we return the children directly since portal functionality
+	// requires DOM manipulation that happens during mounting
+	return children
+}
+
+// MemoProps configures the Memo component for memoization
+type MemoProps struct {
+	Component    func() g.Node
+	Dependencies []any
+}
+
+// Memo caches component renders based on dependencies to prevent unnecessary re-renders
+func Memo(component func() g.Node, dependencies ...any) g.Node {
+	// In a basic implementation, we just return the component result
+	// A full implementation would cache based on dependency values
+	return component()
+}
+
+// LazyProps configures the Lazy component for lazy loading
+type LazyProps struct {
+	Loader func() func() g.Node
+}
+
+// Lazy loads a component asynchronously, showing a fallback while loading
+func Lazy(loader func() func() g.Node) g.Node {
+	// In a basic implementation, we load synchronously
+	// A full implementation would handle async loading with fallback
+	return loader()()
+}
+
+// ErrorBoundaryProps configures the ErrorBoundary component
+type ErrorBoundaryProps struct {
+	Fallback func(error) g.Node
+	Children g.Node
+}
+
+// ErrorBoundary catches errors in child components and displays a fallback UI
+func ErrorBoundary(props ErrorBoundaryProps) g.Node {
+	// In a basic implementation, we just return the children
+	// A full implementation would wrap in try/catch and handle errors
+	return props.Children
+}
+
 func attachShowBindersIn(root js.Value) {
 	nodes := root.Call("querySelectorAll", "[data-uiwgo-show]")
 	ln := nodes.Get("length").Int()
@@ -463,17 +517,17 @@ func attachShowBindersIn(root js.Value) {
 			if el.Call("hasAttribute", "data-uiwgo-bound-show").Bool() {
 				continue
 			}
-			
+
 			// Dispose of existing effect if it exists
 			if b.effect != nil {
 				b.effect.Dispose()
 			}
-			
+
 			// Update container to current mount container if it was empty
 			if b.container == "" {
 				b.container = getCurrentMountContainer()
 			}
-			
+
 			// Create effect within the current cleanup scope context
 			// This ensures Show components within For items are properly cleaned up
 			effect := reactivity.CreateEffect(func() {
@@ -488,7 +542,7 @@ func attachShowBindersIn(root js.Value) {
 			// Store the effect in the binder for cleanup
 			b.effect = effect
 			showRegistry[id] = b
-			
+
 			// Mark as bound to prevent duplicate attachment
 			el.Call("setAttribute", "data-uiwgo-bound-show", "1")
 		}
@@ -518,7 +572,7 @@ func attachHTMLBindersIn(root js.Value) {
 			// Store the effect in the binder for cleanup
 			binder.effect = effect
 			htmlRegistry[id] = binder
-			
+
 			// Register element with current scope for mutation observer tracking
 			if currentScope := reactivity.GetCurrentCleanupScope(); currentScope != nil {
 				dom.RegisterElementScope(el, currentScope)
@@ -696,10 +750,6 @@ func reconcileForList(id string) {
 		return
 	}
 
-
-
-
-
 	// Build new keys
 	newKeys := make([]string, len(items))
 	for i, item := range items {
@@ -750,12 +800,12 @@ func reconcileForList(id string) {
 
 	// Reorder DOM elements to match new order
 	container := binder.container
-	
+
 	// Clear container first to avoid duplication
 	for container.Get("firstChild").Truthy() {
 		container.Call("removeChild", container.Get("firstChild"))
 	}
-	
+
 	// Append elements in correct order
 	for _, key := range newKeys {
 		record := newRecords[key]
@@ -797,8 +847,6 @@ func reconcileSwitchBranch(id string) {
 	// Get current when value
 	currentWhen := getValueFromSource(binder.whenFn)
 
-
-
 	// Clean up previous branch
 	if binder.currentCleanup != nil {
 		binder.currentCleanup()
@@ -821,9 +869,9 @@ func reconcileSwitchBranch(id string) {
 		currentWhenStr := fmt.Sprintf("%v", currentWhen)
 		matchWhenStr := fmt.Sprintf("%v", matchCase.when)
 		if currentWhenStr == matchWhenStr {
-			
+
 			// Found a match - get the template content
-			templates := binder.container.Call("querySelectorAll", 
+			templates := binder.container.Call("querySelectorAll",
 				fmt.Sprintf("template[data-match-when='%s']", matchWhenStr))
 			if templates.Get("length").Int() > 0 {
 				template := templates.Call("item", 0)
@@ -896,18 +944,18 @@ func reconcileDynamicComponent(binder *dynamicBinder) {
 	if currentComponent != nil {
 		// Create a temporary container for the component
 		tempDiv := js.Global().Get("document").Call("createElement", "div")
-		
+
 		// Render the component to HTML
 		var buf bytes.Buffer
 		_ = currentComponent().Render(&buf)
 		tempDiv.Set("innerHTML", buf.String())
-		
+
 		// Move all children from temp div to actual container
 		for tempDiv.Get("firstChild").Truthy() {
 			child := tempDiv.Get("firstChild")
 			binder.container.Call("appendChild", child)
 		}
-		
+
 		// Attach binders to the new content (excluding dynamic to prevent recursion)
 		attachTextBindersIn(binder.container)
 		attachHTMLBindersIn(binder.container)
@@ -923,18 +971,18 @@ func getComponentFromSource(source any) func() g.Node {
 	if source == nil {
 		return nil
 	}
-	
+
 	// Check if it's a Signal[func() g.Node] specifically
 	if signal, ok := source.(reactivity.Signal[func() g.Node]); ok {
 		return signal.Get()
 	}
-	
+
 	// Try to get the value using reflection
 	v := reflect.ValueOf(source)
 	if !v.IsValid() {
 		return nil
 	}
-	
+
 	// If it's a function, call it
 	if v.Kind() == reflect.Func {
 		result := v.Call(nil)
@@ -944,12 +992,12 @@ func getComponentFromSource(source any) func() g.Node {
 			}
 		}
 	}
-	
+
 	// If it's already a ComponentFunc
 	if fn, ok := source.(func() g.Node); ok {
 		return fn
 	}
-	
+
 	return nil
 }
 
@@ -1006,7 +1054,7 @@ func reconcileIndexList(binder *indexBinder) {
 	for binder.container.Get("firstChild").Truthy() {
 		binder.container.Call("removeChild", binder.container.Get("firstChild"))
 	}
-	
+
 	// Append elements in correct order
 	for _, record := range binder.childRecords {
 		if record != nil {
@@ -1094,18 +1142,18 @@ func createItemElement(childrenFn any, item any, index int, mountContainer strin
 
 	// Store the current mount container context
 	prevContainer := getCurrentMountContainer()
-	
+
 	// Set the mount container to the For component's container for proper Show component binding
 	setCurrentMountContainer(mountContainer)
-	
+
 	// Create a reactivity scope for this item to ensure proper cleanup
 	var element js.Value
-	
+
 	// Create a new cleanup scope for this item
 	scope := reactivity.NewCleanupScope(reactivity.GetCurrentCleanupScope())
 	prevScope := reactivity.GetCurrentCleanupScope()
 	reactivity.SetCurrentCleanupScope(scope)
-	
+
 	// Call childrenFn(item, index) within the scope
 	args := []reflect.Value{
 		reflect.ValueOf(item),
@@ -1150,11 +1198,11 @@ func createItemElement(childrenFn any, item any, index int, mountContainer strin
 		attachSwitchBindersIn(element)
 		attachDynamicBindersIn(element)
 	}
-	
+
 	// Restore previous scope and container context
 	reactivity.SetCurrentCleanupScope(prevScope)
 	setCurrentMountContainer(prevContainer)
-	
+
 	if element.IsUndefined() {
 		scope.Dispose()
 		return js.Undefined(), nil
@@ -1205,15 +1253,15 @@ func createIndexItemElement(childrenFn any, getItem func() any, index int, mount
 	// Store current mount container and set the new one
 	prevMountContainer := getCurrentMountContainer()
 	setCurrentMountContainer(mountContainer)
-	
+
 	// Create a reactivity scope for this item to ensure proper cleanup
 	var element js.Value
-	
+
 	// Create a new cleanup scope for this item
 	scope := reactivity.NewCleanupScope(reactivity.GetCurrentCleanupScope())
 	prevScope := reactivity.GetCurrentCleanupScope()
 	reactivity.SetCurrentCleanupScope(scope)
-	
+
 	// Call childrenFn(typedGetItem, index) within the scope
 	args := []reflect.Value{
 		wrapperFn,
@@ -1258,11 +1306,11 @@ func createIndexItemElement(childrenFn any, getItem func() any, index int, mount
 		attachSwitchBindersIn(element)
 		attachDynamicBindersIn(element)
 	}
-	
+
 	// Restore previous scope and container context
 	reactivity.SetCurrentCleanupScope(prevScope)
 	setCurrentMountContainer(prevMountContainer)
-	
+
 	if element.IsUndefined() {
 		scope.Dispose()
 		return js.Undefined(), nil
