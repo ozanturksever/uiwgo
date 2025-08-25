@@ -72,7 +72,7 @@ func Route(path string, component func(props ...any) interface{}, children ...*R
 		Path:      path,
 		Component: component,
 		Children:  children,
-		matcher:   buildMatcher(path),
+		//matcher:   buildMatcher(path),
 	}
 }
 

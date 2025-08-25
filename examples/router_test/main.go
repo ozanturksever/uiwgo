@@ -13,7 +13,7 @@ func main() {
 	// Define simple routes for testing
 	routes := []*router.RouteDefinition{
 		router.Route("/", func(props ...any) interface{} {
-			return Div(Text("Home Page"))
+			return Div(Text("Home Page"), router.A("/test-route", Text("Test Route")))
 		}),
 		router.Route("/test-route", func(props ...any) interface{} {
 			return Div(Text("Test Route Page"))

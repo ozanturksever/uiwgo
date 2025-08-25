@@ -1,3 +1,5 @@
+//go:build !js && !wasm
+
 package router
 
 // A creates a declarative navigation link component.
