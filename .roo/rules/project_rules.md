@@ -53,6 +53,8 @@ Quick Commands
   - make clean
 - Free port 8080 if in use:
   - make kill
+- shell is ZSH, so use single quote for arguments like following: go test -tags='!js !wasm' ./router -run TestRouterUpdatesViewOnRouteChange -v
+
 
 Dev Server Capabilities
 - Embedded wasm_exec.js:
