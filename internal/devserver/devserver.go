@@ -124,11 +124,27 @@ func (s *Server) Start() error {
 	}
 	fs := http.FileServer(http.Dir(dir))
 
-	// Root handler with live-reload injection for index.html
+	// Root handler with live-reload injection for index.html and SPA fallback
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		p := r.URL.Path
+		serveIndex := false
+
+		// If root, index.html, or ends with slash -> serve index
 		if p == "/" || p == "/index.html" || strings.HasSuffix(p, "/") {
-			// Serve index.html with injection
+			serveIndex = true
+		} else {
+			// Check if requested path corresponds to an actual file; if not, fallback to index.html (SPA routing)
+			// Trim leading slash and join with dir
+			cleanPath := strings.TrimPrefix(p, "/")
+			filePath := filepath.Join(dir, cleanPath)
+			if _, err := os.Stat(filePath); err != nil {
+				// If file doesn't exist, serve index.html so client-side router can handle it
+				serveIndex = true
+			}
+		}
+
+		if serveIndex {
+			// Serve index.html with livereload injection
 			indexPath := filepath.Join(dir, "index.html")
 			data, err := os.ReadFile(indexPath)
 			if err != nil {
@@ -146,6 +162,7 @@ func (s *Server) Start() error {
 			_, _ = w.Write([]byte(html))
 			return
 		}
+
 		// Delegate other paths to static file server
 		fs.ServeHTTP(w, r)
 	})
