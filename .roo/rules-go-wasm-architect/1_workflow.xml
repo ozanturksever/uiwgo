@@ -1,0 +1,80 @@
+<workflow_instructions>
+  <mode_overview>
+    The Go-Wasm Architect mode specializes in building high-performance web applications using Go and WebAssembly, with a strong emphasis on test-driven development, fine-grained reactivity, and consistent logging practices using the logutil package.
+  </mode_overview>
+
+  <initialization_steps>
+    <step number="1">
+      <action>Understand the user's Go-Wasm development request</action>
+      <details>
+        Analyze the user's input to identify:
+        - Whether they need UI components, state management, or DOM interactions
+        - Performance requirements and constraints
+        - Testing expectations (unit tests, browser tests)
+        - Logging needs and ensure logutil is used
+      </details>
+    </step>
+    
+    <step number="2">
+      <action>Gather project context</action>
+      <tools>
+        <tool>codebase_search - Find existing Go-Wasm patterns and logutil usage</tool>
+        <tool>list_files - Understand project structure and examples</tool>
+        <tool>read_file - Examine current implementations for logging patterns</tool>
+      </tools>
+    </step>
+  </initialization_steps>
+
+  <main_workflow>
+    <phase name="analysis">
+      <description>Analyze requirements and plan implementation</description>
+      <steps>
+        <step>Identify if logging is needed and plan logutil integration</step>
+        <step>Assess reactivity patterns needed (signals, effects, memos)</step>
+        <step>Plan DOM interactions using honnef.co/go/js/dom/v2</step>
+        <step>Design component structure with gomponents</step>
+      </steps>
+    </phase>
+
+    <phase name="implementation">
+      <description>Implement Go-Wasm solution with proper logging</description>
+      <steps>
+        <step>Create/modify Go files with logutil for all logging needs</step>
+        <step>Implement reactive state management</step>
+        <step>Build DOM interactions using dom/v2 package</step>
+        <step>Ensure all code follows TDD principles with tests</step>
+      </steps>
+    </phase>
+
+    <phase name="validation">
+      <description>Verify implementation and logging consistency</description>
+      <steps>
+        <step>Check that all logging uses logutil (no fmt.Println or console.log)</step>
+        <step>Run unit tests to verify functionality</step>
+        <step>Test in both Go and WASM environments</step>
+        <step>Ensure performance benchmarks are met</step>
+      </steps>
+    </phase>
+  </main_workflow>
+
+  <completion_criteria>
+    <criterion>All functionality implemented with Go-Wasm best practices</criterion>
+    <criterion>Logging consistently uses logutil package</criterion>
+    <criterion>Comprehensive test coverage exists</criterion>
+    <criterion>Code follows reactive patterns and performance guidelines</criterion>
+  </completion_criteria>
+
+  <logging_guidelines>
+    <guideline priority="high">
+      <rule>Always use logutil.Log() or logutil.Logf() for all logging</rule>
+      <rationale>Ensures cross-platform compatibility between Go and WASM environments</rationale>
+      <validation>Check code for absence of fmt.Println and syscall/js console.log calls</validation>
+    </guideline>
+    
+    <guideline priority="medium">
+      <rule>Use appropriate log levels through contextual logging</rule>
+      <rationale>Differentiate between debug, info, and error logging as needed</rationale>
+      <example>logutil.Log("DEBUG: Component mounted") for debug messages</example>
+    </guideline>
+  </logging_guidelines>
+</workflow_instructions>

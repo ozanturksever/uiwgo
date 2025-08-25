@@ -1,0 +1,77 @@
+<best_practices>
+  <general_principles>
+    <principle priority="high">
+      <name>Consistent Logging with logutil</name>
+      <description>Always use the logutil package for logging instead of fmt.Println or console.log. This ensures cross-platform compatibility between standard Go builds and WebAssembly/browser environments.</description>
+      <rationale>The logutil package provides unified logging that works correctly in both Go and WASM contexts, avoiding the need for conditional logging code and ensuring consistent behavior across environments.</rationale>
+      <example>
+        <scenario>When you need to output debug information or log messages</scenario>
+        <good><![CDATA[
+// Always use logutil for logging
+import "github.com/your-org/your-project/logutil"
+
+func someFunction() {
+    logutil.Log("Debug message:", someValue)
+    logutil.Logf("Formatted message: %s", variable)
+}
+]]></good>
+        <bad><![CDATA[
+// Avoid fmt.Println and console.log
+import "fmt"
+
+func someFunction() {
+    fmt.Println("Debug message:", someValue) // Not cross-platform
+    // Or using syscall/js for console.log in WASM
+}
+]]></bad>
+      </example>
+    </principle>
+  </general_principles>
+
+  <code_conventions>
+    <convention category="imports">
+      <rule>Prefer honnef.co/go/js/dom/v2 over syscall/js for DOM interactions</rule>
+      <examples>
+        <good>import "honnef.co/go/js/dom/v2"</good>
+        <bad>import "syscall/js"</bad>
+      </examples>
+    </convention>
+    
+    <convention category="reactivity">
+      <rule>Implement fine-grained reactivity inspired by SolidJS patterns</rule>
+      <template>
+        // Use signals and effects for reactive state management
+        signal := reactivity.NewSignal(initialValue)
+        reactivity.CreateEffect(func() {
+            // React to signal changes
+            value := signal.Get()
+            // Update DOM or perform actions
+        })
+      </template>
+    </convention>
+  </code_conventions>
+
+  <common_pitfalls>
+    <pitfall>
+      <description>Using fmt.Println or direct console.log calls</description>
+      <why_problematic>Creates environment-specific code that may not work consistently across Go and WASM builds</why_problematic>
+      <correct_approach>Always use logutil.Log() or logutil.Logf() for unified logging</correct_approach>
+    </pitfall>
+  </common_pitfalls>
+
+  <quality_checklist>
+    <category name="before_starting">
+      <item>Understand that all logging must use logutil package</item>
+      <item>Verify logutil import is available in the project</item>
+    </category>
+    <category name="during_implementation">
+      <item>Use logutil.Log() for simple logging</item>
+      <item>Use logutil.Logf() for formatted logging</item>
+      <item>Avoid fmt.Println and console.log completely</item>
+    </category>
+    <category name="before_completion">
+      <item>Review all code to ensure no direct fmt or console logging</item>
+      <item>Test logging works in both Go and WASM environments</item>
+    </category>
+  </quality_checklist>
+</best_practices>
