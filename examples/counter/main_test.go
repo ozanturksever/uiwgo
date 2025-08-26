@@ -1,13 +1,13 @@
 package main
 
 import (
-	"context"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/chromedp/chromedp"
 	"github.com/ozanturksever/uiwgo/internal/devserver"
+	"github.com/ozanturksever/uiwgo/internal/testhelpers"
 )
 
 func TestCounterApp(t *testing.T) {
@@ -18,29 +18,14 @@ func TestCounterApp(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout for the entire test
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Create Chrome options for visible browser (not headless)
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false), // Make browser visible
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-		chromedp.Flag("disable-dev-shm-usage", true),
-	)
-
-	// Create a new allocator context with the options
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	// Create a new browser context
-	browserCtx, cancel := chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context with visible browser for debugging
+	config := testhelpers.VisibleConfig()
+	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	defer chromedpCtx.Cancel()
 
 	// Navigate to the test server and perform the test
 	var countText string
-	err := chromedp.Run(browserCtx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the counter app
 		chromedp.Navigate(server.URL()),
 
@@ -85,29 +70,14 @@ func TestCounterDecrement(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout for the entire test
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Create Chrome options for headless browser
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("no-sandbox", true),
-		chromedp.Flag("disable-dev-shm-usage", true),
-	)
-
-	// Create a new allocator context with the options
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	// Create a new browser context
-	browserCtx, cancel := chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context with default headless configuration
+	config := testhelpers.DefaultConfig()
+	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	defer chromedpCtx.Cancel()
 
 	// Navigate to the test server and perform the test
 	var countText string
-	err := chromedp.Run(browserCtx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the counter app
 		chromedp.Navigate(server.URL()),
 
@@ -150,29 +120,14 @@ func TestCounterReset(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout for the entire test
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Create Chrome options for headless browser
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("no-sandbox", true),
-		chromedp.Flag("disable-dev-shm-usage", true),
-	)
-
-	// Create a new allocator context with the options
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	// Create a new browser context
-	browserCtx, cancel := chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context with default headless configuration
+	config := testhelpers.DefaultConfig()
+	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	defer chromedpCtx.Cancel()
 
 	// Navigate to the test server and perform the test
 	var countText string
-	err := chromedp.Run(browserCtx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the counter app
 		chromedp.Navigate(server.URL()),
 
@@ -221,29 +176,14 @@ func TestCounterNegativeNumbers(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout for the entire test
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Create Chrome options for headless browser
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("no-sandbox", true),
-		chromedp.Flag("disable-dev-shm-usage", true),
-	)
-
-	// Create a new allocator context with the options
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	// Create a new browser context
-	browserCtx, cancel := chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context with default headless configuration
+	config := testhelpers.DefaultConfig()
+	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	defer chromedpCtx.Cancel()
 
 	// Navigate to the test server and perform the test
 	var countText string
-	err := chromedp.Run(browserCtx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the counter app
 		chromedp.Navigate(server.URL()),
 

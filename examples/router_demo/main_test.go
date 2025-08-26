@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	"github.com/ozanturksever/uiwgo/internal/devserver"
+	"github.com/ozanturksever/uiwgo/internal/testhelpers"
 )
 
 // TestRouterDemo_HomePageRender tests that the home page renders correctly
@@ -21,23 +23,14 @@ func TestRouterDemo_HomePageRender(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-	defer cancel()
-
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context with extended timeout for router tests
+	config := testhelpers.ExtendedTimeoutConfig()
+	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	defer chromedpCtx.Cancel()
 
 	var pageTitle, homeContent string
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Navigate(server.URL()),
 		chromedp.WaitVisible("#root", chromedp.ByQuery),
 		chromedp.WaitNotPresent(".loading-indicator", chromedp.ByQuery),
@@ -69,23 +62,14 @@ func TestRouterDemo_StaticRouteNavigation(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context with extended timeout for router tests
+	config := testhelpers.ExtendedTimeoutConfig()
+	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	defer chromedpCtx.Cancel()
 
 	var aboutContent, usersContent string
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Navigate(server.URL()),
 		chromedp.WaitVisible("#root", chromedp.ByQuery),
 		chromedp.WaitNotPresent(".loading-indicator", chromedp.ByQuery),
@@ -125,23 +109,14 @@ func TestRouterDemo_DynamicRouteParameters(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context with extended timeout for router tests
+	config := testhelpers.ExtendedTimeoutConfig()
+	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	defer chromedpCtx.Cancel()
 
 	var userContent, profileContent string
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Navigate(server.URL()),
 		chromedp.WaitVisible("#root", chromedp.ByQuery),
 		chromedp.WaitNotPresent(".loading-indicator", chromedp.ByQuery),
@@ -201,23 +176,14 @@ func TestRouterDemo_WildcardRoutes(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context with extended timeout for router tests
+	config := testhelpers.ExtendedTimeoutConfig()
+	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	defer chromedpCtx.Cancel()
 
 	var fileContent string
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Navigate(server.URL()),
 		chromedp.WaitVisible("#root", chromedp.ByQuery),
 		chromedp.WaitNotPresent(".loading-indicator", chromedp.ByQuery),
@@ -258,23 +224,14 @@ func TestRouterDemo_NestedRoutes(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context with extended timeout for router tests
+	config := testhelpers.ExtendedTimeoutConfig()
+	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	defer chromedpCtx.Cancel()
 
 	var adminContent, adminSettingsContent string
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Navigate(server.URL()),
 		chromedp.WaitVisible("#root", chromedp.ByQuery),
 		chromedp.WaitNotPresent(".loading-indicator", chromedp.ByQuery),
@@ -339,22 +296,13 @@ func TestRouterDemo_NotFoundRoute(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context with extended timeout for router tests
+	config := testhelpers.ExtendedTimeoutConfig()
+	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	defer chromedpCtx.Cancel()
 
 	// Listen to console events for debugging
-	chromedp.ListenTarget(ctx, func(ev interface{}) {
+	chromedp.ListenTarget(chromedpCtx.Ctx, func(ev interface{}) {
 		switch e := ev.(type) {
 		case *runtime.EventConsoleAPICalled:
 			for _, arg := range e.Args {
@@ -366,7 +314,7 @@ func TestRouterDemo_NotFoundRoute(t *testing.T) {
 
 	var notFoundContent string
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Navigate(server.URL()),
 		chromedp.WaitVisible("#app", chromedp.ByQuery),
 		chromedp.WaitNotPresent(".loading-indicator", chromedp.ByQuery),
@@ -422,25 +370,17 @@ func TestRouterDemo_BrowserHistoryNavigation(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context with headless mode for this test
+	config := testhelpers.DefaultConfig()
+	config.Headless = true
+	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	defer chromedpCtx.Cancel()
 
 	var homeContent, aboutContent, backToHomeContent string
 	var hrefBefore, hrefAfter string
 	var histBefore, histAfter, histAfterBack int64
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Navigate(server.URL()),
 		chromedp.WaitVisible("#root", chromedp.ByQuery),
 		chromedp.WaitVisible("#app", chromedp.ByQuery),

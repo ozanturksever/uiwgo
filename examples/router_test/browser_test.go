@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/chromedp/chromedp"
+	"github.com/ozanturksever/uiwgo/internal/testhelpers"
 	"github.com/ozanturksever/uiwgo/internal/devserver"
 )
 
@@ -22,26 +23,14 @@ func TestNavigation_BrowserHistoryPopstate(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	// Create chromedp context
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	// Variable to capture the current location from JavaScript
 	var currentLocation string
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 
@@ -98,26 +87,14 @@ func TestRouterInitialRenderMountsComponent(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	// Create chromedp context
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	// Variable to capture the content of the root element
 	var rootContent string
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 
@@ -152,27 +129,17 @@ func TestRouterUpdatesViewOnRouteChange(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	// Create chromedp context
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context with longer timeout for this test
+	config := testhelpers.DefaultConfig()
+	config.Timeout = 60 * time.Second
+	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	defer chromedpCtx.Cancel()
 
 	// Variable to capture the content of the root element before and after navigation
 	var initialContent string
 	var navigatedContent string
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 

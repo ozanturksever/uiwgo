@@ -9,6 +9,7 @@ import (
 
 	"github.com/chromedp/chromedp"
 	"github.com/ozanturksever/uiwgo/internal/devserver"
+	"github.com/ozanturksever/uiwgo/internal/testhelpers"
 )
 
 func TestResourceApp(t *testing.T) {
@@ -19,25 +20,13 @@ func TestResourceApp(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	// Create chromedp context with visible browser for debugging
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.VisibleConfig())
+	defer chromedpCtx.Cancel()
 
 	// Navigate to the app and test resource loading
 	var loadingText, user1Text, errorText string
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 
@@ -95,25 +84,13 @@ func TestResourceInitialState(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	// Create chromedp context with headless browser
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	// Navigate to the app and test initial state
 	var initialText string
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 
@@ -145,25 +122,13 @@ func TestResourceRandomUser(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	// Create chromedp context with headless browser
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	// Navigate to the app and test random user loading
 	var randomUserText string
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 
@@ -207,25 +172,16 @@ func TestResourceRapidClicks(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-	defer cancel()
-
-	// Create chromedp context with headless browser
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", true),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context with headless mode and extended timeout for this test
+	config := testhelpers.DefaultConfig()
+	config.Headless = true
+	config.Timeout = 45 * time.Second
+	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	defer chromedpCtx.Cancel()
 
 	// Navigate to the app and test rapid clicking
 	var finalText string
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 

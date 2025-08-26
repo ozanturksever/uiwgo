@@ -3,7 +3,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	"github.com/ozanturksever/uiwgo/internal/devserver"
+	"github.com/ozanturksever/uiwgo/internal/testhelpers"
 )
 
 func TestDOMIntegrationCounter(t *testing.T) {
@@ -22,24 +22,12 @@ func TestDOMIntegrationCounter(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	// Create chromedp context
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	var counterText string
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 
@@ -66,7 +54,7 @@ func TestDOMIntegrationCounter(t *testing.T) {
 	}
 
 	// Test decrement functionality
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#decrement-btn`, chromedp.ByID),
 		chromedp.Sleep(200*time.Millisecond),
 		chromedp.Evaluate(`document.querySelector('p').textContent`, &counterText),
@@ -81,7 +69,7 @@ func TestDOMIntegrationCounter(t *testing.T) {
 	}
 
 	// Test reset functionality
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#reset-btn`, chromedp.ByID),
 		chromedp.Sleep(200*time.Millisecond),
 		chromedp.Evaluate(`document.querySelector('p').textContent`, &counterText),
@@ -106,24 +94,12 @@ func TestDOMIntegrationNameInput(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	// Create chromedp context
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	var greetingText string
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 
@@ -165,24 +141,12 @@ func TestDOMIntegrationVisibilityToggle(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	// Create chromedp context
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	var isVisible bool
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 
@@ -203,7 +167,7 @@ func TestDOMIntegrationVisibilityToggle(t *testing.T) {
 	}
 
 	// Test toggling visibility off
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#toggle-btn`, chromedp.ByID),
 		chromedp.Sleep(200*time.Millisecond),
 		chromedp.Evaluate(`document.querySelector('p[style*="color: green"]') !== null`, &isVisible),
@@ -218,7 +182,7 @@ func TestDOMIntegrationVisibilityToggle(t *testing.T) {
 	}
 
 	// Test toggling visibility back on
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#toggle-btn`, chromedp.ByID),
 		chromedp.Sleep(200*time.Millisecond),
 		chromedp.Evaluate(`document.querySelector('p[style*="color: green"]') !== null`, &isVisible),
@@ -243,24 +207,12 @@ func TestDOMIntegrationTodoList(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	// Create chromedp context
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	var initialCount, afterAddCount, afterDeleteCount int
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 
@@ -318,24 +270,12 @@ func TestDOMIntegrationDynamicElements(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	// Create chromedp context
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	var elementCount int
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 
@@ -356,7 +296,7 @@ func TestDOMIntegrationDynamicElements(t *testing.T) {
 	}
 
 	// Test creating dynamic elements
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#create-element-btn`, chromedp.ByID),
 		chromedp.Sleep(300*time.Millisecond),
 		chromedp.Click(`#create-element-btn`, chromedp.ByID),
@@ -373,7 +313,7 @@ func TestDOMIntegrationDynamicElements(t *testing.T) {
 	}
 
 	// Test deleting a dynamic element
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#dynamic-container button`, chromedp.ByQuery),
 		chromedp.Sleep(300*time.Millisecond),
 		chromedp.Evaluate(`document.querySelectorAll('#dynamic-container > div').length`, &elementCount),
@@ -398,22 +338,12 @@ func TestForComponent(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	// Listen for console messages
-	chromedp.ListenTarget(ctx, func(ev interface{}) {
+	chromedp.ListenTarget(chromedpCtx.Ctx, func(ev interface{}) {
 		switch ev := ev.(type) {
 		case *runtime.EventConsoleAPICalled:
 			for _, arg := range ev.Args {
@@ -425,7 +355,7 @@ func TestForComponent(t *testing.T) {
 	var itemCount int
 	var itemTexts []string
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Navigate(server.URL()),
 		chromedp.WaitVisible(`#add-item-btn`, chromedp.ByID),
 		chromedp.Sleep(1*time.Second),
@@ -460,7 +390,7 @@ func TestForComponent(t *testing.T) {
 
 	// Test adding items
 	var initialCount = itemCount
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#add-item-btn`, chromedp.ByID),
 		chromedp.Sleep(300*time.Millisecond),
 		chromedp.Evaluate(`(() => {
@@ -488,7 +418,7 @@ func TestForComponent(t *testing.T) {
 	}
 
 	// Test shuffling items (keyed reconciliation)
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		// Get item texts before shuffle
 		chromedp.Evaluate(`Array.from(document.querySelectorAll('.list-item span')).map(el => el.textContent)`, &itemTexts),
 		chromedp.Click(`#shuffle-items-btn`, chromedp.ByID),
@@ -500,7 +430,7 @@ func TestForComponent(t *testing.T) {
 	}
 
 	var shuffledTexts []string
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Evaluate(`Array.from(document.querySelectorAll('.list-item span')).map(el => el.textContent)`, &shuffledTexts),
 	)
 
@@ -515,7 +445,7 @@ func TestForComponent(t *testing.T) {
 
 	// Test removing items
 	var beforeRemoveCount = itemCount
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`.remove-item`, chromedp.ByQuery),
 		chromedp.Sleep(1*time.Second),
 		chromedp.Evaluate(`document.querySelectorAll('.list-item').length`, &itemCount),
@@ -531,7 +461,7 @@ func TestForComponent(t *testing.T) {
 
 	// Test For component remove button functionality
 	var itemCountBefore, itemCountAfter int
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		// Count items before removal
 		chromedp.Evaluate(`document.querySelectorAll('.list-item').length`, &itemCountBefore),
 		// Click the first remove button
@@ -553,7 +483,7 @@ func TestForComponent(t *testing.T) {
 	t.Logf("For component remove button working correctly: %d -> %d items", itemCountBefore, itemCountAfter)
 
 	// Test Add Item button
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#add-item-btn`, chromedp.ByID),
 		chromedp.Sleep(500*time.Millisecond),
 		chromedp.Evaluate(`document.querySelectorAll('.list-item').length`, &itemCountAfter),
@@ -572,7 +502,7 @@ func TestForComponent(t *testing.T) {
 
 	// Test Shuffle Items button
 	var itemTextsBefore, itemTextsAfter []string
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		// Get item texts before shuffle
 		chromedp.Evaluate(`Array.from(document.querySelectorAll('.list-item span')).map(el => el.textContent)`, &itemTextsBefore),
 		// Click shuffle button
@@ -604,24 +534,14 @@ func TestIndexComponent(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	var itemCount int
 	var indexTexts []string
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Navigate(server.URL()),
 		chromedp.WaitVisible(`#add-item-btn`, chromedp.ByID),
 		chromedp.Sleep(1*time.Second),
@@ -639,7 +559,7 @@ func TestIndexComponent(t *testing.T) {
 	}
 
 	// Test that Index component shows correct indices
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Evaluate(`(() => {
 			console.log('Index items found:', document.querySelectorAll('.index-item').length);
 			console.log('Index spans found:', document.querySelectorAll('.index-item span').length);
@@ -692,7 +612,7 @@ func TestIndexComponent(t *testing.T) {
 	}
 
 	// Test adding items affects Index component
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#add-item-btn`, chromedp.ByID),
 		chromedp.Sleep(300*time.Millisecond),
 		chromedp.Evaluate(`document.querySelectorAll('.index-item').length`, &itemCount),
@@ -717,23 +637,13 @@ func TestSwitchMatchComponent(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	var pageContent string
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Navigate(server.URL()),
 		chromedp.WaitVisible(`#tab-home`, chromedp.ByID),
 		chromedp.Sleep(2*time.Second),
@@ -755,7 +665,7 @@ func TestSwitchMatchComponent(t *testing.T) {
 	}
 
 	// Test switching to About tab
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#tab-about`, chromedp.ByID),
 		chromedp.Sleep(300*time.Millisecond),
 		chromedp.Text(`body`, &pageContent, chromedp.ByQuery),
@@ -770,7 +680,7 @@ func TestSwitchMatchComponent(t *testing.T) {
 	}
 
 	// Test switching to Contact tab
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#tab-contact`, chromedp.ByID),
 		chromedp.Sleep(300*time.Millisecond),
 		chromedp.Text(`body`, &pageContent, chromedp.ByQuery),
@@ -785,7 +695,7 @@ func TestSwitchMatchComponent(t *testing.T) {
 	}
 
 	// Test switching back to Home tab
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#tab-home`, chromedp.ByID),
 		chromedp.Sleep(300*time.Millisecond),
 		chromedp.Text(`body`, &pageContent, chromedp.ByQuery),
@@ -803,7 +713,7 @@ func TestSwitchMatchComponent(t *testing.T) {
 	var tabContent string
 
 	// Test Home tab
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#tab-home`, chromedp.ByID),
 		chromedp.Sleep(300*time.Millisecond),
 		chromedp.Text(`[data-uiwgo-switch]`, &tabContent, chromedp.ByQuery),
@@ -821,7 +731,7 @@ func TestSwitchMatchComponent(t *testing.T) {
 	t.Logf("Home tab button working correctly")
 
 	// Test About tab
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#tab-about`, chromedp.ByID),
 		chromedp.Sleep(300*time.Millisecond),
 		chromedp.Text(`[data-uiwgo-switch]`, &tabContent, chromedp.ByQuery),
@@ -839,7 +749,7 @@ func TestSwitchMatchComponent(t *testing.T) {
 	t.Logf("About tab button working correctly")
 
 	// Test Contact tab
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#tab-contact`, chromedp.ByID),
 		chromedp.Sleep(300*time.Millisecond),
 		chromedp.Text(`[data-uiwgo-switch]`, &tabContent, chromedp.ByQuery),
@@ -866,22 +776,12 @@ func TestDynamicComponent(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	// Listen for console messages
-	chromedp.ListenTarget(ctx, func(ev interface{}) {
+	chromedp.ListenTarget(chromedpCtx.Ctx, func(ev interface{}) {
 		switch ev := ev.(type) {
 		case *runtime.EventConsoleAPICalled:
 			for _, arg := range ev.Args {
@@ -893,7 +793,7 @@ func TestDynamicComponent(t *testing.T) {
 	var dynamicContent string
 	var hasContent bool
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Navigate(server.URL()),
 		chromedp.WaitVisible(`#load-hello-comp`, chromedp.ByID),
 		chromedp.Sleep(1*time.Second),
@@ -911,7 +811,7 @@ func TestDynamicComponent(t *testing.T) {
 	}
 
 	// Test loading Hello component
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#load-hello-comp`, chromedp.ByID),
 		chromedp.Sleep(1*time.Second),
 
@@ -928,7 +828,7 @@ func TestDynamicComponent(t *testing.T) {
 	}
 
 	// Test loading Counter component
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#load-counter-comp`, chromedp.ByID),
 		chromedp.Sleep(1*time.Second),
 		chromedp.Text(`[data-uiwgo-dynamic]`, &dynamicContent, chromedp.ByQuery),
@@ -945,7 +845,7 @@ func TestDynamicComponent(t *testing.T) {
 
 	// Test Dynamic Counter button functionality
 	var counterText string
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		// Get initial counter value
 		chromedp.Text(`[data-uiwgo-dynamic] p`, &counterText, chromedp.ByQuery),
 	)
@@ -960,7 +860,7 @@ func TestDynamicComponent(t *testing.T) {
 	}
 
 	// Click the dynamic counter button multiple times
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`.dyn-counter-btn`, chromedp.ByQuery),
 		chromedp.Sleep(300*time.Millisecond),
 		chromedp.Click(`.dyn-counter-btn`, chromedp.ByQuery),
@@ -983,7 +883,7 @@ func TestDynamicComponent(t *testing.T) {
 	t.Logf("Dynamic Counter button functionality working correctly: %s", counterText)
 
 	// Test clearing component
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Click(`#clear-comp`, chromedp.ByID),
 		chromedp.Sleep(1*time.Second),
 		chromedp.Evaluate(`document.querySelector('[data-uiwgo-dynamic]').children.length > 0`, &hasContent),
@@ -1008,22 +908,14 @@ func TestDynamicCounterStressTest(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-	defer cancel()
-
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", true),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context with longer timeout for stress test
+	config := testhelpers.DefaultConfig()
+	config.Timeout = 45 * time.Second
+	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	defer chromedpCtx.Cancel()
 
 	// Listen for console messages
-	chromedp.ListenTarget(ctx, func(ev interface{}) {
+	chromedp.ListenTarget(chromedpCtx.Ctx, func(ev interface{}) {
 		switch ev := ev.(type) {
 		case *runtime.EventConsoleAPICalled:
 			for _, arg := range ev.Args {
@@ -1034,7 +926,7 @@ func TestDynamicCounterStressTest(t *testing.T) {
 
 	var counterText string
 
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Navigate(server.URL()),
 		chromedp.WaitVisible(`#load-counter-comp`, chromedp.ByID),
 		chromedp.Sleep(1*time.Second),
@@ -1051,7 +943,7 @@ func TestDynamicCounterStressTest(t *testing.T) {
 	// Perform rapid clicks (stress test)
 	clickCount := 20
 	for i := 0; i < clickCount; i++ {
-		err = chromedp.Run(ctx,
+		err = chromedp.Run(chromedpCtx.Ctx,
 			chromedp.Click(`.dyn-counter-btn`, chromedp.ByQuery),
 			chromedp.Sleep(50*time.Millisecond), // Very rapid clicks
 		)
@@ -1061,7 +953,7 @@ func TestDynamicCounterStressTest(t *testing.T) {
 	}
 
 	// Wait a bit for all updates to process
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		chromedp.Sleep(1*time.Second),
 		chromedp.Text(`[data-uiwgo-dynamic] p`, &counterText, chromedp.ByQuery),
 	)

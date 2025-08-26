@@ -103,5 +103,16 @@ func Mount(elementID string, root func() Node) func() {
 	return disposer
 }
 
-// enqueueOnMount stores a function to be executed after Mount completes DOM attachment.
-func enqueueOnMount(fn func()) { mountQueue = append(mountQueue, fn) }
+// enqueueOnMount adds a function to be executed after Mount completes
+func enqueueOnMount(fn func()) {
+	mountQueue = append(mountQueue, fn)
+}
+
+// executeMountQueue executes all queued mount callbacks
+func executeMountQueue() {
+	for len(mountQueue) > 0 {
+		callback := mountQueue[0]
+		mountQueue = mountQueue[1:]
+		callback()
+	}
+}

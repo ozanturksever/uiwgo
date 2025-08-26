@@ -3,13 +3,13 @@
 package main
 
 import (
-	"context"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/chromedp/chromedp"
 	"github.com/ozanturksever/uiwgo/internal/devserver"
+	"github.com/ozanturksever/uiwgo/internal/testhelpers"
 )
 
 func TestTodoStoreApp(t *testing.T) {
@@ -20,25 +20,13 @@ func TestTodoStoreApp(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	// Create chromedp context with visible browser for debugging
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	// Create chromedp context
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	// Navigate to the app and test todo store functionality
 	var todoCount int
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 
@@ -77,24 +65,12 @@ func TestTodoStoreToggle(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	// Create chromedp context
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	var isChecked bool
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 
@@ -124,7 +100,7 @@ func TestTodoStoreToggle(t *testing.T) {
 	}
 
 	// Test unmarking
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		// Click the checkbox again to unmark
 		chromedp.Click(`.todo-toggle`, chromedp.ByQuery),
 		chromedp.Sleep(300*time.Millisecond),
@@ -152,24 +128,12 @@ func TestTodoStoreRemoval(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	// Create chromedp context
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	var initialCount, todoCount int
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 
@@ -199,7 +163,7 @@ func TestTodoStoreRemoval(t *testing.T) {
 	}
 
 	// Remove the first todo
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		// Click the destroy button of the first todo
 		chromedp.Click(`.todo-destroy`, chromedp.ByQuery),
 		chromedp.Sleep(300*time.Millisecond),
@@ -227,25 +191,13 @@ func TestTodoStoreClearCompleted(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	// Create chromedp context
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	var todoCount int
 	var clearBtnVisible bool
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 
@@ -285,7 +237,7 @@ func TestTodoStoreClearCompleted(t *testing.T) {
 	}
 
 	// Clear completed todos
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		// Click clear completed button
 		chromedp.Click(`#clear-completed-btn`, chromedp.ByID),
 		chromedp.Sleep(1*time.Second),
@@ -314,24 +266,12 @@ func TestTodoStoreItemsLeftCounter(t *testing.T) {
 	}
 	defer server.Stop()
 
-	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	// Create chromedp context
-	opts := append(chromedp.DefaultExecAllocatorOptions[:],
-		chromedp.Flag("headless", false),
-		chromedp.Flag("disable-gpu", false),
-		chromedp.Flag("no-sandbox", true),
-	)
-	allocCtx, cancel := chromedp.NewExecAllocator(ctx, opts...)
-	defer cancel()
-
-	ctx, cancel = chromedp.NewContext(allocCtx)
-	defer cancel()
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
 
 	var leftItemsText string
-	err := chromedp.Run(ctx,
+	err := chromedp.Run(chromedpCtx.Ctx,
 		// Navigate to the application
 		chromedp.Navigate(server.URL()),
 
@@ -352,7 +292,7 @@ func TestTodoStoreItemsLeftCounter(t *testing.T) {
 	}
 
 	// Add some todos and test the counter
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		// Add two todos
 		chromedp.SendKeys(`#new-todo-input`, "Todo 1", chromedp.ByID),
 		chromedp.Click(`#add-todo-btn`, chromedp.ByID),
@@ -375,7 +315,7 @@ func TestTodoStoreItemsLeftCounter(t *testing.T) {
 	}
 
 	// Mark one as completed and check again
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(chromedpCtx.Ctx,
 		// Mark first todo as completed
 		chromedp.Click(`.todo-toggle`, chromedp.ByQuery),
 		chromedp.Sleep(300*time.Millisecond),

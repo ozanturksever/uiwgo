@@ -90,6 +90,26 @@ Testing Strategy
     - Use chromedp for authentic browser automation (not mocked DOM)
     - Follow the devserver pattern for consistent test infrastructure
     - Test both success and error scenarios where applicable
+- Testing Helpers (internal/testhelpers):
+    - **ChromedpConfig**: Configurable browser setup with sensible defaults
+      - DefaultConfig(): Headless mode with 30s timeout, optimized for CI
+      - VisibleConfig(): Visible browser for debugging tests
+      - ExtendedTimeoutConfig(): 60s timeout for complex tests
+    - **NewChromedpContext()**: Creates properly configured chromedp context
+      - Handles context cleanup automatically
+      - Supports custom Chrome flags and options
+      - Use MustNewChromedpContext() for test setup that should fail fast
+    - **CommonTestActions**: Reusable test actions via Actions global
+      - WaitForWASMInit(): Waits for WASM initialization with configurable delay
+      - NavigateAndWaitForLoad(): Navigate and wait for page load
+      - ClickAndWait(): Click element with wait
+      - SendKeysAndWait(): Send keys with wait
+    - **Usage Pattern**: Import "github.com/ozanturksever/uiwgo/internal/testhelpers"
+      ```go
+      chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+      defer chromedpCtx.Cancel()
+      err := chromedp.Run(chromedpCtx.Ctx, testhelpers.Actions.NavigateAndWaitForLoad(url, "body"))
+      ```
 - Full suite:
   - make test-all runs unit tests first, then all example browser tests.
 
@@ -110,11 +130,10 @@ Adding a New Example
   package main
   
   import (
-      "context"
       "testing"
-      "time"
       "github.com/chromedp/chromedp"
       "github.com/ozanturksever/uiwgo/internal/devserver"
+      "github.com/ozanturksever/uiwgo/internal/testhelpers"
   )
   
   func TestMyFeature(t *testing.T) {
@@ -123,7 +142,18 @@ Adding a New Example
           t.Fatalf("Failed to start dev server: %v", err)
       }
       defer server.Stop()
-      // ... chromedp test implementation
+      
+      // Use testhelpers for consistent chromedp setup
+      chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+      defer chromedpCtx.Cancel()
+      
+      err := chromedp.Run(chromedpCtx.Ctx,
+          testhelpers.Actions.NavigateAndWaitForLoad(server.URL(), "body"),
+          // ... additional test actions
+      )
+      if err != nil {
+          t.Fatalf("Test failed: %v", err)
+      }
   }
   ```
 - You can then:
