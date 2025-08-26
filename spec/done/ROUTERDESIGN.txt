@@ -1,0 +1,612 @@
+﻿A Technical Design for a SolidJS-Inspired Router in Go and WebAssembly
+
+
+
+
+I. Architectural Vision: A SolidJS-Inspired Router in Go and WebAssembly
+
+
+This document presents a comprehensive technical design for a client-side routing framework implemented in pure Go and compiled to WebAssembly (WASM). The primary architectural mandate is to emulate the design, functionality, and developer experience of the official SolidJS Router (@solidjs/router). The implementation will adhere to a prescribed technology stack, utilizing honnef.co/go/js/dom/v2 for Document Object Model (DOM) interactions, maragu.dev/gomponents for declarative HTML view construction, and a rigorous Test-Driven Development (TDD) methodology validated by unit tests and browser-level integration tests using chromedp.
+
+
+1.1 Core Principles: Declarative Views Driven by Reactive State
+
+
+The foundational philosophy of this router is a synthesis of the principles governing SolidJS and the declarative nature of the chosen Go view library. SolidJS is architected around three core tenets: "Declarative Data," "Vanishing Components," and "Read/Write Segregation".1 Its components are designed to execute only once for initial setup. All subsequent UI updates are driven by a fine-grained reactive system that modifies the DOM directly, eschewing a Virtual DOM (VDOM) entirely.2 This approach ensures that only the precise DOM nodes affected by a state change are updated, leading to exceptional performance.5
+Concurrently, maragu.dev/gomponents provides a purely functional, declarative Domain-Specific Language (DSL) for generating HTML5 within Go. It prioritizes type safety, autocompletion, and idiomatic Go composition over external templating languages, treating UI elements as simple, composable functions.7
+The architecture of the Go router will fuse these philosophies. The public API will be declarative, mirroring the structure of gomponents where routes and their associated view components are defined as Go functions and data structures. However, since gomponents is inherently stateless, the router's core responsibility extends beyond URL parsing; it must introduce a purpose-built reactive engine. This engine will manage the application's location state. Upon any change to this state, the engine will trigger the selective re-execution of the appropriate gomponents functions, generating new HTML fragments that are then rendered into the DOM. This creates a system where declarative, stateless views are dynamically updated by a centralized, reactive state machine.
+
+
+1.2 System Overview: A High-Level Schematic
+
+
+The system is architected as a set of distinct, interacting layers that manage the flow of information from user input to DOM update. This layered design promotes separation of concerns and modularity, facilitating a robust TDD process.
+The primary components and their interactions are as follows:
+1. User Interaction Layer: This is the entry point for navigation events originating from the end-user. It encompasses direct interactions with the browser, such as clicking on an anchor tag (<a>) or using the browser's back and forward buttons.
+2. History API Integration Layer: This layer serves as the low-level bridge to the browser's session history. It is responsible for listening to popstate events triggered by browser navigation actions and for programmatically manipulating the history stack by issuing pushState and replaceState commands. This layer ensures the browser's URL remains synchronized with the application's internal state.
+3. Router Core: This is the central processing unit of the framework. It contains two critical sub-components:
+   * Reactive State Manager: A Go-native implementation of the observer pattern that holds the canonical Location state (pathname, search parameters, hash). It is the single source of truth for the application's current route and is responsible for notifying all subscribed components of any changes.
+   * Route Matching Engine: An algorithmic component that takes the current location from the state manager and resolves it against the developer-defined route hierarchy to determine which view component should be active.
+4. View Rendering Layer: This layer is responsible for translating state into a visible UI.
+   * gomponents Functions: These are the user-defined view components. Each function accepts props and returns a gomponents.Node, which represents a tree of HTML elements.
+   * DOM Patcher: This module orchestrates the rendering process. Triggered by the reactive state manager, it invokes the appropriate gomponents function, renders the resulting Node into an HTML string, and updates the designated "outlet" element in the DOM.
+5. DOM Abstraction Layer (honnef.co/go/js/dom/v2): This layer provides a safe, typed, and idiomatic Go interface for all interactions with the browser's JavaScript environment. It abstracts away the low-level complexities of syscall/js, providing high-level access to the window, document, and history objects, as well as DOM elements and events.
+
+
+1.3 The Go Stack Synergy: Justification of Technology Choices
+
+
+The selection of specific Go libraries is not arbitrary; it is a deliberate choice to create a robust, maintainable, and testable system that aligns with both Go's and SolidJS's philosophies.
+
+
+1.3.1 DOM Abstraction: honnef.co/go/js/dom/v2 versus syscall/js
+
+
+The decision to use honnef.co/go/js/dom/v2 is a critical architectural prerequisite. The standard syscall/js package provides raw, untyped access to the WebAssembly host environment.9 While powerful, it operates at a very low level of abstraction. All interactions are mediated through the
+js.Value type, a generic wrapper for any JavaScript value. Building a complex application directly on syscall/js would involve constant manual type assertions, property lookups via string keys (.Get("propertyName"), .Call("methodName")), and a complete lack of compile-time safety.10 This approach is analogous to building a modern web server using raw
+syscalls instead of the net/http package—feasible, but architecturally unsound and prone to runtime errors.13
+In contrast, honnef.co/go/js/dom/v2 provides a comprehensive set of high-level, idiomatic Go bindings for the DOM APIs.11 It exposes typed interfaces for all major browser objects, such as
+dom.Window, dom.Document, dom.Element, and dom.Event.15 This allows for the development of code that is not only more readable and maintainable but also benefits from Go's static type checking, significantly reducing the risk of runtime errors. For a system as complex as a reactive router, which heavily relies on DOM event handling and manipulation, the type safety and abstraction provided by this library are indispensable.
+
+
+1.3.2 View Generation: maragu.dev/gomponents
+
+
+The maragu.dev/gomponents library is a view renderer, not a comprehensive UI framework.17 Its design philosophy is to provide a simple, pure-Go DSL for constructing HTML nodes.7 Components are just Go functions that return a
+gomponents.Node.8 This clean separation of concerns is architecturally ideal for this project. Because
+gomponents is entirely stateless and lacks any intrinsic reactivity, it imposes no opinions on how state should be managed. This prevents any philosophical or technical conflicts with the bespoke reactive engine that must be built to emulate SolidJS, allowing the router to take full responsibility for state management and the render lifecycle.
+
+
+1.3.3 Browser Testing: chromedp
+
+
+The requirement for a complete TDD workflow, including browser-level tests, makes chromedp an essential component of the toolchain. chromedp provides a high-level Go API for controlling a headless or headful Chrome browser via the Chrome DevTools Protocol.20 This enables the creation of end-to-end integration tests that simulate real user interactions—navigating to URLs, clicking links, submitting forms, and asserting the resulting DOM state—all from within the Go testing framework.21 This capability is paramount for validating the complex interplay between the compiled WASM module, the DOM abstraction layer, the browser's History API, and the rendered
+gomponents views.
+
+
+II. Reactive State Management: The Heart of the Router
+
+
+The central architectural challenge of this project is to construct a reactive system within a Go environment that lacks native UI reactivity. While gomponents provides a declarative API for defining views, it is the router's responsibility to supply the "reactive glue" that connects changes in the URL state to the re-rendering of those views. This requires a purpose-built reactive engine, designed from first principles to emulate the behavior of SolidJS's core primitives.
+
+
+2.1 Deconstructing useLocation
+
+
+In the SolidJS Router ecosystem, the useLocation hook is the primary mechanism for accessing route information. It returns a reactive object whose properties—pathname, search, hash, state, and query—are automatically tracked.24 Any SolidJS computation, such as a
+createEffect block or a JSX expression in a view, that accesses one of these properties implicitly subscribes to its changes.26 When the URL changes, only the computations that depend on the changed property are re-executed.
+To emulate this in Go, a Location struct will be defined to hold the same canonical data. However, unlike in SolidJS, merely accessing the fields of this struct will not be an intrinsically reactive operation. The reactivity must be managed explicitly by a surrounding engine that implements the observer pattern.
+
+
+2.2 The Observer Pattern in Go: A Native Reactive Engine
+
+
+A custom reactive engine will be built around a central state holder, LocationState. This struct will encapsulate the current location and manage a list of subscribers that need to be notified of changes.
+The core data structures will be defined as follows:
+
+
+Go
+
+
+
+
+// Location holds the parsed components of a URL, mirroring the browser's location object.
+type Location struct {
+   Pathname string
+   Search   string
+   Hash     string
+   State    any // Represents data passed via history.pushState
+}
+
+// Subscriber defines the function signature for any callback that wishes
+// to be notified of location changes.
+type Subscriber func(newLocation Location)
+
+// LocationState is the central reactive store for the router's state.
+// It is the single source of truth for the current location.
+type LocationState struct {
+   mu          sync.RWMutex
+   current     Location
+   subscribersSubscriber
+}
+
+This LocationState struct will expose a minimal but powerful API for managing the reactive lifecycle:
+* Subscribe(s Subscriber): This method appends a new subscriber function to the internal subscribers slice. Any part of the application that needs to react to route changes, most notably the master rendering function, will use this method to register its interest.
+* Get() Location: A thread-safe getter that returns the current Location value. It uses a read lock to ensure safe concurrent access.
+* Set(newLocation Location): This is the sole entry point for mutating the router's state. It acquires a write lock, updates the internal current location, and then iterates through the subscribers slice, invoking each callback function with the new location.
+The implementation of the Set method is critical. It must ensure that all subscribers are notified synchronously and deterministically upon a state change. This design decision directly mirrors the operational model of SolidJS's reactivity, which emphasizes synchronous execution to maintain a consistent and predictable state across the application.28
+A notable design choice is the use of a simple Subscriber slice and a sync.RWMutex instead of more complex Go concurrency primitives like channels. This is a deliberate decision to enforce the synchronous update model that is fundamental to SolidJS's philosophy. Solid's reactive primitives execute immediately and in a predictable order within the same execution context.26 Using Go channels would introduce asynchronicity; a
+Set operation would involve a non-blocking send, and subscribers would be independent goroutines, leading to non-deterministic scheduling of UI updates. This would violate the core principle of predictable state transitions. By using a mutex-protected loop to invoke callbacks, the router guarantees that all dependent logic (e.g., view re-rendering) is executed immediately and completely as a direct consequence of the state change, perfectly emulating the SolidJS model in an idiomatic Go fashion.
+
+
+III. The Routing Engine: Definition, Matching, and Precedence
+
+
+The routing engine is responsible for interpreting the declarative route definitions provided by the developer and matching them against the current location state. This section specifies the public API for route definition, the internal algorithm for route matching, and the rules for handling precedence and ambiguity.
+
+
+3.1 API Design for Route Definition
+
+
+The API for defining routes must be both expressive and declarative, aligning with the functional style of gomponents. SolidJS Router achieves this through two primary mechanisms: JSX-based component routing using the <Route> component and its props (path, component, children, matchFilters), and a configuration-based approach using an array of RouteDefinition objects.30
+The Go implementation will adopt a struct-based configuration approach, which maps cleanly to Go's type system. A RouteDefinition struct will serve as the canonical representation of a single route.
+
+
+Go
+
+
+
+
+// MatcherFunc is a pre-compiled function that determines if a given path
+// matches the route's pattern and extracts any dynamic parameters.
+type MatcherFunc func(path string) (isMatch bool, params map[string]string)
+
+// RouteDefinition encapsulates all information about a single route.
+type RouteDefinition struct {
+   Path         string
+   Component    func(props...any) gomponents.Node
+   Children    *RouteDefinition
+   MatchFilters map[string]any // Can hold *regexp.Regexp or func(string) bool
+
+   // Internal pre-compiled matcher for performance.
+   matcher MatcherFunc
+}
+
+A public constructor function, router.New(routes, rootNode), will accept a slice of these RouteDefinition structs. During initialization, it will traverse this tree and recursively compile each Path string into an efficient MatcherFunc closure. This pre-compilation step is a key optimization, ensuring that the performance-critical task of path matching does not involve repeated string parsing at runtime.
+
+
+3.2 The Matching Algorithm
+
+
+The core of the routing engine is its matching algorithm. This algorithm is executed whenever the LocationState changes, determining which component to render.
+The process is specified as follows:
+1. Initiation: The router's master render function is triggered by a notification from the LocationState, receiving the new pathname.
+2. Traversal: The algorithm performs a depth-first traversal of the pre-compiled RouteDefinition tree.
+3. Execution: For each RouteDefinition node in the tree, its matcher function is invoked with the current pathname.
+4. Segmentation: The matcher function splits both its own pre-configured path pattern and the incoming pathname into segments based on the / delimiter.
+5. Segment-by-Segment Comparison: The matcher iterates through the segments, applying a specific set of rules:
+   * Static Segments: A segment that does not start with : or * must be an exact, case-sensitive string match.
+   * Dynamic Segments (:name): A segment prefixed with a colon matches any non-empty string in the corresponding position. The matched value is captured and stored in a params map with the key name. For example, the pattern /users/:id matching against /users/123 would produce params{"id": "123"}.33
+   * Optional Segments (:name?): A dynamic segment ending with a question mark is considered optional. It will match a value if present but will also successfully match if the pathname has no corresponding segment.33
+   * Wildcard Segments (*name): A segment prefixed with an asterisk is a greedy wildcard. It matches all remaining segments of the pathname until the end. The matched substring is captured under the key name.33
+6. Selection: The traversal continues until a RouteDefinition is found that provides a complete match for the entire pathname. The first such complete match found is selected as the result. The final RouteDefinition and the aggregated params map are stored as the current "match result," which is then used for rendering.
+
+
+3.3 Route Precedence and Ambiguity
+
+
+In any non-trivial routing system, ambiguity can arise (e.g., does /users/new match /users/:id or /users/new?). SolidJS Router resolves this based on the order of definition; the first route in the configuration that matches the URL is chosen.30 This places the responsibility on the developer to order routes from most specific to least specific. For example, a static path like
+/users/new must be defined before a dynamic path like /users/:id to be matched correctly. This principle is also evident in file-system-based routers like that of SolidStart, where file structure and naming conventions imply a rigid precedence order 37, and API routes are explicitly prioritized over UI routes.39
+The Go router will adopt this same, well-established principle: first match wins. The developer-provided slice of RouteDefinitions will be traversed in its given order. The documentation will clearly state that it is the developer's responsibility to arrange route definitions to resolve any potential ambiguity, ensuring that more specific routes are placed before more general ones.
+
+
+3.4 Parameter Validation (MatchFilter)
+
+
+To provide more powerful and type-safe routing, the router will support parameter validation, mirroring the matchFilters prop in SolidJS Router.33 The
+RouteDefinition struct will contain a MatchFilters field of type map[string]any.
+During the matching process, after a dynamic segment's value is captured, the engine will check the MatchFilters map for an entry corresponding to the parameter's name (e.g., "id"). If a filter is found, it will be applied to the captured value. The filter can be one of two types:
+* A *regexp.Regexp: The captured string value must match the regular expression.
+* A func(string) bool: The function is called with the captured string, and it must return true for the match to be valid.
+If the filter fails (the regex does not match or the function returns false), the route is immediately considered not to have matched, and the matching algorithm continues its traversal of the route tree.
+
+
+Table 1: API Mapping - SolidJS Router to Go Router
+
+
+To ensure the design closely matches the user's requirements and to provide a clear implementation guide, the following table maps the primary APIs of SolidJS Router to their proposed counterparts in the Go router.
+SolidJS Router API
+	Proposed Go Router API
+	Go Type/Signature
+	Purpose
+	<Router>
+	router.New(routes, rootNode)
+	func(*RouteDefinition, dom.Element) *Router
+	Initializes the router with route definitions and a root DOM element for mounting.
+	<Route>
+	router.Route(...)
+	func(path string, component func(...) gomponents.Node, children...*RouteDefinition) *RouteDefinition
+	A builder function to declaratively create a route definition struct.
+	path prop
+	Path field
+	string
+	The path pattern for the route (e.g., /users/:id).
+	component prop
+	Component field
+	func(props...any) gomponents.Node
+	The gomponents function to render for the route.
+	children prop
+	Children field
+	*RouteDefinition
+	Defines nested routes within the route hierarchy.
+	<A>
+	router.A(...)
+	func(href string, children...gomponents.Node) gomponents.Node
+	Creates a gomponents node for a navigable link that uses client-side routing.
+	href prop
+	href parameter
+	string
+	The destination path for the link.
+	useLocation
+	router.Location()
+	func() Location
+	Returns the current reactive location state object.
+	useNavigate
+	router.Navigate(...)
+	func(path string, opts...NavigateOptions)
+	Programmatically navigates to a new path and updates the history stack.
+	useParams
+	router.Params()
+	func() map[string]string
+	Returns the captured dynamic parameters for the currently active route.
+	
+
+IV. Navigation and Browser History Integration
+
+
+This section details the mechanics of client-side navigation. It focuses on the critical integration between the router's internal reactive state and the browser's History API, with all interactions mediated through the honnef.co/go/js/dom/v2 library to ensure type safety and maintainability.
+
+
+4.1 Declarative Navigation: The A Component
+
+
+In a single-page application, standard anchor (<a>) tags trigger full-page reloads, which defeats the purpose of a client-side router. SolidJS's <A> component addresses this by rendering a standard <a> tag but intercepting its click event to perform a client-side navigation via the History API.42
+The Go router will provide an analogous gomponents helper function: router.A(href string, children...gomponents.Node).
+1. HTML Generation: This function will return a gomponents.Node that renders a standard <a href="..."> element. The href attribute is set correctly, ensuring that the link is still functional for "open in new tab" actions and is accessible to web crawlers.
+2. Event Handling: The core of the component's functionality lies in attaching a click event listener. Since gomponents generates HTML strings, this cannot be done at compile time. Instead, a post-rendering step is required. Each A component will be rendered with a unique ID. After the main render loop updates the DOM's InnerHTML, a cleanup function will query for these specific IDs and attach a Go-defined event handler using element.AddEventListener().
+3. Callback Logic: The Go function registered as the event listener will execute the following logic:
+   * It will call event.PreventDefault() to stop the browser's default navigation behavior.
+   * It will then invoke the router's internal, programmatic navigation function, router.Navigate(href), to initiate the client-side route change.
+
+
+4.2 Programmatic Navigation: The Navigate Function
+
+
+For imperative navigation (e.g., after a form submission or a timeout), the router must expose a programmatic API. This mirrors the useNavigate hook in SolidJS, which returns a function to change routes and supports options like replace: true to modify history behavior.44
+The public API in Go will be router.Navigate(path string, options NavigateOptions). The NavigateOptions struct will include fields like Replace bool.
+The implementation of this function follows a critical two-step process to maintain state consistency:
+1. Update Browser History: The function first interacts with the browser's History API via honnef.co/go/js/dom/v2. It calls dom.GetWindow().History().PushState(...) or, if options.Replace is true, dom.GetWindow().History().ReplaceState(...). This updates the URL in the browser's address bar and modifies the session history stack.
+2. Update Internal State: Immediately after updating the browser's history, the function calls the internal LocationState.Set() method, passing it a new Location object constructed from the path. This is the crucial step that triggers the reactive engine, notifying all subscribers (including the master renderer) of the state change and causing the UI to update.
+
+
+4.3 Handling Browser Actions: The popstate Listener
+
+
+When a user interacts with the browser's back or forward buttons, the browser changes the active history entry and fires a popstate event on the window object.46 The router must listen for this event to keep its internal state synchronized with the browser's state.
+The implementation will be as follows:
+1. Initialization: During the router's initial setup in router.New(), a single, persistent popstate event listener will be attached to the global window object using dom.GetWindow().AddEventListener("popstate",...).
+2. Callback Logic: The Go function provided as the callback will be executed whenever a popstate event occurs. This function will:
+   * Access the new location information directly from the window object (e.g., dom.GetWindow().Location().Pathname()).
+   * Construct a new Location struct from this information.
+   * Call the internal LocationState.Set() method with this new Location object.
+This completes the closed loop of state management. All navigation events, regardless of their origin—declarative (A component), programmatic (Navigate function), or external (browser history)—converge on a single point: the LocationState.Set() method. This ensures that every URL change is coupled with a corresponding reactive update, preventing desynchronization between the browser's URL and the application's rendered view. This "Update State and History" transactional pattern is fundamental to the router's stability and correctness.
+
+
+V. Rendering Views with gomponents
+
+
+This section details the process by which changes in the router's reactive state are translated into visible updates in the browser's DOM. The strategy must bridge the gap between the reactive core and the stateless, string-based rendering model of gomponents.
+
+
+5.1 The <Router> Component and Root Rendering
+
+
+The entry point for the router's UI is the router.New(routes, rootElement) function. This function orchestrates the initial setup and connects the reactive engine to the DOM.
+1. Initialization: The function accepts the developer-defined slice of RouteDefinitions and a dom.Element that will serve as the mounting point or "outlet" for all rendered content.
+2. Subscription: It immediately subscribes a master "render" function to the LocationState manager. This render function will be the primary consumer of location updates for the lifetime of the application.
+3. Initial Render: Upon initialization, the router reads the current URL from dom.GetWindow().Location(), performs an initial route match, and invokes the master render function to display the correct component for the entry URL.
+
+
+5.2 The Render Loop: A Destructive-and-Replace Strategy
+
+
+A key architectural consideration is how to apply view updates. SolidJS achieves high performance through fine-grained DOM patching; its compiler generates code that directly updates individual text nodes or element attributes without re-creating parent elements.2 In contrast,
+gomponents is designed to render a complete gomponents.Node tree to an io.Writer or an HTML string.7 It has no built-in mechanism for diffing or patching.
+Given this constraint, the router will adopt a "destructive-and-replace" rendering strategy. While less granular than SolidJS's approach, it is the most direct, robust, and idiomatic way to integrate a reactive state model with a string-based rendering library.
+The master render function, triggered by a LocationState change, will perform the following steps:
+1. Match Route: It calls the route matching engine to find the RouteDefinition corresponding to the new location.
+2. Invoke Component: If a match is found, it invokes the Component function associated with the matched route. This is a user-defined gomponents function that returns a gomponents.Node.
+3. Render to String: The returned gomponents.Node is rendered into an in-memory string buffer (e.g., strings.Builder).
+4. Update DOM: The router retrieves a reference to the root mounting point dom.Element and updates its content by setting its InnerHTML property to the newly generated HTML string: rootElement.SetInnerHTML(htmlString).
+This strategy effectively clears the previous view and replaces it with the new one. For many applications, the performance of modern browser DOM parsing makes this approach sufficiently fast, and its simplicity greatly reduces implementation complexity.
+
+
+5.3 Layouts and Nested Rendering
+
+
+SolidJS Router facilitates nested layouts by allowing parent route components to render their children. The router injects the matched child component's output into the parent where props.children is placed.38
+This compositional pattern can be emulated effectively using the functional nature of gomponents.
+1. Layout Definition: A parent route's Component function (a layout) will be defined to accept a gomponents.Node as an argument. This argument represents the content of the child route.
+Go
+// Example DashboardLayout component
+func DashboardLayout(childContent gomponents.Node) gomponents.Node {
+   return html.Div(
+       html.Class("dashboard-layout"),
+       html.Nav(/*... navbar elements... */),
+       html.Main(childContent), // The child route is rendered here
+   )
+}
+
+2. Nested Render Logic: When the router's matching algorithm identifies a nested route, its rendering logic will adapt. It will first invoke the child route's Component function to produce a gomponents.Node. Then, instead of rendering this node directly to the DOM, it will pass this node as the childContent argument to the parent layout's Component function. The final result of the layout function is then rendered to the DOM. This process can be applied recursively for deeply nested routes, faithfully recreating the compositional layout model of SolidJS Router.
+
+
+VI. A Blueprint for Test-Driven Development
+
+
+A strict Test-Driven Development (TDD) methodology will be employed throughout the implementation of the router. This requires a dual strategy: pure Go unit tests for the core, environment-agnostic logic, and full-browser integration tests using chromedp to validate the complete system behavior.
+
+
+6.1 Unit Testing the Core Logic
+
+
+The router's core components—the reactive state manager and the route matching engine—are pure Go constructs with no direct dependency on a browser environment. They can and should be tested thoroughly using the standard Go testing package.
+
+
+6.1.1 Testing the Route Matcher
+
+
+Tests for the route matcher will cover all aspects of the path matching algorithm, including static, dynamic, optional, and wildcard segments, as well as parameter validation with MatchFilters.
+Example Test Case (TDD First Pass):
+
+
+Go
+
+
+
+
+// file: router_test.go
+package router
+
+import (
+   "testing"
+   "github.com/stretchr/testify/assert"
+   "github.com/stretchr/testify/require"
+)
+
+func TestRouteMatcher_DynamicSegment(t *testing.T) {
+   // This test is written before the implementation exists.
+   route := NewRouteDefinition("/users/:id/posts", nil) // Component is nil for this test
+   isMatch, params := route.matcher("/users/123/posts")
+
+   assert.True(t, isMatch, "Expected path to match")
+   require.NotNil(t, params, "Params map should not be nil")
+   assert.Equal(t, "123", params["id"], "Expected 'id' parameter to be captured")
+}
+
+
+
+6.1.2 Testing the Reactive State Manager
+
+
+Tests for the LocationState will verify that subscribers are correctly registered, notified, and that state is managed in a thread-safe manner.
+Example Test Case (TDD First Pass):
+
+
+Go
+
+
+
+
+// file: state_test.go
+package router
+
+import (
+   "testing"
+   "github.comcom/stretchr/testify/assert"
+)
+
+func TestLocationState_SubscriptionAndNotification(t *testing.T) {
+   // This test is written before the implementation exists.
+   state := NewLocationState()
+   var notificationCount int
+   var receivedLocation Location
+
+   state.Subscribe(func(loc Location) {
+       notificationCount++
+       receivedLocation = loc
+   })
+
+   newState := Location{Pathname: "/new-path", Search: "?q=1"}
+   state.Set(newState)
+
+   assert.Equal(t, 1, notificationCount, "Subscriber should be called exactly once")
+   assert.Equal(t, "/new-path", receivedLocation.Pathname)
+   assert.Equal(t, "?q=1", receivedLocation.Search)
+}
+
+
+
+6.2 Browser Testing with chromedp
+
+
+Integration tests are essential for validating the behavior of the compiled WASM module within a real browser. These tests will confirm that DOM manipulation, event handling, and History API interactions function correctly.
+
+
+6.2.1 Test Environment Setup
+
+
+Each browser test suite will require a setup function that prepares the environment:
+   1. HTTP Server: A local net/http server is started on a random available port. This server is configured to serve the static index.html file, the wasm_exec.js support file provided by the Go toolchain 9, and the compiled
+main.wasm application binary.52
+   2. chromedp Context: A new chromedp context is created, configured to connect to a headless Chrome instance. This context will be used to execute all browser actions.20
+
+
+6.2.2 Example Test Cases
+
+
+These tests will simulate user behavior and assert the resulting state of the DOM and URL.
+Test Case: Navigation via Link Click
+This test verifies that clicking an A component correctly triggers a client-side navigation and updates the view.
+
+
+Go
+
+
+
+
+// file: integration_test.go
+package main_test
+
+import (
+   "context"
+   "testing"
+   "github.com/chromedp/chromedp"
+   "github.com/stretchr/testify/assert"
+   "github.com/stretchr/testify/require"
+)
+
+func TestNavigation_LinkClick(t *testing.T) {
+   // This test is written before the full implementation.
+   serverURL := setupTestServer(t) // Helper to start server and get URL
+   ctx, cancel := newChromedpContext(t)
+   defer cancel()
+
+   var finalURL string
+   var aboutPageContent string
+
+   err := chromedp.Run(ctx,
+       chromedp.Navigate(serverURL),
+       chromedp.WaitVisible("#home-page-content"),
+       chromedp.Click("#about-link", chromedp.ByID),
+       chromedp.WaitVisible("#about-page-content"),
+       chromedp.Text("#about-page-content", &aboutPageContent),
+       chromedp.Location(&finalURL),
+   )
+
+   require.NoError(t, err)
+   assert.Contains(t, finalURL, "/about")
+   assert.Equal(t, "This is the About Page", aboutPageContent)
+}
+
+Test Case: Browser Back/Forward Navigation
+This test validates that the popstate event handler correctly updates the application state and view when the user uses the browser's history controls.
+
+
+Go
+
+
+
+
+func TestNavigation_BrowserHistory(t *testing.T) {
+   // This test is written before the popstate handler is implemented.
+   serverURL := setupTestServer(t)
+   ctx, cancel := newChromedpContext(t)
+   defer cancel()
+
+   var homePageVisible bool
+
+   err := chromedp.Run(ctx,
+       chromedp.Navigate(serverURL),
+       chromedp.WaitVisible("#home-page-content"),
+       chromedp.Click("#about-link", chromedp.ByID),
+       chromedp.WaitVisible("#about-page-content"),
+       // Use chromedp.Evaluate to execute JavaScript directly
+       chromedp.Evaluate(`history.back()`, nil),
+       chromedp.WaitVisible("#home-page-content", &homePageVisible),
+   )
+
+   require.NoError(t, err)
+   assert.True(t, homePageVisible, "Expected to navigate back to the home page")
+}
+
+These tests will leverage a wide range of chromedp actions, including chromedp.Navigate, chromedp.Click, chromedp.WaitVisible, chromedp.TextContent, chromedp.Location, and chromedp.Evaluate for executing arbitrary JavaScript, providing comprehensive coverage of the router's end-to-end functionality.22
+
+
+VII. Advanced Feature Design: Data Loading and Actions
+
+
+Building upon the established core architecture, this section outlines the design for advanced features inspired by SolidJS Router's data loading and mutation capabilities. These features enhance the framework's utility for building complex, data-driven applications.
+
+
+7.1 Data Preloading (preload)
+
+
+SolidJS Router significantly improves perceived performance by enabling data to be fetched in parallel with route loading, often initiated preemptively on events like a link hover.25 This "render-as-you-fetch" pattern can be implemented in the Go router.
+Design Specification:
+      1. API Extension: The RouteDefinition struct will be extended with a new field:
+Go
+Preload func(params map[string]string) error
+
+      2. Triggering Preload: The preloading mechanism will be triggered from two locations:
+         * On Hover: The event handling logic for the router.A component will be expanded to listen for mouseover events in addition to click events. The mouseover handler will identify the target route for the link's href and, if a Preload function is defined for that route, invoke it.
+         * On Navigate: The primary navigation logic (within router.Navigate and the popstate handler) will also invoke the matched route's Preload function just before queuing the render.
+         3. Data Caching: To prevent redundant data fetching (e.g., preloading on hover and then immediately fetching again on click), a simple, request-scoped cache is required. A map[string]any stored on the central router instance can serve this purpose. The Preload function would populate this cache, and the component itself would first check the cache before initiating its own data fetch.
+
+
+7.2 Data Mutations (action)
+
+
+SolidJS Router provides action functions to handle data mutations, typically triggered by HTML form submissions. These actions run on POST requests and can subsequently trigger route changes and data revalidation to ensure the UI reflects the new state.57
+Design Specification:
+         1. API Extension: The RouteDefinition struct will be extended with another new field:
+Go
+Action func(formData map[string]string) error
+
+         2. Form Component Helper: A new gomponents helper, router.Form(actionPath string, children...gomponents.Node), will be created. This helper will render an HTML <form> element and attach a submit event listener using the same post-rendering attachment strategy as the A component.
+         3. Submit Event Handler: The Go function registered as the submit event listener will perform the following steps:
+            * Call event.PreventDefault() to stop the default browser form submission.
+            * Serialize the form's input fields into a map[string]string.
+            * Identify the RouteDefinition corresponding to the form's actionPath.
+            * Invoke the route's Action function, passing the serialized form data.
+            4. Post-Action Navigation: The user-defined Action function is responsible for performing the mutation (e.g., making an API call). Upon successful completion, it can programmatically call router.Navigate(...) to redirect the user to a new page (e.g., back to a list view or to the newly created item's detail page). This completes the standard mutation-and-navigation workflow common in web applications.
+This design for advanced features ensures that the core architecture is extensible and can evolve to provide a feature set that is not only functional but also philosophically aligned with the powerful, performance-oriented patterns established by the SolidJS ecosystem.
+Works cited
+            1. Guides:Getting Started - Docs | SolidJS, accessed August 25, 2025, https://www.solidjs.com/guides/getting-started
+            2. What is SolidJS? Understanding the Modern Reactive Library - Wisp CMS, accessed August 25, 2025, https://www.wisp.blog/blog/what-is-solidjs-understanding-the-modern-reactive-library
+            3. Comparison with other Libraries - Docs | SolidJS, accessed August 25, 2025, https://www.solidjs.com/guides/comparison
+            4. I tried SolidJS as a React dev and here's what I learned : r/reactjs - Reddit, accessed August 25, 2025, https://www.reddit.com/r/reactjs/comments/1m0ib3k/i_tried_solidjs_as_a_react_dev_and_heres_what_i/
+            5. SolidJS · Reactive Javascript Library, accessed August 25, 2025, https://www.solidjs.com/
+            6. how solid.js handles props - SolidJS - Answer Overflow, accessed August 25, 2025, https://www.answeroverflow.com/m/1155106707832320072
+            7. maragudk/gomponents: HTML components in pure Go. - GitHub, accessed August 25, 2025, https://github.com/maragudk/gomponents
+            8. gomponents, HTML components in pure Go, accessed August 25, 2025, https://www.gomponents.com/
+            9. Go Wiki: WebAssembly - The Go Programming Language, accessed August 25, 2025, https://go.dev/wiki/WebAssembly
+            10. Go and WebAssembly (I): interacting with your browser JS API - macias.info, accessed August 25, 2025, https://macias.info/entry/202003151900_go_wasm_js.md
+            11. js package - syscall/js - Go Packages, accessed August 25, 2025, https://pkg.go.dev/syscall/js
+            12. Go, WebAssembly, HTTP requests and Promises - With Blue Ink, accessed August 25, 2025, https://withblue.ink/2020/10/03/go-webassembly-http-requests-and-promises.html
+            13. WebAssembly = Writing JS in Go? : r/golang - Reddit, accessed August 25, 2025, https://www.reddit.com/r/golang/comments/9gtg2h/webassembly_writing_js_in_go/
+            14. WebAssembly (WASM) with Go (Golang) Basic Example - Lazy Hacker Babble, accessed August 25, 2025, https://blog.lazyhacker.com/2025/02/webassembly-wasm-with-go-golang-update.html
+            15. dom package - honnef.co/go/js/dom/v2 - Go Packages, accessed August 25, 2025, https://pkg.go.dev/honnef.co/go/js/dom/v2
+            16. dom package - honnef.co/go/js/dom - Go Packages, accessed August 25, 2025, https://pkg.go.dev/honnef.co/go/js/dom
+            17. Show HN: Gomponents, HTML components in pure Go - Hacker News, accessed August 25, 2025, https://news.ycombinator.com/item?id=41847587
+            18. gomponents package - github.com/maragudk/gomponents - Go Packages, accessed August 25, 2025, https://pkg.go.dev/github.com/maragudk/gomponents
+            19. gomponents package - maragu.dev/gomponents - Go Packages, accessed August 25, 2025, https://pkg.go.dev/maragu.dev/gomponents
+            20. ChromeDP Tutorial: Master Browser Automation in Go with Real-World Examples and Best Practices - Rebrowser, accessed August 25, 2025, https://rebrowser.net/blog/chromedp-tutorial-master-browser-automation-in-go-with-real-world-examples-and-best-practices
+            21. chromedp/chromedp: A faster, simpler way to drive browsers supporting the Chrome DevTools Protocol. - GitHub, accessed August 25, 2025, https://github.com/chromedp/chromedp
+            22. Getting Started with chromedp - ScrapingBee, accessed August 25, 2025, https://www.scrapingbee.com/blog/getting-started-with-chromedp/
+            23. Chromedp: Golang Headless Browser Tutorial 2025 - ZenRows, accessed August 25, 2025, https://www.zenrows.com/blog/chromedp
+            24. useLocation - Solid Router Docs, accessed August 25, 2025, https://docs.solidjs.com/solid-router/reference/primitives/use-location
+            25. Preload - Solid Router Docs, accessed August 25, 2025, https://docs.solidjs.com/solid-router/reference/preload-functions/preload
+            26. Guides:Reactivity - SolidJS, accessed August 25, 2025, https://www.solidjs.com/guides/reactivity
+            27. Docs | SolidJS, accessed August 25, 2025, https://www.solidjs.com/docs/latest
+            28. Reactivity Overview · solidjs solid-workgroup · Discussion #2 - GitHub, accessed August 25, 2025, https://github.com/solidjs/solid-workgroup/discussions/2
+            29. Intro to reactivity - - Solid Docs, accessed August 25, 2025, https://docs.solidjs.com/concepts/intro-to-reactivity
+            30. Component routing - - Solid Docs, accessed August 25, 2025, https://docs.solidjs.com/solid-router/getting-started/component
+            31. Config-based routing - Solid Router Docs, accessed August 25, 2025, https://docs.solidjs.com/solid-router/getting-started/config
+            32. Route - Solid Router Docs, accessed August 25, 2025, https://docs.solidjs.com/solid-router/reference/components/route
+            33. Routing & navigation - Solid Docs, accessed August 25, 2025, https://docs.solidjs.com/guides/routing-and-navigation
+            34. Exploring the Key Features of SolidJS Router: A Deep Dive - DhiWise, accessed August 25, 2025, https://www.dhiwise.com/post/a-comprehensive-guide-to-solidjs-router-all-you-need-to-know
+            35. Path parameters - Solid Router Docs, accessed August 25, 2025, https://docs.solidjs.com/solid-router/concepts/path-parameters
+            36. Catch-all routes - - Solid Docs, accessed August 25, 2025, https://docs.solidjs.com/solid-router/concepts/catch-all
+            37. FileRoutes - - Solid Docs - SolidJS, accessed August 25, 2025, https://docs.solidjs.com/solid-start/reference/routing/file-routes
+            38. Routing - SolidStart Docs - Solid Docs, accessed August 25, 2025, https://docs.solidjs.com/solid-start/building-your-application/routing
+            39. API routes - SolidStart Docs, accessed August 25, 2025, https://docs.solidjs.com/solid-start/building-your-application/api-routes
+            40. useMatch - Solid Router Docs, accessed August 25, 2025, https://docs.solidjs.com/solid-router/reference/primitives/use-match
+            41. solidjs/solid-router: A universal router for Solid inspired by ... - GitHub, accessed August 25, 2025, https://github.com/solidjs/solid-router
+            42. component - Solid Router Docs - SolidJS, accessed August 25, 2025, https://docs.solidjs.com/solid-router/getting-started/linking-routes
+            43. Solid JS Tutorial #8 - Solid Router - YouTube, accessed August 25, 2025, https://www.youtube.com/watch?v=7oDjB9v0zMs
+            44. Navigation - Solid Router Docs, accessed August 25, 2025, https://docs.solidjs.com/solid-router/concepts/navigation
+            45. component - Solid Docs, accessed August 25, 2025, https://docs.solidjs.com/solid-router/reference/components/a
+            46. Window: popstate event - MDN - Mozilla, accessed August 25, 2025, https://developer.mozilla.org/en-US/docs/Web/API/Window/popstate_event
+            47. pushState and popstate - YouTube, accessed August 25, 2025, https://www.youtube.com/watch?v=XRC0hOh4UGY
+            48. Guides:Rendering - Docs | SolidJS, accessed August 25, 2025, https://www.solidjs.com/guides/rendering
+            49. Nesting routes - - Solid Docs - SolidJS, accessed August 25, 2025, https://docs.solidjs.com/solid-router/concepts/nesting
+            50. Layouts - Solid Router Docs, accessed August 25, 2025, https://docs.solidjs.com/solid-router/concepts/layouts
+            51. Solid Router within Router - SolidJS - Answer Overflow, accessed August 25, 2025, https://www.answeroverflow.com/m/1240275524824207402
+            52. examples/keys/main.go at master · chromedp/examples - GitHub, accessed August 25, 2025, https://github.com/chromedp/examples/blob/master/keys/main.go
+            53. example_test.go - external/github.com/chromedp/chromedp - Git at Google - Google Git, accessed August 25, 2025, https://chromium.googlesource.com/external/github.com/chromedp/chromedp/+/c956994840a529a4f213d4b27346bfeee1beec05/example_test.go
+            54. How to scrape page source with Go and chromedp | by Slawomir Jasinski - Medium, accessed August 25, 2025, https://slavomirj.medium.com/how-to-scrape-page-source-with-go-and-chromedp-8d83b5572203
+            55. Data loading - SolidStart Docs - Solid Docs, accessed August 25, 2025, https://docs.solidjs.com/solid-start/building-your-application/data-loading
+            56. How to use preloaded data - SolidJS - Answer Overflow, accessed August 25, 2025, https://www.answeroverflow.com/m/1281425497078759477
+            57. action - Solid Router Docs, accessed August 25, 2025, https://docs.solidjs.com/solid-router/reference/data-apis/action
+            58. Actions - Solid Router Docs, accessed August 25, 2025, https://docs.solidjs.com/solid-router/concepts/actions
+            59. Why Would I Use An Action For Anything Other Than Form Submissions? - SolidJS, accessed August 25, 2025, https://www.answeroverflow.com/m/1229248952575197265
