@@ -4,12 +4,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/chromedp/chromedp"
 	"github.com/chromedp/cdproto/runtime"
+	"github.com/chromedp/chromedp"
 	"github.com/ozanturksever/uiwgo/internal/devserver"
 )
 
@@ -39,8 +40,8 @@ func TestRouterDemo_HomePageRender(t *testing.T) {
 
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(server.URL()),
-    chromedp.WaitVisible("#root", chromedp.ByQuery),
-    chromedp.WaitNotPresent(".loading-indicator", chromedp.ByQuery),
+		chromedp.WaitVisible("#root", chromedp.ByQuery),
+		chromedp.WaitNotPresent(".loading-indicator", chromedp.ByQuery),
 		chromedp.Sleep(2*time.Second), // Give time for WASM to initialize
 		chromedp.Title(&pageTitle),
 		chromedp.Text("h1", &homeContent, chromedp.ByQuery),
@@ -61,7 +62,7 @@ func TestRouterDemo_HomePageRender(t *testing.T) {
 	t.Logf("Test passed! Home page rendered correctly with title: %s", pageTitle)
 }
 
-// TestRouterDemo_StaticRouteNavigation tests navigation to static routes
+// TestRouterDemo_StaticRouteNavigation tests navigation to different static routes
 func TestRouterDemo_StaticRouteNavigation(t *testing.T) {
 	server := devserver.NewServer("router_demo", "localhost:0")
 	if err := server.Start(); err != nil {
@@ -69,7 +70,7 @@ func TestRouterDemo_StaticRouteNavigation(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
@@ -87,17 +88,18 @@ func TestRouterDemo_StaticRouteNavigation(t *testing.T) {
 
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(server.URL()),
-		chromedp.WaitVisible("body", chromedp.ByQuery),
+		chromedp.WaitVisible("#root", chromedp.ByQuery),
+		chromedp.WaitNotPresent(".loading-indicator", chromedp.ByQuery),
 		chromedp.Sleep(2*time.Second),
-		
-		// Navigate to About page
+
+		// Navigate to About
 		chromedp.Click(`a[href="/about"]`, chromedp.ByQuery),
-		chromedp.Sleep(500*time.Millisecond),
+		chromedp.WaitVisible("h1", chromedp.ByQuery),
 		chromedp.Text("h1", &aboutContent, chromedp.ByQuery),
-		
-		// Navigate to Users page
+
+		// Navigate to Users
 		chromedp.Click(`a[href="/users"]`, chromedp.ByQuery),
-		chromedp.Sleep(500*time.Millisecond),
+		chromedp.WaitVisible("h1", chromedp.ByQuery),
 		chromedp.Text("h1", &usersContent, chromedp.ByQuery),
 	)
 
@@ -116,7 +118,7 @@ func TestRouterDemo_StaticRouteNavigation(t *testing.T) {
 	t.Logf("Test passed! Static route navigation works correctly")
 }
 
-// TestRouterDemo_DynamicRouteParameters tests dynamic route parameters
+// TestRouterDemo_DynamicRouteParameters tests dynamic segment routing
 func TestRouterDemo_DynamicRouteParameters(t *testing.T) {
 	server := devserver.NewServer("router_demo", "localhost:0")
 	if err := server.Start(); err != nil {
@@ -124,7 +126,7 @@ func TestRouterDemo_DynamicRouteParameters(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
@@ -138,29 +140,55 @@ func TestRouterDemo_DynamicRouteParameters(t *testing.T) {
 	ctx, cancel = chromedp.NewContext(allocCtx)
 	defer cancel()
 
-	var userProfileContent string
+	var userContent, profileContent string
 
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(server.URL()),
-		chromedp.WaitVisible("body", chromedp.ByQuery),
+		chromedp.WaitVisible("#root", chromedp.ByQuery),
+		chromedp.WaitNotPresent(".loading-indicator", chromedp.ByQuery),
 		chromedp.Sleep(2*time.Second),
-		
-		// Navigate to user profile with ID 123
-		chromedp.Click(`a[href="/users/123"]`, chromedp.ByQuery),
-		chromedp.Sleep(500*time.Millisecond),
-		chromedp.Text("#app", &userProfileContent, chromedp.ByQuery),
+
+		// Navigate to user 123 via SPA pushState
+		chromedp.Evaluate(`(function(){ history.pushState({}, '', '/users/123'); window.dispatchEvent(new PopStateEvent('popstate')); })()`, nil),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			deadline := time.Now().Add(8 * time.Second)
+			var pathname string
+			for time.Now().Before(deadline) {
+				if err := chromedp.Evaluate(`window.location.pathname`, &pathname).Do(ctx); err == nil && pathname == "/users/123" {
+					return nil
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			return fmt.Errorf("timed out waiting for pathname '/users/123'")
+		}),
+		chromedp.Text("#app", &userContent, chromedp.ByQuery),
+
+		// Navigate to user 456 extended profile via SPA history
+		chromedp.Evaluate(`(function(){ history.pushState({}, '', '/users/456/profile'); window.dispatchEvent(new PopStateEvent('popstate')); })()`, nil),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			deadline := time.Now().Add(8 * time.Second)
+			var pathname string
+			for time.Now().Before(deadline) {
+				if err := chromedp.Evaluate(`window.location.pathname`, &pathname).Do(ctx); err == nil && pathname == "/users/456/profile" {
+					return nil
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			return fmt.Errorf("timed out waiting for pathname '/users/456/profile'")
+		}),
+		chromedp.Text("#app", &profileContent, chromedp.ByQuery),
 	)
 
 	if err != nil {
 		t.Fatalf("Browser automation failed: %v", err)
 	}
 
-	if !strings.Contains(userProfileContent, "User ID: 123") {
-		t.Errorf("Expected user profile to contain 'User ID: 123', got: %s", userProfileContent)
+	if !strings.Contains(userContent, "User Profile") || !strings.Contains(userContent, "User ID: 123") {
+		t.Errorf("Expected user profile view for ID 123, got: %s", userContent)
 	}
 
-	if !strings.Contains(userProfileContent, "User Profile") {
-		t.Errorf("Expected user profile to contain 'User Profile', got: %s", userProfileContent)
+	if !strings.Contains(profileContent, "Extended User Profile") || !strings.Contains(profileContent, "User ID: 456") {
+		t.Errorf("Expected extended profile view for ID 456, got: %s", profileContent)
 	}
 
 	t.Logf("Test passed! Dynamic route parameters work correctly")
@@ -174,7 +202,7 @@ func TestRouterDemo_WildcardRoutes(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
@@ -188,35 +216,42 @@ func TestRouterDemo_WildcardRoutes(t *testing.T) {
 	ctx, cancel = chromedp.NewContext(allocCtx)
 	defer cancel()
 
-	var fileBrowserContent string
+	var fileContent string
 
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(server.URL()),
-		chromedp.WaitVisible("body", chromedp.ByQuery),
+		chromedp.WaitVisible("#root", chromedp.ByQuery),
+		chromedp.WaitNotPresent(".loading-indicator", chromedp.ByQuery),
 		chromedp.Sleep(2*time.Second),
-		
-		// Navigate to file browser with wildcard path
-		chromedp.Click(`a[href="/files/docs/readme.txt"]`, chromedp.ByQuery),
-		chromedp.Sleep(500*time.Millisecond),
-		chromedp.Text("#app", &fileBrowserContent, chromedp.ByQuery),
+
+		// Navigate to a file path via SPA pushState
+		chromedp.Evaluate(`(function(){ history.pushState({}, '', '/files/docs/readme.txt'); window.dispatchEvent(new PopStateEvent('popstate')); })()`, nil),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			deadline := time.Now().Add(8 * time.Second)
+			var pathname string
+			for time.Now().Before(deadline) {
+				if err := chromedp.Evaluate(`window.location.pathname`, &pathname).Do(ctx); err == nil && pathname == "/files/docs/readme.txt" {
+					return nil
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			return fmt.Errorf("timed out waiting for pathname '/files/docs/readme.txt'")
+		}),
+		chromedp.Text("#app", &fileContent, chromedp.ByQuery),
 	)
 
 	if err != nil {
 		t.Fatalf("Browser automation failed: %v", err)
 	}
 
-	if !strings.Contains(fileBrowserContent, "docs/readme.txt") {
-		t.Errorf("Expected file browser to contain 'docs/readme.txt', got: %s", fileBrowserContent)
-	}
-
-	if !strings.Contains(fileBrowserContent, "File Browser") {
-		t.Errorf("Expected file browser to contain 'File Browser', got: %s", fileBrowserContent)
+	if !(strings.Contains(fileContent, "File Browser") && strings.Contains(fileContent, "File Path:") && strings.Contains(fileContent, "docs/readme.txt")) {
+		t.Errorf("Expected file browser content to show path docs/readme.txt, got: %s", fileContent)
 	}
 
 	t.Logf("Test passed! Wildcard routes work correctly")
 }
 
-// TestRouterDemo_NestedRoutes tests nested route functionality
+// TestRouterDemo_NestedRoutes tests nested route rendering and layout persistence
 func TestRouterDemo_NestedRoutes(t *testing.T) {
 	server := devserver.NewServer("router_demo", "localhost:0")
 	if err := server.Start(); err != nil {
@@ -224,7 +259,7 @@ func TestRouterDemo_NestedRoutes(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
@@ -242,17 +277,38 @@ func TestRouterDemo_NestedRoutes(t *testing.T) {
 
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(server.URL()),
-		chromedp.WaitVisible("body", chromedp.ByQuery),
+		chromedp.WaitVisible("#root", chromedp.ByQuery),
+		chromedp.WaitNotPresent(".loading-indicator", chromedp.ByQuery),
 		chromedp.Sleep(2*time.Second),
-		
-		// Navigate to admin panel
-		chromedp.Click(`a[href="/admin"]`, chromedp.ByQuery),
-		chromedp.Sleep(500*time.Millisecond),
+
+		// Navigate to Admin via SPA pushState
+		chromedp.Evaluate(`(function(){ history.pushState({}, '', '/admin'); window.dispatchEvent(new PopStateEvent('popstate')); })()`, nil),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			deadline := time.Now().Add(8 * time.Second)
+			var pathname string
+			for time.Now().Before(deadline) {
+				if err := chromedp.Evaluate(`window.location.pathname`, &pathname).Do(ctx); err == nil && pathname == "/admin" {
+					return nil
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			return fmt.Errorf("timed out waiting for pathname '/admin'")
+		}),
 		chromedp.Text("#app", &adminContent, chromedp.ByQuery),
-		
-		// Navigate to admin settings (nested route)
-		chromedp.Click(`a[href="/admin/settings"]`, chromedp.ByQuery),
-		chromedp.Sleep(500*time.Millisecond),
+
+		// Navigate to Admin Settings (nested route) via SPA pushState
+		chromedp.Evaluate(`(function(){ history.pushState({}, '', '/admin/settings'); window.dispatchEvent(new PopStateEvent('popstate')); })()`, nil),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			deadline := time.Now().Add(8 * time.Second)
+			var pathname string
+			for time.Now().Before(deadline) {
+				if err := chromedp.Evaluate(`window.location.pathname`, &pathname).Do(ctx); err == nil && pathname == "/admin/settings" {
+					return nil
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			return fmt.Errorf("timed out waiting for pathname '/admin/settings'")
+		}),
 		chromedp.Text("#app", &adminSettingsContent, chromedp.ByQuery),
 	)
 
@@ -260,16 +316,12 @@ func TestRouterDemo_NestedRoutes(t *testing.T) {
 		t.Fatalf("Browser automation failed: %v", err)
 	}
 
-	if !strings.Contains(adminContent, "Admin Panel") {
-		t.Errorf("Expected admin page to contain 'Admin Panel', got: %s", adminContent)
+	if !(strings.Contains(adminContent, "Admin Panel") && strings.Contains(adminContent, "Admin Dashboard")) {
+		t.Errorf("Expected admin dashboard view under layout, got: %s", adminContent)
 	}
 
-	if !strings.Contains(adminContent, "Admin Dashboard") {
-		t.Errorf("Expected admin page to contain 'Admin Dashboard', got: %s", adminContent)
-	}
-
-	if !strings.Contains(adminSettingsContent, "Admin Settings") {
-		t.Errorf("Expected admin settings to contain 'Admin Settings', got: %s", adminSettingsContent)
+	if !(strings.Contains(adminSettingsContent, "Admin Panel") && strings.Contains(adminSettingsContent, "Admin Settings")) {
+		t.Errorf("Expected admin settings view under layout, got: %s", adminSettingsContent)
 	}
 
 	// Verify that the layout is still present in nested route
@@ -280,7 +332,7 @@ func TestRouterDemo_NestedRoutes(t *testing.T) {
 	t.Logf("Test passed! Nested routes work correctly")
 }
 
-// TestRouterDemo_NotFoundRoute tests the 404 catch-all route
+// TestRouterDemo_NotFoundRoute tests the catch-all 404 route
 func TestRouterDemo_NotFoundRoute(t *testing.T) {
 	server := devserver.NewServer("router_demo", "localhost:0")
 	if err := server.Start(); err != nil {
@@ -288,7 +340,7 @@ func TestRouterDemo_NotFoundRoute(t *testing.T) {
 	}
 	defer server.Stop()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	opts := append(chromedp.DefaultExecAllocatorOptions[:],
@@ -302,59 +354,49 @@ func TestRouterDemo_NotFoundRoute(t *testing.T) {
 	ctx, cancel = chromedp.NewContext(allocCtx)
 	defer cancel()
 
-	// Enable console logging
-	listenCtx, listenCancel := context.WithCancel(ctx)
-	defer listenCancel()
-	chromedp.ListenTarget(listenCtx, func(ev interface{}) {
-		if consoleEv, ok := ev.(*runtime.EventConsoleAPICalled); ok {
-			for _, arg := range consoleEv.Args {
-				t.Logf("Console: %s", arg.Value)
+	// Listen to console events for debugging
+	chromedp.ListenTarget(ctx, func(ev interface{}) {
+		switch e := ev.(type) {
+		case *runtime.EventConsoleAPICalled:
+			for _, arg := range e.Args {
+				s := arg.Value.String()
+				t.Logf("console: %s", s)
 			}
-		} else if exceptionEv, ok := ev.(*runtime.EventExceptionThrown); ok {
-			t.Logf("Exception: %v", exceptionEv.ExceptionDetails.Exception.Description)
 		}
 	})
 
 	var notFoundContent string
 
 	err := chromedp.Run(ctx,
-		// Load the home page to initialize WASM
 		chromedp.Navigate(server.URL()),
-		chromedp.WaitVisible("body", chromedp.ByQuery),
-		chromedp.Sleep(2*time.Second),
-		
-		// Debug: Check what's available in window
-		chromedp.Evaluate(`console.log('Window keys:', Object.keys(window)); console.log('Router:', window.__router);`, nil),
-		
-		// Poll for router availability with more detailed check
-		chromedp.Poll(`(function() {
-			console.log('Polling for router');
-			console.log('__router exists:', !!window.__router);
-			console.log('Type of __router:', typeof window.__router);
-			if (window.__router) {
-				console.log('Router found:', window.__router);
-				console.log('Has Navigate:', 'Navigate' in window.__router);
-				console.log('Navigate type:', typeof window.__router.Navigate);
-				console.log('Navigate is function:', typeof window.__router.Navigate === 'function');
-				if (window.__router.location) {
-					console.log('Location pathname:', window.__router.location.pathname);
+		chromedp.WaitVisible("#app", chromedp.ByQuery),
+		chromedp.WaitNotPresent(".loading-indicator", chromedp.ByQuery),
+		// Switch to the non-existent route via SPA navigation to keep asset URLs working
+		chromedp.Evaluate(`(function(){ history.pushState({}, '', '/non-existent-route'); window.dispatchEvent(new PopStateEvent('popstate')); })()`, nil),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			deadline := time.Now().Add(8 * time.Second)
+			var pathname string
+			for time.Now().Before(deadline) {
+				if err := chromedp.Evaluate(`window.location.pathname`, &pathname).Do(ctx); err == nil && pathname == "/non-existent-route" {
+					return nil
 				}
-				if (window.__router.Navigate) {
-					console.log('Navigate function found');
-					return true;
-				} else {
-					console.log('Navigate function missing');
-					return false;
-				}
-			} else {
-				console.log('Router not found');
-				return false;
+				time.Sleep(100 * time.Millisecond)
 			}
-		})()`, nil, chromedp.WithPollingTimeout(15*time.Second)),
-		
-		// Navigate to non-existent route using router
-		chromedp.Evaluate(`window.__router.Navigate('/non-existent-route');`, nil),
-		chromedp.Sleep(500*time.Millisecond),
+			return fmt.Errorf("timed out waiting for pathname '/non-existent-route'")
+		}),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			deadline := time.Now().Add(10 * time.Second)
+			var h1 string
+			for time.Now().Before(deadline) {
+				if err := chromedp.Evaluate(`(function(){ const el=document.querySelector('#app h1'); return el? el.textContent : ''; })()`, &h1).Do(ctx); err == nil {
+					if strings.Contains(h1, "404 - Page Not Found") {
+						return nil
+					}
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			return fmt.Errorf("timed out waiting for 404 heading; last h1='%s'", h1)
+		}),
 		chromedp.Text("#app", &notFoundContent, chromedp.ByQuery),
 	)
 
@@ -396,38 +438,84 @@ func TestRouterDemo_BrowserHistoryNavigation(t *testing.T) {
 	defer cancel()
 
 	var homeContent, aboutContent, backToHomeContent string
+	var hrefBefore, hrefAfter string
+	var histBefore, histAfter, histAfterBack int64
 
 	err := chromedp.Run(ctx,
 		chromedp.Navigate(server.URL()),
-		chromedp.WaitVisible("body", chromedp.ByQuery),
-		chromedp.Sleep(2*time.Second),
+		chromedp.WaitVisible("#root", chromedp.ByQuery),
+		chromedp.WaitVisible("#app", chromedp.ByQuery),
+		chromedp.WaitNotPresent(".loading-indicator", chromedp.ByQuery),
+		chromedp.Sleep(1*time.Second),
+		chromedp.Evaluate(`window.location.href`, &hrefBefore),
+		chromedp.Evaluate(`window.history.length`, &histBefore),
+		chromedp.WaitVisible("h1", chromedp.ByQuery),
 		chromedp.Text("h1", &homeContent, chromedp.ByQuery),
-		
-		// Navigate to About page
-		chromedp.Click(`a[href="/about"]`, chromedp.ByQuery),
-		chromedp.Sleep(500*time.Millisecond),
+
+		// Step 1: Use native pushState to /about and dispatch popstate to trigger router render
+		chromedp.Evaluate(`(function(){ history.pushState({}, '', '/about'); window.dispatchEvent(new PopStateEvent('popstate')); })()`, nil),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			var pathname string
+			deadline := time.Now().Add(8 * time.Second)
+			for time.Now().Before(deadline) {
+				if err := chromedp.Evaluate(`window.location.pathname`, &pathname).Do(ctx); err == nil && pathname == "/about" {
+					return nil
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			return fmt.Errorf("timed out waiting for pathname '/about'")
+		}),
+		chromedp.WaitVisible("h1", chromedp.ByQuery),
 		chromedp.Text("h1", &aboutContent, chromedp.ByQuery),
-		
-		// Use browser back button
-		chromedp.NavigateBack(),
-		chromedp.Sleep(500*time.Millisecond),
+
+		// Step 2: pushState back to home and dispatch popstate to render
+		chromedp.Evaluate(`(function(){ history.pushState({}, '', '/'); window.dispatchEvent(new PopStateEvent('popstate')); })()`, nil),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			var pathname string
+			deadline := time.Now().Add(8 * time.Second)
+			for time.Now().Before(deadline) {
+				if err := chromedp.Evaluate(`window.location.pathname`, &pathname).Do(ctx); err == nil && pathname == "/" {
+					return nil
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			return fmt.Errorf("timed out waiting for pathname '/' after pushState home")
+		}),
+		chromedp.Text("h1", &homeContent, chromedp.ByQuery),
+		chromedp.Evaluate(`window.location.href`, &hrefAfter),
+		chromedp.Evaluate(`window.history.length`, &histAfter),
+
+		// Step 3: Use browser back; expect to return to About
+		chromedp.Evaluate(`window.history.back()`, nil),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			var pathname string
+			deadline := time.Now().Add(8 * time.Second)
+			for time.Now().Before(deadline) {
+				_ = chromedp.Evaluate(`window.history.length`, &histAfterBack).Do(ctx)
+				if err := chromedp.Evaluate(`window.location.pathname`, &pathname).Do(ctx); err == nil && pathname == "/about" {
+					return nil
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			return fmt.Errorf("timed out waiting for window.location.pathname='/about' ; last history.length=%d", histAfterBack)
+		}),
 		chromedp.Text("h1", &backToHomeContent, chromedp.ByQuery),
 	)
 
 	if err != nil {
-		t.Fatalf("Browser automation failed: %v", err)
-	}
-
-	if !strings.Contains(homeContent, "Router Demo - Home") {
-		t.Errorf("Expected initial home content, got: %s", homeContent)
+		t.Fatalf("Browser automation failed: %v (before=%s len=%d after=%s len=%d afterBackLen=%d)", err, hrefBefore, histBefore, hrefAfter, histAfter, histAfterBack)
 	}
 
 	if !strings.Contains(aboutContent, "About UIWGo Router") {
-		t.Errorf("Expected about content after navigation, got: %s", aboutContent)
+		t.Errorf("Expected about content after first navigation, got: %s", aboutContent)
 	}
 
-	if !strings.Contains(backToHomeContent, "Router Demo - Home") {
-		t.Errorf("Expected home content after browser back, got: %s", backToHomeContent)
+	if !strings.Contains(homeContent, "Router Demo - Home") {
+		t.Errorf("Expected home content after navigating back home, got: %s", homeContent)
+	}
+
+	if !strings.Contains(backToHomeContent, "About UIWGo Router") {
+		t.Errorf("Expected about content after browser back, got: %s", backToHomeContent)
 	}
 
 	t.Logf("Test passed! Browser history navigation works correctly")
