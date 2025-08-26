@@ -36,10 +36,10 @@ serve:
 kill:
 	lsof -ti:$(PORT) | xargs kill -9 || true
 
-run: kill
-	@set -e; trap '$(MAKE) clean' EXIT INT TERM; \
-	echo "==> Starting dev server with live reload for example: $(EXAMPLE) on port $(PORT) ..."; \
-	go run ./spec/dev.go --example $(EXAMPLE) --port $(PORT)
+	run: kill
+		@set -e; trap '$(MAKE) clean' EXIT INT TERM; \
+		echo "==> Starting dev server with live reload for example: $(EXAMPLE) on port $(PORT) ..."; \
+		go run ./internal/dev/main.go --example $(EXAMPLE) --port $(PORT)
 
 clean:
 	@rm -f examples/*/main.wasm || true
