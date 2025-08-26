@@ -76,15 +76,56 @@ Testing Strategy
 - Browser-driven example tests:
   - Single example:
     - make test-example <example> (or make test-<example>)
+    - Run specific test within an example: make test-<example> RUN=<TestName>
+    - Example: make test-router_demo RUN=TestRouterDemo_HomePageRender
   - All examples:
     - make test-examples
   - The examples list is discovered automatically from the examples directory; adding a new example folder makes it part of test-examples without any Makefile changes.
+  - Debugging failing tests:
+    - When you have a failing test, run it individually first to isolate and fix the issue
+    - Use the RUN parameter to target specific test functions for faster debugging cycles
+- Browser Test Requirements:
+    - All examples MUST have browser tests that validate real user interactions
+    - Tests should cover component rendering, state changes, user input, and navigation
+    - Use chromedp for authentic browser automation (not mocked DOM)
+    - Follow the devserver pattern for consistent test infrastructure
+    - Test both success and error scenarios where applicable
 - Full suite:
   - make test-all runs unit tests first, then all example browser tests.
 
 Adding a New Example
 - Create a folder under examples/, for example examples/my_feature/.
-- Add your Go entry point (e.g., main.go) and optional browser-driven tests.
+- Add your Go entry point (e.g., main.go) and required browser-driven tests.
+- **Browser Tests are Mandatory**: Every example MUST include comprehensive browser tests in main_test.go:
+  - Use the devserver pattern with `//go:build !js && !wasm` constraint
+  - Start a local server using `devserver.NewServer("example_name", "localhost:0")`
+  - Use chromedp for real browser automation testing
+  - Test all interactive functionality, component rendering, and user workflows
+  - Follow the pattern from existing examples like counter, todo, resource, etc.
+  - Include multiple test functions to cover different scenarios
+- Example browser test structure:
+  ```go
+  //go:build !js && !wasm
+  
+  package main
+  
+  import (
+      "context"
+      "testing"
+      "time"
+      "github.com/chromedp/chromedp"
+      "github.com/ozanturksever/uiwgo/internal/devserver"
+  )
+  
+  func TestMyFeature(t *testing.T) {
+      server := devserver.NewServer("my_feature", "localhost:0")
+      if err := server.Start(); err != nil {
+          t.Fatalf("Failed to start dev server: %v", err)
+      }
+      defer server.Stop()
+      // ... chromedp test implementation
+  }
+  ```
 - You can then:
   - Run it: make run my_feature
   - Build it: make build my_feature (outputs examples/my_feature/main.wasm)

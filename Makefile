@@ -42,7 +42,6 @@ run: kill
 	go run ./spec/dev.go --example $(EXAMPLE) --port $(PORT)
 
 clean:
-	@echo "==> Cleaning up WASM binaries under examples/..."
 	@rm -f examples/*/main.wasm || true
 
 # Test configuration for js/wasm
@@ -65,12 +64,12 @@ test:
 # Generic browser test for a single example (accepts positional arg or EX variable)
 test-example:
 	@echo "==> Running browser tests for example: $(EXAMPLE) ..."
-	@set -e; trap '$(MAKE) clean' EXIT INT TERM; go test ./examples/$(EXAMPLE) -v
+	@set -e; trap '$(MAKE) clean' EXIT INT TERM; go test ./examples/$(EXAMPLE) -v $(if $(RUN),-run $(RUN),)
 
 # Pattern target to run browser tests for a named example: make test-foo
 test-%:
 	@echo "==> Running browser tests for $* example..."
-	@set -e; trap '$(MAKE) clean' EXIT INT TERM; go test ./examples/$* -v
+	@set -e; trap '$(MAKE) clean' EXIT INT TERM; go test ./examples/$* -v $(if $(RUN),-run $(RUN),)
 
 # Run all browser tests for discovered examples
 test-examples:
@@ -78,7 +77,7 @@ test-examples:
 	@set -e; trap '$(MAKE) clean' EXIT INT TERM; \
 	for ex in $(EXAMPLES); do \
 	  echo "==> Running browser tests for $$ex example..."; \
-	  go test ./examples/$$ex -v; \
+	  go test ./examples/$$ex -v $(if $(RUN),-run $(RUN),); \
 	done
 
 # Run all tests (unit tests + browser tests)
