@@ -20,7 +20,7 @@ func TestTodoApp(t *testing.T) {
 	defer server.Stop()
 
 	// Create chromedp context with visible browser for debugging
-	config := testhelpers.VisibleConfig()
+	config := testhelpers.DefaultConfig()
 	chromedpCtx := testhelpers.MustNewChromedpContext(config)
 	defer chromedpCtx.Cancel()
 
@@ -65,7 +65,7 @@ func TestTodoRemoval(t *testing.T) {
 	defer server.Stop()
 
 	// Create chromedp context with visible browser for debugging
-	config := testhelpers.VisibleConfig()
+	config := testhelpers.DefaultConfig()
 	chromedpCtx := testhelpers.MustNewChromedpContext(config)
 	defer chromedpCtx.Cancel()
 
@@ -130,7 +130,7 @@ func TestTodoMarking(t *testing.T) {
 	defer server.Stop()
 
 	// Create chromedp context with visible browser for debugging
-	config := testhelpers.VisibleConfig()
+	config := testhelpers.DefaultConfig()
 	chromedpCtx := testhelpers.MustNewChromedpContext(config)
 	defer chromedpCtx.Cancel()
 
@@ -193,7 +193,7 @@ func TestClearMarkedTodos(t *testing.T) {
 	defer server.Stop()
 
 	// Create chromedp context with visible browser for debugging
-	config := testhelpers.VisibleConfig()
+	config := testhelpers.DefaultConfig()
 	chromedpCtx := testhelpers.MustNewChromedpContext(config)
 	defer chromedpCtx.Cancel()
 
@@ -267,7 +267,7 @@ func TestLeftItemsText(t *testing.T) {
 	defer server.Stop()
 
 	// Create chromedp context with visible browser for debugging
-	config := testhelpers.VisibleConfig()
+	config := testhelpers.DefaultConfig()
 	chromedpCtx := testhelpers.MustNewChromedpContext(config)
 	defer chromedpCtx.Cancel()
 

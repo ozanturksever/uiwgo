@@ -19,7 +19,7 @@ func TestCounterApp(t *testing.T) {
 	defer server.Stop()
 
 	// Create chromedp context with visible browser for debugging
-	config := testhelpers.VisibleConfig()
+	config := testhelpers.DefaultConfig()
 	chromedpCtx := testhelpers.MustNewChromedpContext(config)
 	defer chromedpCtx.Cancel()
 

@@ -21,7 +21,7 @@ func TestResourceApp(t *testing.T) {
 	defer server.Stop()
 
 	// Create chromedp context with visible browser for debugging
-	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.VisibleConfig())
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
 	defer chromedpCtx.Cancel()
 
 	// Navigate to the app and test resource loading
