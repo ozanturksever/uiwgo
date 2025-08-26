@@ -1,5 +1,7 @@
 .PHONY: build test serve run clean test-examples test-all test-example
 
+MAKEFLAGS += --no-print-directory
+
 # Extract example name from command or variable
 # Usage:
 #   make run                    -> uses default 'counter'
