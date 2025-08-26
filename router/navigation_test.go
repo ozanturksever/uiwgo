@@ -1,3 +1,5 @@
+//go:build !js && !wasm
+
 package router
 
 import (
@@ -6,18 +8,21 @@ import (
 
 // TestNavigation_LinkClickTriggersUpdate is an integration test that verifies
 // clicking a link created by router.A updates the router's state.
+// This test only runs on non-WASM builds where A() returns a struct.
 func TestNavigation_LinkClickTriggersUpdate(t *testing.T) {
 	// Create a Router instance with a mock outlet
 	router := New([]*RouteDefinition{}, nil)
 
-	// Initial location should be zero value
+	// Set the current router for navigation to work
+	currentRouter = router
+
+	// Initial location should be root path
 	initialLocation := router.Location()
-	if initialLocation.Pathname != "" {
-		t.Errorf("Expected initial pathname to be empty, got %s", initialLocation.Pathname)
+	if initialLocation.Pathname != "/" {
+		t.Errorf("Expected initial pathname to be '/', got %s", initialLocation.Pathname)
 	}
 
-	// Create a link using router.A - for now, we'll represent it as a simple struct
-	// since gomponents is not yet a dependency
+	// Create a link using router.A
 	link := A("/about", "About")
 
 	// Type assert to access the OnClick handler
@@ -49,10 +54,10 @@ func TestNavigatePushUpdatesHistoryAndState(t *testing.T) {
 	// Create a Router instance with a mock outlet
 	router := New([]*RouteDefinition{}, nil)
 
-	// Initial location should be zero value
+	// Initial location should be root path
 	initialLocation := router.Location()
-	if initialLocation.Pathname != "" {
-		t.Errorf("Expected initial pathname to be empty, got %s", initialLocation.Pathname)
+	if initialLocation.Pathname != "/" {
+		t.Errorf("Expected initial pathname to be '/', got %s", initialLocation.Pathname)
 	}
 
 	// Call router.Navigate with a new path

@@ -47,12 +47,18 @@ func (ls *LocationState) Subscribe(s Subscriber) {
 	ls.subscribers = append(ls.subscribers, s)
 }
 
-// Set updates the current location and notifies all subscribers synchronously.
+// Set updates the current location and notifies all subscribers.
+// To avoid deadlocks (especially in js/wasm single-threaded runtime),
+// we update the state and take a snapshot of subscribers under lock,
+// then release the lock before invoking callbacks.
 func (ls *LocationState) Set(newLocation Location) {
 	ls.mu.Lock()
-	defer ls.mu.Unlock()
 	ls.current = newLocation
-	for _, subscriber := range ls.subscribers {
+	subscribers := make([]Subscriber, len(ls.subscribers))
+	copy(subscribers, ls.subscribers)
+	ls.mu.Unlock()
+
+	for _, subscriber := range subscribers {
 		subscriber(newLocation)
 	}
 }

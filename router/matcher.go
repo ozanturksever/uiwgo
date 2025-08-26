@@ -46,31 +46,59 @@ func validateParams(params map[string]string, filters map[string]any) bool {
 }
 
 // compileMatcher compiles the route's path pattern into a MatcherFunc.
+// For nested routes, it allows partial matches when the route has children.
 func compileMatcher(r *RouteDefinition) MatcherFunc {
-	// Split the route pattern into segments
-	patternSegments := strings.Split(r.Path, "/")
+	// Split the route pattern into segments, filtering out empty ones
+	// Parse pattern segments with optional markers
+patternSegments := make([]string, 0)
+optionalSegments := make(map[int]bool)
+
+for i, s := range filterEmptySegments(strings.Split(r.Path, "/")) {
+	if strings.HasSuffix(s, "?") {
+		patternSegments = append(patternSegments, strings.TrimSuffix(s, "?"))
+		optionalSegments[i] = true
+	} else {
+		patternSegments = append(patternSegments, s)
+	}
+}
 
 	return func(inputPath string) (bool, map[string]string) {
 		// Split the input path into segments
+		// For optional parameters, we need to preserve empty segments
 		inputSegments := strings.Split(inputPath, "/")
+		if len(inputSegments) > 0 && inputSegments[0] == "" {
+			inputSegments = inputSegments[1:] // Remove leading empty segment from root slash
+		}
 
 		params := make(map[string]string)
+		
+		// Handle root path case
+		if len(patternSegments) == 0 {
+			// Pattern is root path, check if input is also root-like
+			if len(inputSegments) == 0 || (len(inputSegments) == 1 && inputSegments[0] == "") {
+				return true, params
+			}
+			return false, nil
+		}
 
 		// Track pattern and input indices
 		patternIndex := 0
 		inputIndex := 0
 
 		// Iterate through pattern segments
-		for patternIndex < len(patternSegments) && inputIndex < len(inputSegments) {
+		for patternIndex < len(patternSegments) {
 			patternSegment := patternSegments[patternIndex]
-			inputSegment := inputSegments[inputIndex]
 
-			// Skip empty segments (like leading/trailing slashes)
-			if patternSegment == "" && inputSegment == "" {
-				patternIndex++
-				inputIndex++
-				continue
+			if inputIndex >= len(inputSegments) {
+				// Check if current pattern segment is optional
+				if optionalSegments[patternIndex] {
+					patternIndex++
+					continue
+				}
+				return false, nil
 			}
+
+			inputSegment := inputSegments[inputIndex]
 
 			// Handle wildcard segments (starting with *)
 			if strings.HasPrefix(patternSegment, "*") {
@@ -96,7 +124,17 @@ func compileMatcher(r *RouteDefinition) MatcherFunc {
 			if strings.HasSuffix(patternSegment, "?") {
 				// Extract parameter name (remove the colon and question mark)
 				paramName := patternSegment[1 : len(patternSegment)-1]
-				// Capture the value from the input segment, even if empty
+				
+				// Check if the input segment is empty (optional parameter absent)
+				if inputSegment == "" {
+					// Optional parameter is absent, set empty value
+					params[paramName] = ""
+					patternIndex++
+					inputIndex++
+					continue
+				}
+				
+				// Capture the value from the input segment
 				params[paramName] = inputSegment
 				patternIndex++
 				inputIndex++
@@ -109,6 +147,21 @@ func compileMatcher(r *RouteDefinition) MatcherFunc {
 				paramName := patternSegment[1:]
 				// Capture the value from the input segment
 				params[paramName] = inputSegment
+				// Immediately validate against filter if present
+				if filter, exists := r.MatchFilters[paramName]; exists {
+					switch f := filter.(type) {
+					case string:
+						if matched, _ := regexp.MatchString(f, inputSegment); !matched {
+							return false, nil
+						}
+					case func(string) bool:
+						if !f(inputSegment) {
+							return false, nil
+						}
+					default:
+						return false, nil
+					}
+				}
 				patternIndex++
 				inputIndex++
 				continue
@@ -123,8 +176,16 @@ func compileMatcher(r *RouteDefinition) MatcherFunc {
 			inputIndex++
 		}
 
-		// Check if we've processed all pattern segments and input segments
-		if patternIndex != len(patternSegments) || inputIndex != len(inputSegments) {
+		// Check if we've processed all pattern segments
+		if patternIndex != len(patternSegments) {
+			// Not all pattern segments were matched
+			return false, nil
+		}
+
+		// For routes with children, allow partial matches (more input segments remaining)
+		// For routes without children, require exact match (all input segments consumed)
+		if len(r.Children) == 0 && inputIndex != len(inputSegments) {
+			// Route has no children but there are remaining input segments
 			return false, nil
 		}
 
@@ -135,6 +196,17 @@ func compileMatcher(r *RouteDefinition) MatcherFunc {
 
 		return true, params
 	}
+}
+
+// filterEmptySegments removes empty strings from a slice of segments
+func filterEmptySegments(segments []string) []string {
+	filtered := make([]string, 0, len(segments))
+	for _, segment := range segments {
+		if segment != "" {
+			filtered = append(filtered, segment)
+		}
+	}
+	return filtered
 }
 
 // NewRouteDefinition creates a new RouteDefinition with a compiled matcher.

@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>UIWGo Router Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Custom styles for better demo presentation */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    
+    #app {
+      background: white;
+      margin: 20px;
+      border-radius: 12px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+      min-height: calc(100vh - 40px);
+    }
+    
+    /* Smooth transitions for route changes */
+    #app > div {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* Custom button hover effects */
+    a[data-router-link="true"] {
+      transition: all 0.2s ease-in-out;
+      text-decoration: none;
+    }
+    
+    a[data-router-link="true"]:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div id="app">
+      <div class="p-6 text-center loading-indicator">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+        <p class="text-gray-600">Loading UIWGo Router Demo...</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="wasm_exec.js"></script>
+  <script>
+    const go = new Go();
+    WebAssembly.instantiateStreaming(fetch('main.wasm'), go.importObject).then((result) => {
+      console.log('Instantiate success');
+      try {
+        go.run(result.instance);
+        console.log('go.run completed');
+      } catch (err) {
+        console.error('Error running WASM:', err);
+      }
+    }).catch((err) => {
+      console.error('Failed to load WASM:', err);
+      document.getElementById('app').innerHTML = `
+        <div class="p-6 text-center">
+          <div class="text-red-500 text-xl mb-4">❌</div>
+          <h2 class="text-xl font-bold text-red-600 mb-2">Failed to Load</h2>
+          <p class="text-gray-600">Could not load the WebAssembly module.</p>
+          <p class="text-sm text-gray-500 mt-2">Check the browser console for details.</p>
+        </div>
+      `;
+    });
+  </script>
+</body>
+</html>

@@ -70,14 +70,14 @@ func TestRouteBuilderCreatesDefinition(t *testing.T) {
 		t.Error("Child route does not match expected")
 	}
 
-	// Verify MatchFilters is nil (not set by Route builder)
-	if routeDef.MatchFilters != nil {
-		t.Error("MatchFilters should be nil by default")
+	// Verify MatchFilters is initialized (set by Route builder)
+	if routeDef.MatchFilters == nil {
+		t.Error("MatchFilters should be initialized as empty map")
 	}
 
-	// Verify matcher is nil (not set by Route builder)
-	if routeDef.matcher != nil {
-		t.Error("matcher should be nil by default")
+	// Verify matcher is compiled (set by Route builder)
+	if routeDef.matcher == nil {
+		t.Error("matcher should be compiled by Route builder")
 	}
 }
 
@@ -85,11 +85,11 @@ func TestRouterLocationReturnsCurrentState(t *testing.T) {
 	// Create a new Router instance with empty routes and nil outlet
 	router := New([]*RouteDefinition{}, nil)
 
-	// Verify that calling Location() initially returns a zero-value Location struct
+	// Verify that calling Location() initially returns a root path Location struct
 	initialLocation := router.Location()
-	expectedZeroLocation := Location{}
-	if initialLocation != expectedZeroLocation {
-		t.Errorf("Expected initial location to be zero value %+v, got %+v", expectedZeroLocation, initialLocation)
+	expectedInitialLocation := Location{Pathname: "/", Search: "", Hash: "", State: nil}
+	if initialLocation != expectedInitialLocation {
+		t.Errorf("Expected initial location to be %+v, got %+v", expectedInitialLocation, initialLocation)
 	}
 
 	// Set a new location on the router's internal LocationState

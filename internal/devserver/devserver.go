@@ -178,6 +178,13 @@ func (s *Server) Start() error {
 		//_, _ = w.Write(wasmExecJSTinyGo)
 	})
 
+	// main.wasm served with correct MIME type
+	mux.HandleFunc("/main.wasm", func(w http.ResponseWriter, r *http.Request) {
+		wasmPath := filepath.Join(dir, "main.wasm")
+		w.Header().Set("Content-Type", "application/wasm")
+		http.ServeFile(w, r, wasmPath)
+	})
+
 	// Create listener to get actual port
 	listener, err := net.Listen("tcp", s.addr)
 	if err != nil {
