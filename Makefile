@@ -47,8 +47,9 @@ clean:
 	@rm -f examples/*/main.wasm || true
 
 # Test configuration for js/wasm
-# By default, run only unit-testable packages under wasm (exclude examples and internal/devserver)
-PKG ?= ./reactivity ./dom ./comps
+# By default, auto-discover unit-testable packages under wasm (exclude examples and internal dev tooling)
+# You can still override: make test PKG="./mypkg ./other" or filter names with RUN
+PKG ?= $(shell go list ./... | grep -v '/examples/' | grep -v '/internal/' | tr '\n' ' ')
 RUN ?=
 # Minimized environment avoids wasm_exec.js command line/env length limits
 TEST_ENV := env -i PATH="$(PATH)" HOME="$(HOME)" GOOS=js GOARCH=wasm
