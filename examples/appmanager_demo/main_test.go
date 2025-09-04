@@ -93,3 +93,57 @@ func TestAppManagerDemo_Routing(t *testing.T) {
 		t.Fatalf("routing test failed: %v", err)
 	}
 }
+
+func TestAppManagerDemo_Routing_PreservesLayoutAndState(t *testing.T) {
+	server := testhelpers.NewViteServer("appmanager_demo", "localhost:0")
+	if err := server.Start(); err != nil {
+		t.Fatalf("Failed to start dev server: %v", err)
+	}
+	defer server.Stop()
+
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	defer chromedpCtx.Cancel()
+
+	var countText string
+	err := chromedp.Run(chromedpCtx.Ctx,
+		testhelpers.Actions.NavigateAndWaitForLoad(server.URL(), "#app"),
+		chromedp.WaitVisible(`#counter-text`, chromedp.ByQuery),
+		chromedp.Click(`#inc-btn`, chromedp.ByQuery),
+		chromedp.Sleep(120*time.Millisecond),
+		chromedp.Click(`#inc-btn`, chromedp.ByQuery),
+		chromedp.Sleep(120*time.Millisecond),
+		chromedp.Text(`#counter-text`, &countText, chromedp.ByQuery),
+	)
+	if err != nil {
+		t.Fatalf("failed initial interactions: %v", err)
+	}
+	if countText != "Count: 2" {
+		t.Fatalf("expected 'Count: 2' before navigation, got %q", countText)
+	}
+
+	// Navigate to About and verify outlet swapped but state preserved
+	err = chromedp.Run(chromedpCtx.Ctx,
+		chromedp.Click(`a[href="/about"]`, chromedp.ByQuery),
+		chromedp.WaitVisible(`#about-page`, chromedp.ByQuery),
+		chromedp.Text(`#counter-text`, &countText, chromedp.ByQuery),
+	)
+	if err != nil {
+		t.Fatalf("failed navigating to about: %v", err)
+	}
+	if countText != "Count: 2" {
+		t.Fatalf("expected 'Count: 2' after navigation to about, got %q (likely full reload/flicker)", countText)
+	}
+
+	// Navigate back Home and verify still preserved
+	err = chromedp.Run(chromedpCtx.Ctx,
+		chromedp.Click(`a[href="/"]`, chromedp.ByQuery),
+		chromedp.WaitVisible(`#home-page`, chromedp.ByQuery),
+		chromedp.Text(`#counter-text`, &countText, chromedp.ByQuery),
+	)
+	if err != nil {
+		t.Fatalf("failed navigating back home: %v", err)
+	}
+	if countText != "Count: 2" {
+		t.Fatalf("expected 'Count: 2' after navigating home, got %q", countText)
+	}
+}
