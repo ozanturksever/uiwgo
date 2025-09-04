@@ -1,0 +1,26 @@
+{
+  "name": "uiwgo",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "dev:counter": "vite -c examples/counter/vite.config.js",
+    "dev:todo": "vite -c examples/todo/vite.config.js",
+    "dev:todo_store": "vite -c examples/todo_store/vite.config.js",
+    "dev:component_demo": "vite -c examples/component_demo/vite.config.js",
+    "dev:dom_integration": "vite -c examples/dom_integration/vite.config.js",
+    "dev:resource": "vite -c examples/resource/vite.config.js",
+    "dev:router_demo": "vite -c examples/router_demo/vite.config.js",
+    "dev:router_test": "vite -c examples/router_test/vite.config.js"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "4.1.7",
+    "tailwindcss": "^4.0.15"
+  },
+  "devDependencies": {
+    "vite": "6.2.6",
+    "vite-multiple-assets": "^2.2.5"
+  }
+}

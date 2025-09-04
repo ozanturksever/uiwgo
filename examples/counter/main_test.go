@@ -6,13 +6,12 @@ import (
 	"time"
 
 	"github.com/chromedp/chromedp"
-	"github.com/ozanturksever/uiwgo/internal/devserver"
 	"github.com/ozanturksever/uiwgo/internal/testhelpers"
 )
 
 func TestCounterApp(t *testing.T) {
 	// Create and start the development server
-	server := devserver.NewServer("counter", "localhost:0")
+	server := testhelpers.NewViteServer("counter", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -64,7 +63,7 @@ func TestCounterApp(t *testing.T) {
 
 func TestCounterDecrement(t *testing.T) {
 	// Create and start the development server
-	server := devserver.NewServer("counter", "localhost:0")
+	server := testhelpers.NewViteServer("counter", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -114,7 +113,7 @@ func TestCounterDecrement(t *testing.T) {
 
 func TestCounterReset(t *testing.T) {
 	// Create and start the development server
-	server := devserver.NewServer("counter", "localhost:0")
+	server := testhelpers.NewViteServer("counter", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -170,7 +169,7 @@ func TestCounterReset(t *testing.T) {
 
 func TestCounterNegativeNumbers(t *testing.T) {
 	// Create and start the development server
-	server := devserver.NewServer("counter", "localhost:0")
+	server := testhelpers.NewViteServer("counter", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}

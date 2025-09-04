@@ -7,21 +7,19 @@ import (
 	"time"
 
 	"github.com/chromedp/chromedp"
-	"github.com/ozanturksever/uiwgo/internal/devserver"
 	"github.com/ozanturksever/uiwgo/internal/testhelpers"
 )
 
 func TestTodoApp(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("todo", "localhost:0")
+	server := testhelpers.NewViteServer("todo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
 	defer server.Stop()
 
-	// Create chromedp context with visible browser for debugging
-	config := testhelpers.DefaultConfig()
-	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	// Create chromedp context with extended timeout for WASM build
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.ExtendedTimeoutConfig())
 	defer chromedpCtx.Cancel()
 
 	// Navigate to the app and test todo functionality
@@ -58,15 +56,14 @@ func TestTodoApp(t *testing.T) {
 
 func TestTodoRemoval(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("todo", "localhost:0")
+	server := testhelpers.NewViteServer("todo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
 	defer server.Stop()
 
-	// Create chromedp context with visible browser for debugging
-	config := testhelpers.DefaultConfig()
-	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	// Create chromedp context with extended timeout for WASM build
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.ExtendedTimeoutConfig())
 	defer chromedpCtx.Cancel()
 
 	var todoCount int
@@ -123,15 +120,14 @@ func TestTodoRemoval(t *testing.T) {
 
 func TestTodoMarking(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("todo", "localhost:0")
+	server := testhelpers.NewViteServer("todo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
 	defer server.Stop()
 
-	// Create chromedp context with visible browser for debugging
-	config := testhelpers.DefaultConfig()
-	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	// Create chromedp context with extended timeout for WASM build
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.ExtendedTimeoutConfig())
 	defer chromedpCtx.Cancel()
 
 	var isChecked bool
@@ -186,15 +182,14 @@ func TestTodoMarking(t *testing.T) {
 
 func TestClearMarkedTodos(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("todo", "localhost:0")
+	server := testhelpers.NewViteServer("todo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
 	defer server.Stop()
 
-	// Create chromedp context with visible browser for debugging
-	config := testhelpers.DefaultConfig()
-	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	// Create chromedp context with extended timeout for WASM build
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.ExtendedTimeoutConfig())
 	defer chromedpCtx.Cancel()
 
 	var todoCount int
@@ -260,15 +255,14 @@ func TestClearMarkedTodos(t *testing.T) {
 
 func TestLeftItemsText(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("todo", "localhost:0")
+	server := testhelpers.NewViteServer("todo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
 	defer server.Stop()
 
-	// Create chromedp context with visible browser for debugging
-	config := testhelpers.DefaultConfig()
-	chromedpCtx := testhelpers.MustNewChromedpContext(config)
+	// Create chromedp context with extended timeout for WASM build
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.ExtendedTimeoutConfig())
 	defer chromedpCtx.Cancel()
 
 	var leftItemsText string

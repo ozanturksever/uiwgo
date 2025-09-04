@@ -11,13 +11,12 @@ import (
 
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
-	"github.com/ozanturksever/uiwgo/internal/devserver"
 	"github.com/ozanturksever/uiwgo/internal/testhelpers"
 )
 
 // TestRouterDemo_HomePageRender tests that the home page renders correctly
 func TestRouterDemo_HomePageRender(t *testing.T) {
-	server := devserver.NewServer("router_demo", "localhost:0")
+	server := testhelpers.NewViteServer("router_demo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -56,7 +55,7 @@ func TestRouterDemo_HomePageRender(t *testing.T) {
 
 // TestRouterDemo_StaticRouteNavigation tests navigation to different static routes
 func TestRouterDemo_StaticRouteNavigation(t *testing.T) {
-	server := devserver.NewServer("router_demo", "localhost:0")
+	server := testhelpers.NewViteServer("router_demo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -103,7 +102,7 @@ func TestRouterDemo_StaticRouteNavigation(t *testing.T) {
 
 // TestRouterDemo_DynamicRouteParameters tests dynamic segment routing
 func TestRouterDemo_DynamicRouteParameters(t *testing.T) {
-	server := devserver.NewServer("router_demo", "localhost:0")
+	server := testhelpers.NewViteServer("router_demo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -170,7 +169,7 @@ func TestRouterDemo_DynamicRouteParameters(t *testing.T) {
 
 // TestRouterDemo_WildcardRoutes tests wildcard route matching
 func TestRouterDemo_WildcardRoutes(t *testing.T) {
-	server := devserver.NewServer("router_demo", "localhost:0")
+	server := testhelpers.NewViteServer("router_demo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -218,7 +217,7 @@ func TestRouterDemo_WildcardRoutes(t *testing.T) {
 
 // TestRouterDemo_NestedRoutes tests nested route rendering and layout persistence
 func TestRouterDemo_NestedRoutes(t *testing.T) {
-	server := devserver.NewServer("router_demo", "localhost:0")
+	server := testhelpers.NewViteServer("router_demo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -290,7 +289,7 @@ func TestRouterDemo_NestedRoutes(t *testing.T) {
 
 // TestRouterDemo_NotFoundRoute tests the catch-all 404 route
 func TestRouterDemo_NotFoundRoute(t *testing.T) {
-	server := devserver.NewServer("router_demo", "localhost:0")
+	server := testhelpers.NewViteServer("router_demo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -364,7 +363,7 @@ func TestRouterDemo_NotFoundRoute(t *testing.T) {
 
 // TestRouterDemo_BrowserHistoryNavigation tests browser back/forward navigation
 func TestRouterDemo_BrowserHistoryNavigation(t *testing.T) {
-	server := devserver.NewServer("router_demo", "localhost:0")
+	server := testhelpers.NewViteServer("router_demo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}

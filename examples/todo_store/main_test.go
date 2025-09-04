@@ -8,13 +8,12 @@ import (
 	"time"
 
 	"github.com/chromedp/chromedp"
-	"github.com/ozanturksever/uiwgo/internal/devserver"
 	"github.com/ozanturksever/uiwgo/internal/testhelpers"
 )
 
 func TestTodoStoreApp(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("todo_store", "localhost:0")
+	server := testhelpers.NewViteServer("todo_store", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -59,7 +58,7 @@ func TestTodoStoreApp(t *testing.T) {
 
 func TestTodoStoreToggle(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("todo_store", "localhost:0")
+	server := testhelpers.NewViteServer("todo_store", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -122,7 +121,7 @@ func TestTodoStoreToggle(t *testing.T) {
 
 func TestTodoStoreRemoval(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("todo_store", "localhost:0")
+	server := testhelpers.NewViteServer("todo_store", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -185,7 +184,7 @@ func TestTodoStoreRemoval(t *testing.T) {
 
 func TestTodoStoreClearCompleted(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("todo_store", "localhost:0")
+	server := testhelpers.NewViteServer("todo_store", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -260,7 +259,7 @@ func TestTodoStoreClearCompleted(t *testing.T) {
 
 func TestTodoStoreItemsLeftCounter(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("todo_store", "localhost:0")
+	server := testhelpers.NewViteServer("todo_store", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}

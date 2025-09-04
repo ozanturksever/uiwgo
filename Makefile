@@ -1,4 +1,4 @@
-.PHONY: build test serve run clean test-examples test-all test-example
+.PHONY: build test serve run clean test-examples test-all test-example install dev-counter dev-todo dev-todo_store dev-component_demo dev-dom_integration dev-resource dev-router_demo dev-router_test
 
 MAKEFLAGS += --no-print-directory
 
@@ -38,10 +38,47 @@ serve:
 kill:
 	lsof -ti:$(PORT) | xargs kill -9 || true
 
-	run: kill
-		@set -e; trap '$(MAKE) clean' EXIT INT TERM; \
-		echo "==> Starting dev server with live reload for example: $(EXAMPLE) on port $(PORT) ..."; \
-		go run ./internal/dev/main.go --example $(EXAMPLE) --port $(PORT)
+run: kill
+	@echo "==> Starting Vite dev server for example: $(EXAMPLE) ..."
+	@cd examples/$(EXAMPLE) && npm run dev
+
+# Install npm dependencies
+install:
+	@echo "==> Installing npm dependencies..."
+	npm install
+
+# Run Vite dev server for specific examples
+dev-counter:
+	@echo "==> Starting Vite dev server for counter example..."
+	npm run dev:counter
+
+dev-todo:
+	@echo "==> Starting Vite dev server for todo example..."
+	npm run dev:todo
+
+dev-todo_store:
+	@echo "==> Starting Vite dev server for todo_store example..."
+	npm run dev:todo_store
+
+dev-component_demo:
+	@echo "==> Starting Vite dev server for component_demo example..."
+	npm run dev:component_demo
+
+dev-dom_integration:
+	@echo "==> Starting Vite dev server for dom_integration example..."
+	npm run dev:dom_integration
+
+dev-resource:
+	@echo "==> Starting Vite dev server for resource example..."
+	npm run dev:resource
+
+dev-router_demo:
+	@echo "==> Starting Vite dev server for router_demo example..."
+	npm run dev:router_demo
+
+dev-router_test:
+	@echo "==> Starting Vite dev server for router_test example..."
+	npm run dev:router_test
 
 clean:
 	@rm -f examples/*/main.wasm || true

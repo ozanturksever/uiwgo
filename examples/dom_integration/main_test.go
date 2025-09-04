@@ -10,13 +10,12 @@ import (
 
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
-	"github.com/ozanturksever/uiwgo/internal/devserver"
 	"github.com/ozanturksever/uiwgo/internal/testhelpers"
 )
 
 func TestDOMIntegrationCounter(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("dom_integration", "localhost:0")
+	server := testhelpers.NewViteServer("dom_integration", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -88,7 +87,7 @@ func TestDOMIntegrationCounter(t *testing.T) {
 
 func TestDOMIntegrationNameInput(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("dom_integration", "localhost:0")
+	server := testhelpers.NewViteServer("dom_integration", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -135,7 +134,7 @@ func TestDOMIntegrationNameInput(t *testing.T) {
 
 func TestDOMIntegrationVisibilityToggle(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("dom_integration", "localhost:0")
+	server := testhelpers.NewViteServer("dom_integration", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -201,7 +200,7 @@ func TestDOMIntegrationVisibilityToggle(t *testing.T) {
 
 func TestDOMIntegrationTodoList(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("dom_integration", "localhost:0")
+	server := testhelpers.NewViteServer("dom_integration", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -264,7 +263,7 @@ func TestDOMIntegrationTodoList(t *testing.T) {
 
 func TestDOMIntegrationDynamicElements(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("dom_integration", "localhost:0")
+	server := testhelpers.NewViteServer("dom_integration", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -332,7 +331,7 @@ func TestDOMIntegrationDynamicElements(t *testing.T) {
 
 // Test For component functionality
 func TestForComponent(t *testing.T) {
-	server := devserver.NewServer("dom_integration", "localhost:0")
+	server := testhelpers.NewViteServer("dom_integration", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -528,7 +527,7 @@ func TestForComponent(t *testing.T) {
 
 // Test Index component functionality
 func TestIndexComponent(t *testing.T) {
-	server := devserver.NewServer("dom_integration", "localhost:0")
+	server := testhelpers.NewViteServer("dom_integration", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -631,7 +630,7 @@ func TestIndexComponent(t *testing.T) {
 
 // Test Switch/Match component functionality
 func TestSwitchMatchComponent(t *testing.T) {
-	server := devserver.NewServer("dom_integration", "localhost:0")
+	server := testhelpers.NewViteServer("dom_integration", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -770,7 +769,7 @@ func TestSwitchMatchComponent(t *testing.T) {
 
 // Test Dynamic component functionality
 func TestDynamicComponent(t *testing.T) {
-	server := devserver.NewServer("dom_integration", "localhost:0")
+	server := testhelpers.NewViteServer("dom_integration", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -902,7 +901,7 @@ func TestDynamicComponent(t *testing.T) {
 }
 
 func TestDynamicCounterStressTest(t *testing.T) {
-	server := devserver.NewServer("dom_integration", "localhost:0")
+	server := testhelpers.NewViteServer("dom_integration", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}

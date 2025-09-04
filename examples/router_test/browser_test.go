@@ -10,14 +10,13 @@ import (
 
 	"github.com/chromedp/chromedp"
 	"github.com/ozanturksever/uiwgo/internal/testhelpers"
-	"github.com/ozanturksever/uiwgo/internal/devserver"
 )
 
 // TestNavigation_BrowserHistoryPopstate tests that the router correctly handles
 // browser history navigation via popstate events.
 func TestNavigation_BrowserHistoryPopstate(t *testing.T) {
 	// Start the development server with router_test example
-	server := devserver.NewServer("router_test", "localhost:0")
+	server := testhelpers.NewViteServer("router_test", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -81,7 +80,7 @@ func TestNavigation_BrowserHistoryPopstate(t *testing.T) {
 // of the matched component when the router is created.
 func TestRouterInitialRenderMountsComponent(t *testing.T) {
 	// Start the development server with router_test example
-	server := devserver.NewServer("router_test", "localhost:0")
+	server := testhelpers.NewViteServer("router_test", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -123,7 +122,7 @@ func TestRouterInitialRenderMountsComponent(t *testing.T) {
 // programmatically via router.Navigate.
 func TestRouterUpdatesViewOnRouteChange(t *testing.T) {
 	// Start the development server with router_test example
-	server := devserver.NewServer("router_test", "localhost:0")
+	server := testhelpers.NewViteServer("router_test", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}

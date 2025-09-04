@@ -8,14 +8,13 @@ import (
 
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
-	"github.com/ozanturksever/uiwgo/internal/devserver"
 	"github.com/ozanturksever/uiwgo/internal/testhelpers"
 )
 
 // TestComponentDemo runs a comprehensive test of all component features
 func TestComponentDemo(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("component_demo", "localhost:0")
+	server := testhelpers.NewViteServer("component_demo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -68,7 +67,7 @@ func TestComponentDemo(t *testing.T) {
 
 // TestCounterComponent tests the counter component display
 func TestCounterComponent(t *testing.T) {
-	server := devserver.NewServer("component_demo", "localhost:0")
+	server := testhelpers.NewViteServer("component_demo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -108,7 +107,7 @@ func TestCounterComponent(t *testing.T) {
 
 // TestTodoComponent tests the todo component display
 func TestTodoComponent(t *testing.T) {
-	server := devserver.NewServer("component_demo", "localhost:0")
+	server := testhelpers.NewViteServer("component_demo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -155,7 +154,7 @@ func TestTodoComponent(t *testing.T) {
 
 // TestComponentLifecycle tests component mounting and static display
 func TestComponentLifecycle(t *testing.T) {
-	server := devserver.NewServer("component_demo", "localhost:0")
+	server := testhelpers.NewViteServer("component_demo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -191,7 +190,7 @@ func TestComponentLifecycle(t *testing.T) {
 
 // TestMemoization tests component memoization functionality
 func TestMemoization(t *testing.T) {
-	server := devserver.NewServer("component_demo", "localhost:0")
+	server := testhelpers.NewViteServer("component_demo", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}

@@ -10,3 +10,4 @@ devenv.local.nix
 
 # Ignore main.wasm in all folders
 **/main.wasm
+node_modules/

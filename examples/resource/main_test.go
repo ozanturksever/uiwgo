@@ -8,13 +8,12 @@ import (
 	"time"
 
 	"github.com/chromedp/chromedp"
-	"github.com/ozanturksever/uiwgo/internal/devserver"
 	"github.com/ozanturksever/uiwgo/internal/testhelpers"
 )
 
 func TestResourceApp(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("resource", "localhost:0")
+	server := testhelpers.NewViteServer("resource", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -78,7 +77,7 @@ func TestResourceApp(t *testing.T) {
 
 func TestResourceInitialState(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("resource", "localhost:0")
+	server := testhelpers.NewViteServer("resource", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -116,7 +115,7 @@ func TestResourceInitialState(t *testing.T) {
 
 func TestResourceRandomUser(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("resource", "localhost:0")
+	server := testhelpers.NewViteServer("resource", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -166,7 +165,7 @@ func TestResourceRandomUser(t *testing.T) {
 
 func TestResourceRapidClicks(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("resource", "localhost:0")
+	server := testhelpers.NewViteServer("resource", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
@@ -224,7 +223,7 @@ func TestResourceRapidClicks(t *testing.T) {
 
 func TestResourceErrorRecovery(t *testing.T) {
 	// Start the development server
-	server := devserver.NewServer("resource", "localhost:0")
+	server := testhelpers.NewViteServer("resource", "localhost:0")
 	if err := server.Start(); err != nil {
 		t.Fatalf("Failed to start dev server: %v", err)
 	}
