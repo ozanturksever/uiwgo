@@ -128,12 +128,12 @@ func waitForDOMReady(ctx context.Context) error {
 	window := dom.GetWindow()
 	document := window.Document()
 	
-	// Check if already ready
-	if document.ReadyState() == "complete" || document.ReadyState() == "interactive" {
+	// If document is available, consider DOM ready enough for our initialization
+	if document != nil {
 		return nil
 	}
 	
-	// Wait for DOMContentLoaded or load event
+	// Fallback: wait for DOMContentLoaded or load event
 	ready := make(chan bool, 1)
 	errorCh := make(chan error, 1)
 	
@@ -180,14 +180,7 @@ func waitForSelector(ctx context.Context, selector string, retryCount int, retry
 		// Try to find the element
 		element := document.QuerySelector(selector)
 		if element != nil {
-			// Check if element is visible
-			style := element.Style()
-			display := style.GetPropertyValue("display")
-			visibility := style.GetPropertyValue("visibility")
-			
-			if display != "none" && visibility != "hidden" {
-				return nil
-			}
+			return nil
 		}
 		
 		// Wait before retry

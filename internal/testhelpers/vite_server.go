@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -13,7 +14,6 @@ import (
 	"strings"
 	"syscall"
 	"time"
-	"io"
 
 	"github.com/ozanturksever/uiwgo/logutil"
 )
@@ -34,7 +34,7 @@ func NewViteServer(exampleName, address string) *ViteServer {
 	if err != nil {
 		panic(fmt.Sprintf("Invalid address format: %v", err))
 	}
-	
+
 	port := 0
 	if portStr != "0" {
 		port, err = strconv.Atoi(portStr)
@@ -42,7 +42,7 @@ func NewViteServer(exampleName, address string) *ViteServer {
 			panic(fmt.Sprintf("Invalid port: %v", err))
 		}
 	}
-	
+
 	return &ViteServer{
 		exampleName: exampleName,
 		host:        host,
@@ -61,24 +61,24 @@ func (s *ViteServer) Start() error {
 		s.port = listener.Addr().(*net.TCPAddr).Port
 		listener.Close()
 	}
-	
+
 	s.url = fmt.Sprintf("http://%s:%d", s.host, s.port)
-	
+
 	// Create context for the command
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
-	
+
 	// Get the project root directory
 	projectRoot, err := findProjectRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find project root: %v", err)
 	}
-	
+
 	// Build the npm command to start Vite for the specific example
 	cmdArgs := []string{"run", fmt.Sprintf("dev:%s", s.exampleName), "--", "--port", strconv.Itoa(s.port), "--host", s.host}
 	s.cmd = exec.CommandContext(ctx, "npm", cmdArgs...)
 	s.cmd.Dir = projectRoot
-	
+
 	// Set environment to avoid npm warnings
 	s.cmd.Env = append(os.Environ(), "NODE_ENV=development")
 
@@ -86,6 +86,7 @@ func (s *ViteServer) Start() error {
 	debugEnv := os.Getenv("UIWGO_VITE_DEBUG")
 	debug := strings.EqualFold(debugEnv, "1") || strings.EqualFold(debugEnv, "true") || strings.EqualFold(debugEnv, "yes")
 
+	debug = true
 	if debug {
 		// Prepare stdout/stderr pipes for logging only in debug mode
 		stdout, err := s.cmd.StdoutPipe()
@@ -135,14 +136,14 @@ func (s *ViteServer) Start() error {
 			return fmt.Errorf("failed to start Vite server: %v", err)
 		}
 	}
-	
+
 	// Wait for the server to be ready
 	err = s.waitForServer()
 	if err != nil {
 		s.Stop()
 		return fmt.Errorf("server failed to start: %v", err)
 	}
-	
+
 	return nil
 }
 
@@ -152,7 +153,7 @@ func (s *ViteServer) Stop() {
 	debugEnv := os.Getenv("UIWGO_VITE_DEBUG")
 	debug := strings.EqualFold(debugEnv, "1") || strings.EqualFold(debugEnv, "true") || strings.EqualFold(debugEnv, "yes")
 
- if s.cmd != nil && s.cmd.Process != nil {
+	if s.cmd != nil && s.cmd.Process != nil {
 		pid := s.cmd.Process.Pid
 
 		// On Unix, attempt to gracefully terminate child processes first
@@ -249,18 +250,18 @@ func findProjectRoot() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	for {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
 			return dir, nil
 		}
-		
+
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			break
 		}
 		dir = parent
 	}
-	
+
 	return "", fmt.Errorf("could not find project root (go.mod not found)")
 }

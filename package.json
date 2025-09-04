@@ -13,7 +13,8 @@
     "dev:dom_integration": "vite -c examples/dom_integration/vite.config.js",
     "dev:resource": "vite -c examples/resource/vite.config.js",
     "dev:router_demo": "vite -c examples/router_demo/vite.config.js",
-    "dev:router_test": "vite -c examples/router_test/vite.config.js"
+    "dev:router_test": "vite -c examples/router_test/vite.config.js",
+    "dev:appmanager_demo": "vite -c examples/appmanager_demo/vite.config.js"
   },
   "dependencies": {
     "@tailwindcss/vite": "4.1.7",

@@ -40,7 +40,7 @@ kill:
 
 run: kill
 	@echo "==> Starting Vite dev server for example: $(EXAMPLE) ..."
-	@cd examples/$(EXAMPLE) && npm run dev
+	@npm run dev:$(EXAMPLE)
 
 # Install npm dependencies
 install:

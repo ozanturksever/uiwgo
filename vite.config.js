@@ -5,14 +5,19 @@ import DynamicPublicDirectory from "vite-multiple-assets";
 import fs from 'fs';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { fileURLToPath } from 'url';
 
 const execAsync = promisify(exec);
+
+// Resolve project root based on this config file's location (not process.cwd())
+const __filename = fileURLToPath(import.meta.url);
+const projectRoot = path.dirname(__filename);
 
 // Custom plugin to build WASM
 function wasmBuildPlugin(exampleName) {
     const buildWasm = async () => {
-        const wasmPath = resolve(process.cwd(), `examples/${exampleName}/main.wasm`);
-        const goFile = resolve(process.cwd(), `examples/${exampleName}/main.go`);
+        const wasmPath = resolve(projectRoot, `examples/${exampleName}/main.wasm`);
+        const goFile = resolve(projectRoot, `examples/${exampleName}/main.go`);
         
         try {
             console.log(`[wasm-build] Building WASM for ${exampleName}...`);
@@ -62,14 +67,13 @@ const { prod, dontRun } = parseCliArgs();
 const baseCfg = (pubDirs, preCmds = [], exampleName = "counter") => {
     let buildArgs = [`--tags ${prod ? "prod" : "dev"} -ldflags "-w -s"`];
     return defineConfig({
-        root: resolve(process.cwd(), `examples/${exampleName}`),
+        root: resolve(projectRoot, `examples/${exampleName}`),
         plugins: [
             wasmBuildPlugin(exampleName),
             // Serve fixed wasm_exec.js and per-example main.wasm
             {
                 name: 'wasm-asset-middleware',
                 configureServer(server) {
-                    const projectRoot = process.cwd();
                     const fixedWasmExecPath = resolve(projectRoot, 'examples/wasm_exec.js');
                     const exampleWasmPath = resolve(projectRoot, `examples/${exampleName}/main.wasm`);
                     server.middlewares.use(async (req, res, next) => {
@@ -108,7 +112,7 @@ const baseCfg = (pubDirs, preCmds = [], exampleName = "counter") => {
         },
         resolve: {
             alias: {
-                "@": path.resolve(process.cwd(), "examples")
+                "@": path.resolve(projectRoot, "examples")
             }
         },
         server: {
