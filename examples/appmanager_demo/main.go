@@ -40,7 +40,7 @@ func main() {
 			router.Route("/users/:id", UserComponent),
 		},
 		InitialState: appmanager.AppState{
-			UI: appmanager.UIState{Theme: "light"},
+			UI:     appmanager.UIState{Theme: "light"},
 			Custom: map[string]any{"counter": 0},
 		},
 	}

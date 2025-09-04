@@ -111,6 +111,22 @@ func (am *AppManager) Mount(root func() g.Node) error {
         }
         if outlet != nil {
             am.router = router.New(am.config.Routes, outlet.Raw())
+            // Wire router navigation callbacks to lifecycle hooks and store updates
+            am.router.OnBeforeNavigate = func(path string, options router.NavigateOptions) {
+                if err := am.lifecycle.ExecuteHooks(EventBeforeRoute, &LifecycleContext{Event: EventBeforeRoute, Manager: am, Data: map[string]any{"path": path}}); err != nil {
+                    logutil.Logf("beforeRoute hooks failed: %v", err)
+                }
+            }
+            am.router.OnAfterNavigate = func(path string, options router.NavigateOptions) {
+                // Update router state snapshot
+                st := am.store.Get()
+                st.Router.PreviousPath = st.Router.CurrentPath
+                st.Router.CurrentPath = path
+                am.store.Replace(st)
+                if err := am.lifecycle.ExecuteHooks(EventAfterRoute, &LifecycleContext{Event: EventAfterRoute, Manager: am, Data: map[string]any{"path": path}}); err != nil {
+                    logutil.Logf("afterRoute hooks failed: %v", err)
+                }
+            }
         }
     }
 
@@ -130,19 +146,23 @@ func (am *AppManager) Navigate(path string, opts ...router.NavigateOptions) erro
     if !am.running.Get() {
         return fmt.Errorf("app manager not running")
     }
-    // beforeRoute
+    if am.router != nil {
+        // Delegate to router; callbacks will handle hooks and store updates
+        var options router.NavigateOptions
+        if len(opts) > 0 {
+            options = opts[0]
+        }
+        am.router.Navigate(path, options)
+        return nil
+    }
+    // Fallback when no router is present: perform minimal state update and hooks
     if err := am.lifecycle.ExecuteHooks(EventBeforeRoute, &LifecycleContext{Event: EventBeforeRoute, Manager: am, Data: map[string]any{"path": path}}); err != nil {
         return fmt.Errorf("beforeRoute hooks failed: %w", err)
     }
-    if am.router != nil {
-        am.router.Navigate(path, opts...)
-    }
-    // Update router state snapshot
     st := am.store.Get()
     st.Router.PreviousPath = st.Router.CurrentPath
     st.Router.CurrentPath = path
     am.store.Replace(st)
-    // afterRoute
     if err := am.lifecycle.ExecuteHooks(EventAfterRoute, &LifecycleContext{Event: EventAfterRoute, Manager: am, Data: map[string]any{"path": path}}); err != nil {
         logutil.Logf("afterRoute hooks failed: %v", err)
     }

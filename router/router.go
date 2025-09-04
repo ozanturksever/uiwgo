@@ -21,6 +21,9 @@ type Router struct {
 	locationState *LocationState
 	currentRoute  *RouteDefinition
 	currentParams map[string]string
+	// Optional navigation callbacks for integration (e.g., AppManager)
+	OnBeforeNavigate func(path string, options NavigateOptions)
+	OnAfterNavigate  func(path string, options NavigateOptions)
 	// WASM-specific navigation function
 	navigateWASM func(path string, options NavigateOptions)
 }
@@ -224,20 +227,29 @@ func (r *Router) Navigate(path string, opts ...NavigateOptions) {
 // navigate updates the router's location state to the new path.
 // This is an unexported method that will be called by the A component's OnClick handler.
 func (r *Router) navigate(path string, options NavigateOptions) {
+	// Notify before navigation
+	if r.OnBeforeNavigate != nil {
+		r.OnBeforeNavigate(path, options)
+	}
+
 	// Use WASM-specific navigation if available
 	if r.navigateWASM != nil {
 		r.navigateWASM(path, options)
-		return
+	} else {
+		// Fallback for non-WASM builds
+		// Create a new Location with the given path
+		newLocation := Location{
+			Pathname: path,
+			Search:   "", // You might want to handle search and hash later
+			Hash:     "",
+			State:    options.State,
+		}
+		// Update the location state
+		r.locationState.Set(newLocation)
 	}
 
-	// Fallback for non-WASM builds
-	// Create a new Location with the given path
-	newLocation := Location{
-		Pathname: path,
-		Search:   "", // You might want to handle search and hash later
-		Hash:     "",
-		State:    options.State,
+	// Notify after navigation
+	if r.OnAfterNavigate != nil {
+		r.OnAfterNavigate(path, options)
 	}
-	// Update the location state
-	r.locationState.Set(newLocation)
 }
