@@ -5,14 +5,14 @@ package main
 import (
 	"fmt"
 	"strconv"
-	"syscall/js"
 	"time"
 
+	"github.com/ozanturksever/uiwgo/bridge"
 	"github.com/ozanturksever/uiwgo/comps"
 	"github.com/ozanturksever/uiwgo/dom"
 	"github.com/ozanturksever/uiwgo/logutil"
 	"github.com/ozanturksever/uiwgo/reactivity"
-	domv2 "honnef.co/go/js/dom/v2"
+	"github.com/ozanturksever/uiwgo/wasm"
 	"maragu.dev/gomponents"
 	"maragu.dev/gomponents/html"
 )
@@ -30,6 +30,15 @@ import (
 //}
 
 func main() {
+	// Initialize WASM and bridge
+	if err := wasm.QuickInit(); err != nil {
+		logutil.Logf("Failed to initialize WASM: %v", err)
+		return
+	}
+	
+	// Initialize the bridge manager
+	bridge.InitializeManager(bridge.NewRealManager())
+	
 	runApp()
 
 	select {}
@@ -295,7 +304,12 @@ var dynamicCounters = make(map[string]reactivity.Signal[int])
 var dynamicCounterID = 0
 
 func enhanceWithDOMv2(counter reactivity.Signal[int], name reactivity.Signal[string], isVisible reactivity.Signal[bool], todos reactivity.Signal[[]string], newTodo reactivity.Signal[string], items reactivity.Signal[[]string], selectedTab reactivity.Signal[string], currentComponent reactivity.Signal[func() gomponents.Node]) {
-	doc := domv2.GetWindow().Document()
+	manager := bridge.GetManager()
+	if manager == nil {
+		logutil.Log("Bridge manager not initialized")
+		return
+	}
+	doc := manager.DOM().Document()
 
 	// Counter button events
 	if incrementBtn := doc.GetElementByID("increment-btn"); incrementBtn != nil {
