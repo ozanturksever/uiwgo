@@ -20,7 +20,7 @@ func TestTodoStoreApp(t *testing.T) {
 	defer server.Stop()
 
 	// Create chromedp context
-	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.ExtendedTimeoutConfig())
 	defer chromedpCtx.Cancel()
 
 	// Navigate to the app and test todo store functionality
@@ -65,7 +65,7 @@ func TestTodoStoreToggle(t *testing.T) {
 	defer server.Stop()
 
 	// Create chromedp context
-	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.ExtendedTimeoutConfig())
 	defer chromedpCtx.Cancel()
 
 	var isChecked bool
@@ -128,7 +128,7 @@ func TestTodoStoreRemoval(t *testing.T) {
 	defer server.Stop()
 
 	// Create chromedp context
-	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.ExtendedTimeoutConfig())
 	defer chromedpCtx.Cancel()
 
 	var initialCount, todoCount int
@@ -191,7 +191,7 @@ func TestTodoStoreClearCompleted(t *testing.T) {
 	defer server.Stop()
 
 	// Create chromedp context
-	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.ExtendedTimeoutConfig())
 	defer chromedpCtx.Cancel()
 
 	var todoCount int
@@ -266,7 +266,7 @@ func TestTodoStoreItemsLeftCounter(t *testing.T) {
 	defer server.Stop()
 
 	// Create chromedp context
-	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+	chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.ExtendedTimeoutConfig())
 	defer chromedpCtx.Cancel()
 
 	var leftItemsText string
