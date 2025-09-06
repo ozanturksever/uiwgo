@@ -22,6 +22,8 @@ github.com/orisano/pixelmatch v0.0.0-20220722002657-fb0b55479cde h1:x0TT0RDC7UhA
 github.com/orisano/pixelmatch v0.0.0-20220722002657-fb0b55479cde/go.mod h1:nZgzbfBr3hhjoZnS66nKrHmduYNpc34ny7RK4z5/HM0=
 github.com/ozanturksever/gowrapper v0.0.0-20250829064451-e849924a02ca h1:ib49QH7OoEDwo6sH/ehHxLa1bKsKdEc62Z7k8Aji6v8=
 github.com/ozanturksever/gowrapper v0.0.0-20250829064451-e849924a02ca/go.mod h1:ya1+DSLfGcWMLmq6SuLP+3sp0kYiTpHJ06GcE/jKD5w=
+github.com/ozanturksever/logutil v0.0.0-20250905112439-334573e6fad1 h1:mbuoSxlWUkIKObLPMpSBQzeSvggRzMDU4Nn075m+IHk=
+github.com/ozanturksever/logutil v0.0.0-20250905112439-334573e6fad1/go.mod h1:EJREzXH8arE4AJ1kbrz4uf5RIEoGJAiXeOZzav7YaC0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.11.0 h1:ib4sjIrwZKxE5u/Japgo/7SJV3PvgjGiRNAvTVGqQl8=

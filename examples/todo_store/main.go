@@ -5,12 +5,13 @@ package main
 import (
 	"fmt"
 	"strings"
+	"syscall/js"
 
-	"github.com/ozanturksever/uiwgo/bridge"
+	"github.com/ozanturksever/logutil"
 	comps "github.com/ozanturksever/uiwgo/comps"
-	"github.com/ozanturksever/uiwgo/logutil"
 	reactivity "github.com/ozanturksever/uiwgo/reactivity"
 	"github.com/ozanturksever/uiwgo/wasm"
+	"honnef.co/go/js/dom/v2"
 
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
@@ -32,10 +33,7 @@ func main() {
 		logutil.Logf("Failed to initialize WASM: %v", err)
 		return
 	}
-	
-	// Initialize the bridge manager
-	bridge.InitializeManager(bridge.NewRealManager())
-	
+
 	// Mount the app and get a disposer function
 	disposer := comps.Mount("app", func() Node { return TodoStoreApp() })
 	_ = disposer // We don't use it in this example since the app runs indefinitely
@@ -49,17 +47,28 @@ func TodoStoreApp() Node {
 	store, setState := reactivity.CreateStore(AppState{Todos: []TodoItem{}})
 	nextID := 1
 
-	// Expose JS handlers using bridge
-	manager := bridge.GetManager()
-	if manager == nil {
-		logutil.Log("Bridge manager not initialized")
-		return Div(Text("Error: Bridge not initialized"))
+	// Expose JS handlers using honnef DOM + syscall/js
+	w := dom.GetWindow()
+	if w == nil {
+		logutil.Log("window not available")
+		return Div(Text("Error: window not available"))
 	}
-	
-	global := manager.JS().Global()
-	addFn := manager.JS().FuncOf(func(this bridge.JSValue, args []bridge.JSValue) interface{} {
-		doc := global.Get("document")
-		v := strings.TrimSpace(doc.Call("getElementById", "new-todo-input").Get("value").String())
+	doc := w.Document()
+	if doc == nil {
+		logutil.Log("document not available")
+		return Div(Text("Error: document not available"))
+	}
+
+	addFn := js.FuncOf(func(this js.Value, args []js.Value) any {
+		el := doc.GetElementByID("new-todo-input")
+		if el == nil {
+			return nil
+		}
+		input, ok := el.(*dom.HTMLInputElement)
+		if !ok {
+			return nil
+		}
+		v := strings.TrimSpace(input.Value())
 		if v == "" {
 			return nil
 		}
@@ -72,10 +81,10 @@ func TodoStoreApp() Node {
 		nextID++
 		setState("Todos", list)
 		// clear
-		doc.Call("getElementById", "new-todo-input").Set("value", "")
+		input.SetValue("")
 		return nil
 	})
-	toggleFn := manager.JS().FuncOf(func(this bridge.JSValue, args []bridge.JSValue) interface{} {
+	toggleFn := js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) == 0 {
 			return nil
 		}
@@ -84,7 +93,7 @@ func TodoStoreApp() Node {
 		setState("Todos", idx, "Completed", !completed)
 		return nil
 	})
-	removeFn := manager.JS().FuncOf(func(this bridge.JSValue, args []bridge.JSValue) interface{} {
+	removeFn := js.FuncOf(func(this js.Value, args []js.Value) any {
 		if len(args) == 0 {
 			return nil
 		}
@@ -98,7 +107,7 @@ func TodoStoreApp() Node {
 		setState("Todos", list)
 		return nil
 	})
-	clearCompletedFn := manager.JS().FuncOf(func(this bridge.JSValue, args []bridge.JSValue) interface{} {
+	clearCompletedFn := js.FuncOf(func(this js.Value, args []js.Value) any {
 		cur := store.Get().Todos
 		list := make([]TodoItem, 0, len(cur))
 		for _, t := range cur {
@@ -109,10 +118,10 @@ func TodoStoreApp() Node {
 		setState("Todos", list)
 		return nil
 	})
-	global.Set("addTodo", addFn)
-	global.Set("toggleTodo", toggleFn)
-	global.Set("removeTodo", removeFn)
-	global.Set("clearCompleted", clearCompletedFn)
+	js.Global().Set("addTodo", addFn)
+	js.Global().Set("toggleTodo", toggleFn)
+	js.Global().Set("removeTodo", removeFn)
+	js.Global().Set("clearCompleted", clearCompletedFn)
 
 	remaining := reactivity.CreateMemo(func() int {
 		cnt := 0

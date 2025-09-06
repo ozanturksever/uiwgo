@@ -7,11 +7,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ozanturksever/logutil"
 	"github.com/ozanturksever/uiwgo/appmanager"
-	"github.com/ozanturksever/uiwgo/bridge"
 	"github.com/ozanturksever/uiwgo/comps"
 	"github.com/ozanturksever/uiwgo/dom"
-	"github.com/ozanturksever/uiwgo/logutil"
 	"github.com/ozanturksever/uiwgo/reactivity"
 	"github.com/ozanturksever/uiwgo/router"
 	"github.com/ozanturksever/uiwgo/wasm"
@@ -25,8 +24,7 @@ func main() {
 		logutil.Logf("Failed to initialize WASM: %v", err)
 		return
 	}
-	bridge.InitializeManager(bridge.NewRealManager())
-
+	
 	// Build AppManager config
 	cfg := &appmanager.AppConfig{
 		AppID:             "appmanager-demo",

@@ -3,10 +3,10 @@
 package router
 
 import (
-	"syscall/js"
 	"strings"
+	"syscall/js"
 
-	"github.com/ozanturksever/uiwgo/logutil"
+	"github.com/ozanturksever/logutil"
 	dom "honnef.co/go/js/dom/v2"
 )
 

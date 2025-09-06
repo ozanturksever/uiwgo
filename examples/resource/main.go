@@ -5,11 +5,11 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"syscall/js"
 	"time"
 
-	"github.com/ozanturksever/uiwgo/bridge"
+	"github.com/ozanturksever/logutil"
 	comps "github.com/ozanturksever/uiwgo/comps"
-	"github.com/ozanturksever/uiwgo/logutil"
 	reactivity "github.com/ozanturksever/uiwgo/reactivity"
 	"github.com/ozanturksever/uiwgo/wasm"
 
@@ -24,20 +24,17 @@ type User struct {
 
 func main() {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
-	
+
 	// Initialize WASM and bridge
 	if err := wasm.QuickInit(); err != nil {
 		logutil.Logf("Failed to initialize WASM: %v", err)
 		return
 	}
-	
-	// Initialize the bridge manager
-	bridge.InitializeManager(bridge.NewRealManager())
-	
+
 	// Mount the app and get a disposer function
 	disposer := comps.Mount("app", func() Node { return UserProfileApp() })
 	_ = disposer // We don't use it in this example since the app runs indefinitely
-	
+
 	// Prevent exit
 	select {}
 }
@@ -48,17 +45,13 @@ func UserProfileApp() Node {
 	// Resource: fetch user by id (simulated API with delay and possible error)
 	userRes := reactivity.CreateResource(userID, fetchUser)
 
-	// Expose actions for buttons using bridge
-	manager := bridge.GetManager()
-	if manager != nil {
-		global := manager.JS().Global()
-		setUser1 := manager.JS().FuncOf(func(this bridge.JSValue, args []bridge.JSValue) interface{} { userID.Set(1); return nil })
-		setUser2 := manager.JS().FuncOf(func(this bridge.JSValue, args []bridge.JSValue) interface{} { userID.Set(2); return nil })
-		randomUser := manager.JS().FuncOf(func(this bridge.JSValue, args []bridge.JSValue) interface{} { userID.Set(1 + rand.Intn(3)); return nil })
-		global.Set("setUser1", setUser1)
-		global.Set("setUser2", setUser2)
-		global.Set("randomUser", randomUser)
-	}
+	global := js.Global()
+	setUser1 := js.FuncOf(func(this js.Value, args []js.Value) interface{} { userID.Set(1); return nil })
+	setUser2 := js.FuncOf(func(this js.Value, args []js.Value) interface{} { userID.Set(2); return nil })
+	randomUser := js.FuncOf(func(this js.Value, args []js.Value) interface{} { userID.Set(1 + rand.Intn(3)); return nil })
+	global.Set("setUser1", setUser1)
+	global.Set("setUser2", setUser2)
+	global.Set("randomUser", randomUser)
 
 	return Div(
 		Style("font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; padding: 20px; background-color: #f5f5f5; min-height: 100vh;"),

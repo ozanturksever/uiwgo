@@ -7,8 +7,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/ozanturksever/logutil"
 	"honnef.co/go/js/dom/v2"
-	"github.com/ozanturksever/uiwgo/logutil"
 )
 
 var (
@@ -18,7 +18,7 @@ var (
 	ErrDOMNotReady = errors.New("DOM not ready")
 	// ErrReadyCheckFailed is returned when custom ready check fails
 	ErrReadyCheckFailed = errors.New("ready check failed")
-	
+
 	// initOnce ensures initialization only happens once
 	initialized bool
 )
@@ -62,17 +62,17 @@ func QuickConfig() InitConfig {
 // Initialize waits for DOM readiness and optional custom checks
 func Initialize(cfg InitConfig) error {
 	logutil.Logf("Starting WASM initialization with timeout %v", cfg.Timeout)
-	
+
 	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
 	defer cancel()
-	
+
 	// Step 1: Wait for DOM ready
 	if err := waitForDOMReady(ctx); err != nil {
 		return err
 	}
 	logutil.Log("DOM is ready")
-	
+
 	// Step 2: Wait for optional selector visibility
 	if cfg.ReadySelector != "" {
 		if err := waitForSelector(ctx, cfg.ReadySelector, cfg.RetryCount, cfg.RetryInterval); err != nil {
@@ -80,7 +80,7 @@ func Initialize(cfg InitConfig) error {
 		}
 		logutil.Logf("Selector %s is visible", cfg.ReadySelector)
 	}
-	
+
 	// Step 3: Wait for optional custom ready check
 	if cfg.ReadyCheck != nil {
 		if err := waitForReadyCheck(ctx, cfg.ReadyCheck, cfg.RetryCount, cfg.RetryInterval); err != nil {
@@ -88,7 +88,7 @@ func Initialize(cfg InitConfig) error {
 		}
 		logutil.Log("Custom ready check passed")
 	}
-	
+
 	initialized = true
 	logutil.Log("WASM initialization completed successfully")
 	return nil
@@ -104,12 +104,12 @@ func InitAndThen(then func() error, cfg InitConfig) error {
 	if err := Initialize(cfg); err != nil {
 		return err
 	}
-	
+
 	if then != nil {
 		logutil.Log("Running post-initialization callback")
 		return then()
 	}
-	
+
 	return nil
 }
 
@@ -127,16 +127,16 @@ func ResetInitialized() {
 func waitForDOMReady(ctx context.Context) error {
 	window := dom.GetWindow()
 	document := window.Document()
-	
+
 	// If document is available, consider DOM ready enough for our initialization
 	if document != nil {
 		return nil
 	}
-	
+
 	// Fallback: wait for DOMContentLoaded or load event
 	ready := make(chan bool, 1)
 	errorCh := make(chan error, 1)
-	
+
 	// Listen for DOMContentLoaded
 	document.AddEventListener("DOMContentLoaded", false, func(event dom.Event) {
 		select {
@@ -144,7 +144,7 @@ func waitForDOMReady(ctx context.Context) error {
 		default:
 		}
 	})
-	
+
 	// Also listen for load event as fallback
 	window.AddEventListener("load", false, func(event dom.Event) {
 		select {
@@ -152,7 +152,7 @@ func waitForDOMReady(ctx context.Context) error {
 		default:
 		}
 	})
-	
+
 	// Wait for either ready signal or timeout
 	select {
 	case <-ready:
@@ -168,7 +168,7 @@ func waitForDOMReady(ctx context.Context) error {
 func waitForSelector(ctx context.Context, selector string, retryCount int, retryInterval time.Duration) error {
 	window := dom.GetWindow()
 	document := window.Document()
-	
+
 	for i := 0; i < retryCount; i++ {
 		// Check if context is cancelled
 		select {
@@ -176,17 +176,17 @@ func waitForSelector(ctx context.Context, selector string, retryCount int, retry
 			return ErrTimeout
 		default:
 		}
-		
+
 		// Try to find the element
 		element := document.QuerySelector(selector)
 		if element != nil {
 			return nil
 		}
-		
+
 		// Wait before retry
 		time.Sleep(retryInterval)
 	}
-	
+
 	return errors.New("selector not found or not visible: " + selector)
 }
 
@@ -199,16 +199,16 @@ func waitForReadyCheck(ctx context.Context, readyCheck func() bool, retryCount i
 			return ErrTimeout
 		default:
 		}
-		
+
 		// Run the ready check
 		if readyCheck() {
 			return nil
 		}
-		
+
 		// Wait before retry
 		time.Sleep(retryInterval)
 	}
-	
+
 	return ErrReadyCheckFailed
 }
 
@@ -216,7 +216,7 @@ func waitForReadyCheck(ctx context.Context, readyCheck func() bool, retryCount i
 func WaitForElement(selector string, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	
+
 	return waitForSelector(ctx, selector, 50, 100*time.Millisecond)
 }
 
@@ -224,6 +224,6 @@ func WaitForElement(selector string, timeout time.Duration) error {
 func WaitForFunction(fn func() bool, timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	
+
 	return waitForReadyCheck(ctx, fn, 50, 100*time.Millisecond)
 }

@@ -3,10 +3,10 @@
 package main
 
 import (
-	"github.com/ozanturksever/uiwgo/bridge"
-	"github.com/ozanturksever/uiwgo/logutil"
+	"github.com/ozanturksever/logutil"
 	"github.com/ozanturksever/uiwgo/router"
 	"github.com/ozanturksever/uiwgo/wasm"
+	"honnef.co/go/js/dom/v2"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
@@ -90,7 +90,7 @@ func UsersListComponent(props ...any) interface{} {
 func UserProfileComponent(props ...any) interface{} {
 	params := appRouter.Params()
 	userID := params["id"]
-	
+
 	return Div(
 		Class("p-6 max-w-4xl mx-auto"),
 		H1(Class("text-3xl font-bold mb-6"), Text("User Profile")),
@@ -112,14 +112,14 @@ func UserExtendedProfileComponent(props ...any) interface{} {
 	params := appRouter.Params()
 	userID := params["id"]
 	section := params["section"] // This could be empty for optional segments
-	
+
 	var sectionContent Node
 	if section == "" {
 		sectionContent = P(Class("mb-4"), Text("Default profile view for user "), Strong(Text(userID)), Text("."))
 	} else {
 		sectionContent = P(Class("mb-4"), Text("Showing "), Strong(Text(section)), Text(" section for user "), Strong(Text(userID)), Text("."))
 	}
-	
+
 	return Div(
 		Class("p-6 max-w-4xl mx-auto"),
 		H1(Class("text-3xl font-bold mb-6"), Text("Extended User Profile")),
@@ -146,7 +146,7 @@ func UserExtendedProfileComponent(props ...any) interface{} {
 func FileBrowserComponent(props ...any) interface{} {
 	params := appRouter.Params()
 	filepath := params["filepath"]
-	
+
 	return Div(
 		Class("p-6 max-w-4xl mx-auto"),
 		H1(Class("text-3xl font-bold mb-6"), Text("File Browser")),
@@ -185,7 +185,7 @@ func AdminLayoutComponent(props ...any) interface{} {
 			P(Text("Select an option from the navigation above.")),
 		)
 	}
-	
+
 	return Div(
 		Class("p-6 max-w-4xl mx-auto"),
 		H1(Class("text-3xl font-bold mb-6"), Text("Admin Panel")),
@@ -268,51 +268,49 @@ func NotFoundComponent(props ...any) interface{} {
 
 func main() {
 	logutil.Log("Starting main function")
-	
+
 	// Initialize WASM and bridge
 	if err := wasm.QuickInit(); err != nil {
 		logutil.Logf("Failed to initialize WASM: %v", err)
 		return
 	}
-	
-	// Initialize the bridge manager
-	bridge.InitializeManager(bridge.NewRealManager())
-	
+
+
 	// Define comprehensive routes showcasing all router features
 	routes := []*router.RouteDefinition{
 		// Static routes
 		router.Route("/", HomeComponent),
 		router.Route("/about", AboutComponent),
 		router.Route("/users", UsersListComponent),
-		
+
 		// Dynamic routes with parameters
 		router.Route("/users/:id", UserProfileComponent),
-		
+
 		// Optional parameters
 		router.Route("/users/:id/profile/:section?", UserExtendedProfileComponent),
-		
+
 		// Wildcard routes
 		router.Route("/files/*filepath", FileBrowserComponent),
-		
+
 		// Nested routes - proper nested structure
 		router.Route("/admin", AdminLayoutComponent,
 			// Child routes for admin section
-			router.Route("/", AdminDashboardComponent), // matches /admin exactly
+			router.Route("/", AdminDashboardComponent),        // matches /admin exactly
 			router.Route("/settings", AdminSettingsComponent), // matches /admin/settings
 		),
-		
+
 		// Catch-all route for 404
 		router.Route("/*", NotFoundComponent),
 	}
 
 	// Get the app element to use as outlet
-	outlet, err := bridge.GetElementByID("app")
-	if err != nil || outlet == nil {
+	outlet := dom.GetWindow().Document().GetElementByID("app")
+	if outlet == nil {
 		panic("Could not find #app element")
 	}
 
 	// Create router with the outlet element
-	appRouter = router.New(routes, outlet.Raw())
+	appRouter = router.New(routes, outlet)
 	logutil.Log("Router created successfully")
 
 	// Keep the program running

@@ -1,7 +1,7 @@
 package router
 
 import (
-	"github.com/ozanturksever/uiwgo/logutil"
+	"github.com/ozanturksever/logutil"
 	"strings"
 )
 
@@ -60,11 +60,11 @@ func New(routes []*RouteDefinition, outlet any) *Router {
 // If no route matches, it returns (nil, nil).
 func (r *Router) Match(path string) (*RouteDefinition, map[string]string) {
 	matchedRoute, params := r.matchRecursive(path, r.routes, make(map[string]string))
-	
+
 	// Store the matched route and parameters for later access via Params()
 	r.currentRoute = matchedRoute
 	r.currentParams = params
-	
+
 	return matchedRoute, params
 }
 
@@ -89,34 +89,34 @@ func (r *Router) matchRecursive(path string, routes []*RouteDefinition, accumula
 			for k, v := range params {
 				mergedParams[k] = v
 			}
-			
+
 			// Calculate remaining path after this route match
 			remainingPath := calculateRemainingPath(path, route.Path, params)
-			
+
 			// Always check children first, even if remaining path is empty
 			// This allows child routes with path "/" to match empty remaining paths
 			if len(route.Children) > 0 {
-			logutil.Logf("Checking children for route: %s with remaining: %s", route.Path, remainingPath)
-			childRoute, childParams := r.matchRecursive(remainingPath, route.Children, mergedParams)
-			if childRoute != nil {
-				logutil.Logf("Found child match for %s, returning %s", route.Path, childRoute.Path)
-				// Found a matching child, return it
-				return childRoute, childParams
+				logutil.Logf("Checking children for route: %s with remaining: %s", route.Path, remainingPath)
+				childRoute, childParams := r.matchRecursive(remainingPath, route.Children, mergedParams)
+				if childRoute != nil {
+					logutil.Logf("Found child match for %s, returning %s", route.Path, childRoute.Path)
+					// Found a matching child, return it
+					return childRoute, childParams
+				}
+				logutil.Logf("No child match for %s", route.Path)
 			}
-			logutil.Logf("No child match for %s", route.Path)
-		}
-			
+
 			// If no children matched and remaining path is empty, this route is the match
 			if remainingPath == "" {
-			logutil.Logf("Exact match for route: %s", route.Path)
-			return route, mergedParams
-		}
-			
+				logutil.Logf("Exact match for route: %s", route.Path)
+				return route, mergedParams
+			}
+
 			// There's remaining path but no matching children - this is not a valid match
 			// Continue to try other routes at this level
 		}
 	}
-	
+
 	logutil.Log("No match found at this level")
 	// No match found at this level
 	return nil, nil
@@ -132,7 +132,7 @@ func calculateRemainingPath(originalPath, routePath string, params map[string]st
 	// Split paths into segments
 	originalSegments := splitPath(originalPath)
 	routeSegments := splitPath(routePath)
-	
+
 	// Check if the route has a wildcard segment (starts with *)
 	for _, segment := range routeSegments {
 		if strings.HasPrefix(segment, "*") {
@@ -140,20 +140,20 @@ func calculateRemainingPath(originalPath, routePath string, params map[string]st
 			return ""
 		}
 	}
-	
+
 	// If route has more segments than original path, no remaining path
 	if len(routeSegments) >= len(originalSegments) {
 		return ""
 	}
-	
+
 	// Calculate remaining segments
 	remainingSegments := originalSegments[len(routeSegments):]
-	
+
 	// Join remaining segments back into a path
 	if len(remainingSegments) == 0 {
 		return ""
 	}
-	
+
 	remainingPath := "/" + joinSegments(remainingSegments)
 	return remainingPath
 }
@@ -163,12 +163,12 @@ func splitPath(path string) []string {
 	if path == "/" || path == "" {
 		return []string{}
 	}
-	
+
 	// Remove leading slash and split
 	if path[0] == '/' {
 		path = path[1:]
 	}
-	
+
 	segments := []string{}
 	for _, segment := range strings.Split(path, "/") {
 		if segment != "" {

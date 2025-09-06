@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"syscall/js"
 
-	"github.com/ozanturksever/uiwgo/logutil"
+	"github.com/ozanturksever/logutil"
 	dom "honnef.co/go/js/dom/v2"
 	. "maragu.dev/gomponents"
 )
@@ -38,7 +38,7 @@ func setupWASM(router *Router) {
 
 // exposeRouterToJS sets up a global JavaScript variable to access the router's location and navigation for testing.
 func exposeRouterToJS(router *Router) {
-	logutil.Log("Exposing router to JS");
+	logutil.Log("Exposing router to JS")
 	// Create a JavaScript object to represent the router
 	js.Global().Set("__router", map[string]interface{}{
 		"location": map[string]interface{}{
@@ -54,10 +54,10 @@ func exposeRouterToJS(router *Router) {
 			path := args[0].String()
 			router.Navigate(path, NavigateOptions{})
 			return js.ValueOf(nil)
-			}),
-		})
-		logutil.Log("__router set with location and Navigate");
-	}
+		}),
+	})
+	logutil.Log("__router set with location and Navigate")
+}
 
 // renderLocation renders the appropriate component for the given location.
 // This implements the destructive-and-replace rendering strategy as specified in the design.
@@ -154,7 +154,7 @@ func buildComponentHierarchy(router *Router, originalPath string, matchedRoute *
 	for i := len(routeHierarchy) - 2; i >= 0; i-- {
 		parentRoute := routeHierarchy[i]
 		logutil.Logf("Composing parent component for route: %s", parentRoute.Path)
-		
+
 		// Call parent component with child node as first argument
 		parentResult := parentRoute.Component(currentNode, params)
 		if parentResult == nil {

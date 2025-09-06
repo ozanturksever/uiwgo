@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/ozanturksever/uiwgo/logutil"
+	"github.com/ozanturksever/logutil"
 )
 
 var (

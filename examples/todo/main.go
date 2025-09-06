@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ozanturksever/logutil"
 	comps "github.com/ozanturksever/uiwgo/comps"
 	dom "github.com/ozanturksever/uiwgo/dom"
-	"github.com/ozanturksever/uiwgo/logutil"
 	reactivity "github.com/ozanturksever/uiwgo/reactivity"
 	domv2 "honnef.co/go/js/dom/v2"
 

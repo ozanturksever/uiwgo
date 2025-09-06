@@ -3,10 +3,10 @@
 package main
 
 import (
-	"github.com/ozanturksever/uiwgo/bridge"
-	"github.com/ozanturksever/uiwgo/logutil"
+	"github.com/ozanturksever/logutil"
 	"github.com/ozanturksever/uiwgo/router"
 	"github.com/ozanturksever/uiwgo/wasm"
+	"honnef.co/go/js/dom/v2"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
@@ -17,10 +17,7 @@ func main() {
 		logutil.Logf("Failed to initialize WASM: %v", err)
 		return
 	}
-	
-	// Initialize the bridge manager
-	bridge.InitializeManager(bridge.NewRealManager())
-	
+
 	// Define simple routes for testing
 	routes := []*router.RouteDefinition{
 		router.Route("/", func(props ...any) interface{} {
@@ -32,7 +29,7 @@ func main() {
 	}
 
 	// Get the app element to use as outlet
-	outlet := bridge.GetElementByID("app")
+	outlet := dom.GetWindow().Document().GetElementByID("app")
 	if outlet == nil {
 		logutil.Log("Could not find #app element")
 		return

@@ -5,14 +5,15 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"syscall/js"
 	"time"
 
-	"github.com/ozanturksever/uiwgo/bridge"
+	"github.com/ozanturksever/logutil"
 	"github.com/ozanturksever/uiwgo/comps"
 	"github.com/ozanturksever/uiwgo/dom"
-	"github.com/ozanturksever/uiwgo/logutil"
 	"github.com/ozanturksever/uiwgo/reactivity"
 	"github.com/ozanturksever/uiwgo/wasm"
+	domv2 "honnef.co/go/js/dom/v2"
 	"maragu.dev/gomponents"
 	"maragu.dev/gomponents/html"
 )
@@ -35,10 +36,7 @@ func main() {
 		logutil.Logf("Failed to initialize WASM: %v", err)
 		return
 	}
-	
-	// Initialize the bridge manager
-	bridge.InitializeManager(bridge.NewRealManager())
-	
+
 	runApp()
 
 	select {}
@@ -189,10 +187,10 @@ func runApp() {
 						html.Class("list-item"),
 						html.Span(gomponents.Text(fmt.Sprintf("%d: %s", index, item))),
 						html.Button(
-						html.Class("remove-item"),
-						html.DataAttr("item", item),
-						gomponents.Text("Remove"),
-					),
+							html.Class("remove-item"),
+							html.DataAttr("item", item),
+							gomponents.Text("Remove"),
+						),
 					)
 				},
 			}),
@@ -304,12 +302,7 @@ var dynamicCounters = make(map[string]reactivity.Signal[int])
 var dynamicCounterID = 0
 
 func enhanceWithDOMv2(counter reactivity.Signal[int], name reactivity.Signal[string], isVisible reactivity.Signal[bool], todos reactivity.Signal[[]string], newTodo reactivity.Signal[string], items reactivity.Signal[[]string], selectedTab reactivity.Signal[string], currentComponent reactivity.Signal[func() gomponents.Node]) {
-	manager := bridge.GetManager()
-	if manager == nil {
-		logutil.Log("Bridge manager not initialized")
-		return
-	}
-	doc := manager.DOM().Document()
+	doc := domv2.GetWindow().Document()
 
 	// Counter button events
 	if incrementBtn := doc.GetElementByID("increment-btn"); incrementBtn != nil {
@@ -404,7 +397,7 @@ func enhanceWithDOMv2(counter reactivity.Signal[int], name reactivity.Signal[str
 
 	// Remove item button delegation for For component
 	logutil.Log("Setting up remove item event delegation")
-	
+
 	// Add a timeout to check if buttons exist
 	go func() {
 		time.Sleep(1 * time.Second)
@@ -414,11 +407,10 @@ func enhanceWithDOMv2(counter reactivity.Signal[int], name reactivity.Signal[str
 			logutil.Logf("Button %d: class=%s, data-item=%s", i, btn.GetAttribute("class"), btn.GetAttribute("data-item"))
 		}
 	}()
-	
+
 	if body := doc.QuerySelector("body"); body != nil {
 		dom.DelegateEvent(body, "click", ".remove-item", func(event domv2.Event, target domv2.Element) {
-			
-			
+
 			if itemToRemove := target.GetAttribute("data-item"); itemToRemove != "" {
 				currentItems := items.Get()
 				updatedItems := make([]string, 0, len(currentItems))
@@ -427,7 +419,7 @@ func enhanceWithDOMv2(counter reactivity.Signal[int], name reactivity.Signal[str
 						updatedItems = append(updatedItems, item)
 					}
 				}
-	
+
 				items.Set(updatedItems)
 			}
 		})

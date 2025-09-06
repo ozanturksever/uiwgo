@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ozanturksever/uiwgo/logutil"
+	"github.com/ozanturksever/logutil"
 )
 
 // AssetResolver handles asset path resolution for Vite dev/prod environments
@@ -77,37 +77,37 @@ func (ar *AssetResolver) LoadManifest() error {
 		logutil.Log("Skipping manifest load in dev mode")
 		return nil
 	}
-	
+
 	if ar.manifestURL == "" {
 		return fmt.Errorf("manifest URL not configured")
 	}
-	
+
 	logutil.Logf("Loading manifest from %s", ar.manifestURL)
-	
+
 	resp, err := http.Get(ar.manifestURL)
 	if err != nil {
 		return fmt.Errorf("failed to fetch manifest: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("manifest request failed with status %d", resp.StatusCode)
 	}
-	
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to read manifest body: %w", err)
 	}
-	
+
 	var manifest map[string]ManifestEntry
 	if err := json.Unmarshal(body, &manifest); err != nil {
 		return fmt.Errorf("failed to parse manifest JSON: %w", err)
 	}
-	
+
 	ar.mu.Lock()
 	ar.manifest = manifest
 	ar.mu.Unlock()
-	
+
 	logutil.Logf("Loaded manifest with %d entries", len(manifest))
 	return nil
 }
@@ -131,15 +131,15 @@ func (ar *AssetResolver) resolveDevAsset(assetPath string) string {
 func (ar *AssetResolver) resolveProdAsset(assetPath string) string {
 	ar.mu.RLock()
 	defer ar.mu.RUnlock()
-	
+
 	// Clean the asset path
 	cleanPath := strings.TrimPrefix(assetPath, "/")
-	
+
 	// Look up in manifest
 	if entry, exists := ar.manifest[cleanPath]; exists {
 		return ar.baseURL + "/" + entry.File
 	}
-	
+
 	// Fallback: try direct path
 	logutil.Logf("Asset not found in manifest, using direct path: %s", cleanPath)
 	return ar.baseURL + "/" + cleanPath
@@ -151,28 +151,28 @@ func (ar *AssetResolver) GetEntryAssets(entryPath string) []string {
 		// In dev mode, just return the entry itself
 		return []string{ar.resolveDevAsset(entryPath)}
 	}
-	
+
 	ar.mu.RLock()
 	defer ar.mu.RUnlock()
-	
+
 	cleanPath := strings.TrimPrefix(entryPath, "/")
 	entry, exists := ar.manifest[cleanPath]
 	if !exists {
 		return []string{ar.resolveProdAsset(entryPath)}
 	}
-	
+
 	assets := []string{ar.baseURL + "/" + entry.File}
-	
+
 	// Add CSS files
 	for _, css := range entry.CSS {
 		assets = append(assets, ar.baseURL+"/"+css)
 	}
-	
+
 	// Add other assets
 	for _, asset := range entry.Assets {
 		assets = append(assets, ar.baseURL+"/"+asset)
 	}
-	
+
 	return assets
 }
 
@@ -182,21 +182,21 @@ func (ar *AssetResolver) GetCSSAssets(entryPath string) []string {
 		// In dev mode, CSS is typically injected by Vite
 		return []string{}
 	}
-	
+
 	ar.mu.RLock()
 	defer ar.mu.RUnlock()
-	
+
 	cleanPath := strings.TrimPrefix(entryPath, "/")
 	entry, exists := ar.manifest[cleanPath]
 	if !exists {
 		return []string{}
 	}
-	
+
 	var cssAssets []string
 	for _, css := range entry.CSS {
 		cssAssets = append(cssAssets, ar.baseURL+"/"+css)
 	}
-	
+
 	return cssAssets
 }
 

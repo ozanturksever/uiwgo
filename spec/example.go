@@ -4,8 +4,8 @@ package spec
 
 import (
 	"fmt"
+	"github.com/ozanturksever/logutil"
 	comps "github.com/ozanturksever/uiwgo/comps"
-	"github.com/ozanturksever/uiwgo/logutil"
 	reactivity "github.com/ozanturksever/uiwgo/reactivity"
 
 	. "maragu.dev/gomponents"

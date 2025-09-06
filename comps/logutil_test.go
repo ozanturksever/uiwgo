@@ -6,7 +6,7 @@ import (
 	"syscall/js"
 	"testing"
 
-	"github.com/ozanturksever/uiwgo/logutil"
+	"github.com/ozanturksever/logutil"
 )
 
 type fakeWrapper struct{}

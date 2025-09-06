@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ozanturksever/uiwgo/logutil"
+	"github.com/ozanturksever/logutil"
 )
 
 // ViteServer represents a Vite development server for testing
