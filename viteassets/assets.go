@@ -11,6 +11,9 @@ import (
 	"github.com/ozanturksever/logutil"
 )
 
+// httpGet is a package-level hook to allow overriding HTTP fetch in tests (e.g., js/wasm)
+var httpGet = http.Get
+
 // AssetResolver handles asset path resolution for Vite dev/prod environments
 type AssetResolver struct {
 	mu          sync.RWMutex
@@ -84,7 +87,7 @@ func (ar *AssetResolver) LoadManifest() error {
 
 	logutil.Logf("Loading manifest from %s", ar.manifestURL)
 
-	resp, err := http.Get(ar.manifestURL)
+ resp, err := httpGet(ar.manifestURL)
 	if err != nil {
 		return fmt.Errorf("failed to fetch manifest: %w", err)
 	}

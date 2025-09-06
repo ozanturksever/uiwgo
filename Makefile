@@ -86,10 +86,12 @@ clean:
 # Test configuration for js/wasm
 # By default, auto-discover unit-testable packages under wasm (exclude examples and internal dev tooling)
 # You can still override: make test PKG="./mypkg ./other" or filter names with RUN
-PKG ?= $(shell go list ./... | grep -v '/examples/' | grep -v '/internal/' | tr '\n' ' ')
+PKG ?= $(shell GOOS=js GOARCH=wasm go list ./... | grep -v '/examples/' | grep -v '/internal/' | tr '\n' ' ')
 RUN ?=
 # Minimized environment avoids wasm_exec.js command line/env length limits
-TEST_ENV := env -i PATH="$(PATH)" HOME="$(HOME)" GOOS=js GOARCH=wasm
+GO_BIN := $(shell command -v go)
+GO_DIR := $(dir $(GO_BIN))
+TEST_ENV := env -i PATH="$(GO_DIR):/usr/bin:/bin" HOME="/tmp" GOOS=js GOARCH=wasm
 
 # Run tests under js/wasm
 # Usage examples:
@@ -99,7 +101,11 @@ TEST_ENV := env -i PATH="$(PATH)" HOME="$(HOME)" GOOS=js GOARCH=wasm
 #   make test PKG=./reactivity RUN=Signal
 test:
 	@echo "==> Running WASM tests for $(PKG) ..."
-	@set -e; trap '$(MAKE) clean' EXIT INT TERM; $(TEST_ENV) go test $(PKG) $(if $(RUN),-run $(RUN),)
+	@set -e; trap '$(MAKE) clean' EXIT INT TERM; \
+	for pkg in $(PKG); do \
+	  echo "==> Testing $$pkg"; \
+	  $(TEST_ENV) go test $$pkg $(if $(RUN),-run $(RUN),) || exit $$?; \
+	done
 
 # Generic browser test for a single example (accepts positional arg or EX variable)
 test-example:

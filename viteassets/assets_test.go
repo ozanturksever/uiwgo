@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"testing"
 )
 
@@ -118,6 +119,10 @@ func TestLoadManifestWithoutURL(t *testing.T) {
 
 // TestLoadManifestSuccess tests successful manifest loading
 func TestLoadManifestSuccess(t *testing.T) {
+	if runtime.GOOS == "js" || runtime.GOARCH == "wasm" {
+		// Networking with httptest servers is not supported/reliable under js/wasm
+		t.Skip("skipping network-dependent test under js/wasm")
+	}
 	// Create a test manifest
 	manifest := map[string]ManifestEntry{
 		"main.js": {
@@ -309,6 +314,10 @@ func TestInitDev(t *testing.T) {
 
 // TestInitProd tests the InitProd convenience function
 func TestInitProd(t *testing.T) {
+	if runtime.GOOS == "js" || runtime.GOARCH == "wasm" {
+		// Networking with httptest servers is not supported/reliable under js/wasm
+		t.Skip("skipping network-dependent test under js/wasm")
+	}
 	// Create a test manifest
 	manifest := map[string]ManifestEntry{
 		"main.js": {
