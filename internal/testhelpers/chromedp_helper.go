@@ -29,7 +29,7 @@ type ChromedpConfig struct {
 func DefaultConfig() ChromedpConfig {
 	return ChromedpConfig{
 		Headless:           true,
-		Timeout:            30 * time.Second,
+		Timeout:            5 * time.Second,
 		DisableGPU:         true,
 		NoSandbox:          true,
 		DisableDevShmUsage: true,
@@ -40,7 +40,7 @@ func DefaultConfig() ChromedpConfig {
 func VisibleConfig() ChromedpConfig {
 	return ChromedpConfig{
 		Headless:           false,
-		Timeout:            30 * time.Second,
+		Timeout:            5 * time.Second,
 		DisableGPU:         false,
 		NoSandbox:          true,
 		DisableDevShmUsage: true,
@@ -50,7 +50,7 @@ func VisibleConfig() ChromedpConfig {
 // ExtendedTimeoutConfig returns a configuration with longer timeout for complex tests
 func ExtendedTimeoutConfig() ChromedpConfig {
 	config := DefaultConfig()
-	config.Timeout = 60 * time.Second
+	config.Timeout = 5 * time.Second
 	return config
 }
 
@@ -126,7 +126,7 @@ func (CommonTestActions) NavigateAndWaitForLoad(url, waitSelector string) chrome
 	return chromedp.Tasks{
 		chromedp.Navigate(url),
 		chromedp.WaitVisible(waitSelector, chromedp.ByQuery),
-		chromedp.Sleep(1 * time.Second), // Basic WASM init time
+		chromedp.Sleep(500 * time.Millisecond), // Basic WASM init time
 	}
 }
 
