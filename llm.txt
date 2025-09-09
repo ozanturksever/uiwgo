@@ -261,6 +261,39 @@ h.Input(
 )
 ```
 
+#### Alpine-inspired inline helpers
+
+Alpine-inspired inline helpers return gomponents attributes for lifecycle and utility behaviors, and are auto-bound in the wasm runtime:
+
+- OnInitInline(fn): Run once shortly after element connects (microtask).
+- OnDestroyInline(fn): Run when element is removed from DOM (MutationObserver).
+- OnVisibleInline(fn): Fire once when element enters viewport (IntersectionObserver).
+- OnResizeInline(fn): React to element size changes (ResizeObserver).
+- OnClickOnceInline(fn): Click handler that runs only once and auto-unregisters.
+
+Examples:
+
+```go
+// Run once on connect (x-init style)
+g.Div(dom.OnInitInline(func(el dom.Element) { /* setup */ }))
+
+// Cleanup on removal
+g.Div(dom.OnDestroyInline(func(el dom.Element) { /* cleanup */ }))
+
+// Visibility-triggered init
+g.Div(dom.OnVisibleInline(func(el dom.Element) { /* lazy-load, animate */ }))
+
+// React to element resize
+g.Div(dom.OnResizeInline(func(el dom.Element) { /* size changed */ }))
+
+// Single-shot click
+g.Button(g.Text("Once"), dom.OnClickOnceInline(func(el dom.Element) { /* do once */ }))
+```
+
+Notes:
+- Prefer honnef.co/go/js/dom/v2 typed elements (re-exported as dom.Element).
+- Handlers are tied to cleanup scopes; the runtime cleans up observers/listeners.
+
 ## Component Patterns
 
 ### Functional Components
@@ -788,6 +821,53 @@ import "syscall/js"
 
 // Only when API unavailable in dom/v2
 js.Global().Call("someSpecialAPI", args...)
+```
+
+## React Compatibility Notes
+
+The compat/react bridge exposes a small API surface tailored for safe JS interop from Go.
+
+- Initialization
+  - Call InitializeBridge() before using Render/Update/Unmount/Register/Resolve.
+  - GetBridge() returns a bridge or ErrBridgeNotInitialized (sentinel) if not initialized.
+  - InitializeBridge can be called multiple times safely; it reinitializes the bridge if needed (useful in tests).
+- Sentinel errors for precise matching via errors.Is:
+  - ErrBridgeNotInitialized when the global bridge hasn’t been initialized.
+  - ErrComponentIDRequired, ErrComponentNameRequired, ErrPropsFuncRequired returned by Bind() for invalid args.
+- Props validation and conversion
+  - Render/Update validate props to reject unsupported values (e.g., channels, structs, maps with non-string keys).
+  - Allowed types include primitives, maps[string]any, slices/arrays, pointers (recursively validated), and js.Value/js.Func passthrough.
+  - Props are converted with MapToJSObject to native JS objects/arrays (no JSON marshalling), preserving js.Value and js.Func by reference.
+
+Example:
+```go
+package main
+
+import (
+    "errors"
+    "syscall/js"
+    react "github.com/ozanturksever/uiwgo/compat/react"
+)
+
+func main() {
+    // Ensure bridge is initialized
+    if _, err := react.GetBridge(); err != nil {
+        if errors.Is(err, react.ErrBridgeNotInitialized) {
+            _ = react.InitializeBridge()
+        }
+    }
+
+    // js.Func and js.Value are passed through to JS intact
+    cb := js.FuncOf(func(this js.Value, args []js.Value) any { return nil })
+    node := js.Global().Get("Object").New()
+
+    // Render with props validated and converted (no JSON marshalling)
+    _, _ = react.Render("Button", react.Props{
+        "label":   "Click",
+        "onClick": cb,   // js.Func preserved
+        "node":    node, // js.Value preserved
+    }, nil)
+}
 ```
 
 ## Development Workflow

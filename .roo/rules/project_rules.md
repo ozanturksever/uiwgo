@@ -28,6 +28,7 @@ Prerequisites
 - Port 8080 free for the dev server (use the provided kill command if needed).
 
 Quick Commands
+- After changing code in an example, run make build <example> (or make build EX=<example>) to quickly find compile-time errors.
 - Run dev server for an example:
   - make run                 # defaults to 'counter'
   - make run <example>       # e.g., make run todo
