@@ -6,6 +6,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
     "dev:counter": "vite -c examples/counter/vite.config.js",
     "dev:todo": "vite -c examples/todo/vite.config.js",
     "dev:todo_store": "vite -c examples/todo_store/vite.config.js",
@@ -14,14 +17,29 @@
     "dev:resource": "vite -c examples/resource/vite.config.js",
     "dev:router_demo": "vite -c examples/router_demo/vite.config.js",
     "dev:router_test": "vite -c examples/router_test/vite.config.js",
-    "dev:appmanager_demo": "vite -c examples/appmanager_demo/vite.config.js"
+    "dev:appmanager_demo": "vite -c examples/appmanager_demo/vite.config.js",
+    "dev:shadcn_react_demo": "vite -c examples/shadcn_react_demo/vite.config.js"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.0.2",
     "@tailwindcss/vite": "4.1.7",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "lucide-react": "^0.263.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tailwind-merge": "^2.2.0",
     "tailwindcss": "^4.0.15"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.4.2",
+    "@testing-library/react": "^14.2.1",
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@vitejs/plugin-react": "^4.2.1",
+    "jsdom": "^26.1.0",
     "vite": "6.2.6",
-    "vite-multiple-assets": "^2.2.5"
+    "vite-multiple-assets": "^2.2.5",
+    "vitest": "^3.2.4"
   }
 }

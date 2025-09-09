@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
 import path, { resolve } from "path";
 import DynamicPublicDirectory from "vite-multiple-assets";
 import fs from 'fs';
@@ -69,6 +70,7 @@ const baseCfg = (pubDirs, preCmds = [], exampleName = "counter") => {
     return defineConfig({
         root: resolve(projectRoot, `examples/${exampleName}`),
         plugins: [
+            react(),
             wasmBuildPlugin(exampleName),
             // Serve fixed wasm_exec.js and per-example main.wasm
             {
@@ -98,6 +100,18 @@ const baseCfg = (pubDirs, preCmds = [], exampleName = "counter") => {
                                 res.setHeader('Content-Type', 'application/wasm');
                                 return fs.createReadStream(exampleWasmPath).pipe(res);
                             }
+                            // Serve React bridge files from compat/react/
+                            if (req.url.startsWith('/compat/react/')) {
+                                const fileName = req.url.replace('/compat/react/', '');
+                                const filePath = resolve(projectRoot, 'compat/react', fileName);
+                                if (fs.existsSync(filePath)) {
+                                    res.setHeader('Content-Type', 'application/javascript');
+                                    return fs.createReadStream(filePath).pipe(res);
+                                } else {
+                                    res.statusCode = 404;
+                                    return res.end(`${fileName} not found`);
+                                }
+                            }
                         } catch (e) {
                             // let Vite handle errors/logging
                         }
@@ -112,7 +126,8 @@ const baseCfg = (pubDirs, preCmds = [], exampleName = "counter") => {
         },
         resolve: {
             alias: {
-                "@": path.resolve(projectRoot, "examples")
+                "@": path.resolve(projectRoot, "examples"),
+                "/compat/react": path.resolve(projectRoot, "compat/react")
             }
         },
         server: {

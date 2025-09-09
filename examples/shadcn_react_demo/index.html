@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>shadcn/ui React Integration Demo</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Removed ESM import to avoid potential version conflicts with CDN -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        border: "hsl(var(--border))",
+                        input: "hsl(var(--input))",
+                        ring: "hsl(var(--ring))",
+                        background: "hsl(var(--background))",
+                        foreground: "hsl(var(--foreground))",
+                        primary: {
+                            DEFAULT: "hsl(var(--primary))",
+                            foreground: "hsl(var(--primary-foreground))",
+                        },
+                        secondary: {
+                            DEFAULT: "hsl(var(--secondary))",
+                            foreground: "hsl(var(--secondary-foreground))",
+                        },
+                        destructive: {
+                            DEFAULT: "hsl(var(--destructive))",
+                            foreground: "hsl(var(--destructive-foreground))",
+                        },
+                        muted: {
+                            DEFAULT: "hsl(var(--muted))",
+                            foreground: "hsl(var(--muted-foreground))",
+                        },
+                        accent: {
+                            DEFAULT: "hsl(var(--accent))",
+                            foreground: "hsl(var(--accent-foreground))",
+                        },
+                        popover: {
+                            DEFAULT: "hsl(var(--popover))",
+                            foreground: "hsl(var(--popover-foreground))",
+                        },
+                        card: {
+                            DEFAULT: "hsl(var(--card))",
+                            foreground: "hsl(var(--card-foreground))",
+                        },
+                    },
+                    borderRadius: {
+                        lg: "var(--radius)",
+                        md: "calc(var(--radius) - 2px)",
+                        sm: "calc(var(--radius) - 4px)",
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --background: 0 0% 100%;
+            --foreground: 222.2 84% 4.9%;
+            --card: 0 0% 100%;
+            --card-foreground: 222.2 84% 4.9%;
+            --popover: 0 0% 100%;
+            --popover-foreground: 222.2 84% 4.9%;
+            --primary: 222.2 47.4% 11.2%;
+            --primary-foreground: 210 40% 98%;
+            --secondary: 210 40% 96%;
+            --secondary-foreground: 222.2 84% 4.9%;
+            --muted: 210 40% 96%;
+            --muted-foreground: 215.4 16.3% 46.9%;
+            --accent: 210 40% 96%;
+            --accent-foreground: 222.2 84% 4.9%;
+            --destructive: 0 84.2% 60.2%;
+            --destructive-foreground: 210 40% 98%;
+            --border: 214.3 31.8% 91.4%;
+            --input: 214.3 31.8% 91.4%;
+            --ring: 222.2 84% 4.9%;
+            --radius: 0.5rem;
+        }
+
+        .dark {
+            --background: 222.2 84% 4.9%;
+            --foreground: 210 40% 98%;
+            --card: 222.2 84% 4.9%;
+            --card-foreground: 210 40% 98%;
+            --popover: 222.2 84% 4.9%;
+            --popover-foreground: 210 40% 98%;
+            --primary: 210 40% 98%;
+            --primary-foreground: 222.2 47.4% 11.2%;
+            --secondary: 217.2 32.6% 17.5%;
+            --secondary-foreground: 210 40% 98%;
+            --muted: 217.2 32.6% 17.5%;
+            --muted-foreground: 215 20.2% 65.1%;
+            --accent: 217.2 32.6% 17.5%;
+            --accent-foreground: 210 40% 98%;
+            --destructive: 0 62.8% 30.6%;
+            --destructive-foreground: 210 40% 98%;
+            --border: 217.2 32.6% 17.5%;
+            --input: 217.2 32.6% 17.5%;
+            --ring: 212.7 26.8% 83.9%;
+        }
+
+        * {
+            border-color: hsl(var(--border));
+        }
+
+        body {
+            background-color: hsl(var(--background));
+            color: hsl(var(--foreground));
+        }
+    </style>
+</head>
+<body class="min-h-screen font-sans antialiased bg-background">
+    <div id="app" class="container p-4 mx-auto"></div>
+
+    <!-- React Components (using global React instance) -->
+    <script>
+        // Use global React instance to ensure consistency with the bridge
+        const React = window.React;
+        const useState = React.useState;
+        const useEffect = React.useEffect;
+        const useCallback = React.useCallback;
+
+        // Utility function for combining classes (cn)
+        function cn(...classes) {
+            return classes.filter(Boolean).join(' ');
+        }
+
+        // Button Component (shadcn/ui style)
+        function Button({ className, variant = "default", size = "default", children, ...props }) {
+            const variants = {
+                default: "bg-primary text-primary-foreground hover:bg-primary/90",
+                destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+                outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+                secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                ghost: "hover:bg-accent hover:text-accent-foreground",
+                link: "text-primary underline-offset-4 hover:underline"
+            };
+
+            const sizes = {
+                default: "h-10 px-4 py-2",
+                sm: "h-9 rounded-md px-3",
+                lg: "h-11 rounded-md px-8",
+                icon: "h-10 w-10"
+            };
+
+            return React.createElement('button', {
+                className: cn(
+                    "inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+                    variants[variant],
+                    sizes[size],
+                    className
+                ),
+                ...props
+            }, children);
+        }
+
+        // Card Components (shadcn/ui style)
+        function Card({ className, children, ...props }) {
+            return React.createElement('div', {
+                className: cn(
+                    "rounded-lg border bg-card text-card-foreground shadow-sm",
+                    className
+                ),
+                ...props
+            }, children);
+        }
+
+        function CardHeader({ className, children, ...props }) {
+            return React.createElement('div', {
+                className: cn("flex flex-col space-y-1.5 p-6", className),
+                ...props
+            }, children);
+        }
+
+        function CardTitle({ className, children, ...props }) {
+            return React.createElement('h3', {
+                className: cn(
+                    "text-2xl font-semibold leading-none tracking-tight",
+                    className
+                ),
+                ...props
+            }, children);
+        }
+
+        function CardDescription({ className, children, ...props }) {
+            return React.createElement('p', {
+                className: cn("text-sm text-muted-foreground", className),
+                ...props
+            }, children);
+        }
+
+        function CardContent({ className, children, ...props }) {
+            return React.createElement('div', {
+                className: cn("p-6 pt-0", className),
+                ...props
+            }, children);
+        }
+
+        function CardFooter({ className, children, ...props }) {
+            return React.createElement('div', {
+                className: cn("flex items-center p-6 pt-0", className),
+                ...props
+            }, children);
+        }
+
+        // Input Component (shadcn/ui style)
+        function Input({ className, type = "text", ...props }) {
+            return React.createElement('input', {
+                type,
+                className: cn(
+                    "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                    className
+                ),
+                ...props
+            });
+        }
+
+        // Badge Component (shadcn/ui style)
+        function Badge({ className, variant = "default", children, ...props }) {
+            const variants = {
+                default: "bg-primary hover:bg-primary/80 border-transparent text-primary-foreground",
+                secondary: "bg-secondary hover:bg-secondary/80 border-transparent text-secondary-foreground",
+                destructive: "bg-destructive hover:bg-destructive/80 border-transparent text-destructive-foreground",
+                outline: "text-foreground"
+            };
+
+            return React.createElement('div', {
+                className: cn(
+                    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                    variants[variant],
+                    className
+                ),
+                ...props
+            }, children);
+        }
+
+        // Demo Components
+        function ButtonDemo({ onCountChange, counter = 0 }) {
+            return React.createElement(Card, { className: "w-full" },
+                React.createElement(CardHeader, null,
+                    React.createElement(CardTitle, null, "Button Demo"),
+                    React.createElement(CardDescription, null, "Various button styles and interactions")
+                ),
+                React.createElement(CardContent, { className: "space-y-4" },
+                    React.createElement('div', { className: "mb-4" },
+                        React.createElement('span', { className: "mr-2" }, "Count: "),
+                        React.createElement('span', {
+                            id: "counter-value",
+                            className: "font-bold"
+                        }, counter)
+                    ),
+                    React.createElement('div', { className: "flex flex-wrap gap-2" },
+                        React.createElement(Button, {
+                            id: "increment-btn",
+                            onClick: () => window.goIncrementCounter && window.goIncrementCounter()
+                        }, "Increment"),
+                        React.createElement(Button, {
+                            id: "decrement-btn",
+                            variant: "secondary",
+                            onClick: () => window.goDecrementCounter && window.goDecrementCounter()
+                        }, "Decrement"),
+                        React.createElement(Button, {
+                            variant: "outline",
+                            onClick: () => onCountChange && onCountChange(5)
+                        }, "+5"),
+                        React.createElement(Button, {
+                            variant: "destructive",
+                            onClick: () => onCountChange && onCountChange(-5)
+                        }, "-5"),
+                        React.createElement(Button, {
+                            id: "reset-btn",
+                            variant: "ghost",
+                            onClick: () => onCountChange && onCountChange(0)
+                        }, "Reset")
+                    )
+                )
+            );
+        }
+
+        function CardDemo({ count, name }) {
+            return React.createElement(Card, { className: "w-full" },
+                React.createElement(CardHeader, null,
+                    React.createElement(CardTitle, null, "Card Demo"),
+                    React.createElement(CardDescription, null, "Displaying reactive state")
+                ),
+                React.createElement(CardContent, null,
+                    React.createElement('div', { className: "space-y-2" },
+                        React.createElement('p', { className: "text-lg" },
+                            "Hello, ", React.createElement('strong', null, name), "!"
+                        ),
+                        React.createElement('p', { className: "text-2xl font-bold" },
+                            "Count: ", count
+                        ),
+                        React.createElement('div', { className: "flex gap-2" },
+                            React.createElement(Badge, {
+                                variant: count > 0 ? "default" : count < 0 ? "destructive" : "secondary"
+                            }, count > 0 ? "Positive" : count < 0 ? "Negative" : "Zero")
+                        )
+                    )
+                )
+            );
+        }
+
+        function InputDemo({ name, onNameChange }) {
+            return React.createElement(Card, { className: "w-full" },
+                React.createElement(CardHeader, null,
+                    React.createElement(CardTitle, null, "Input Demo"),
+                    React.createElement(CardDescription, null, "Interactive form controls")
+                ),
+                React.createElement(CardContent, { className: "space-y-4" },
+                    React.createElement('div', { className: "space-y-2" },
+                        React.createElement('label', {
+                            htmlFor: "name",
+                            className: "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        }, "Your Name"),
+                        React.createElement(Input, {
+                            id: "name",
+                            value: name,
+                            onChange: (e) => onNameChange && onNameChange(e.target.value),
+                            placeholder: "Enter your name"
+                        })
+                    )
+                )
+            );
+        }
+
+        function TodoDemo({ todos = [], newTodoText = '', onAddTodo, onToggleTodo, onDeleteTodo, onNewTodoChange }) {
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                window.goAddTodo && window.goAddTodo();
+            };
+
+            const handleInputChange = (e) => {
+                window.goUpdateNewTodoText && window.goUpdateNewTodoText(e.target.value);
+            };
+
+            const handleKeyPress = (e) => {
+                if (e.key === 'Enter') {
+                    window.goAddTodo && window.goAddTodo();
+                }
+            };
+
+            const removeTodo = (id) => {
+                window.goRemoveTodo && window.goRemoveTodo(id.toString());
+            };
+
+            return React.createElement(Card, { className: "w-full" },
+                React.createElement(CardHeader, null,
+                    React.createElement(CardTitle, null, "Todo Demo"),
+                    React.createElement(CardDescription, null, "Task management with state")
+                ),
+                React.createElement(CardContent, { className: "space-y-4" },
+                    React.createElement('form', {
+                        onSubmit: handleSubmit,
+                        className: "flex gap-2"
+                    },
+                        React.createElement(Input, {
+                            id: "new-todo-input",
+                            value: newTodoText,
+                            onChange: handleInputChange,
+                            onKeyPress: handleKeyPress,
+                            placeholder: "Add a new todo",
+                            className: "flex-1"
+                        }),
+                        React.createElement(Button, {
+                            id: "add-todo-btn",
+                            type: "submit"
+                        }, "Add")
+                    ),
+                    React.createElement('div', {
+                        id: "todo-list",
+                        className: "space-y-2"
+                    },
+                        todos.length === 0 ?
+                            React.createElement('div', {
+                                id: "empty-todos",
+                                className: "text-muted-foreground text-center py-4"
+                            }, "No todos yet. Add one above!") :
+                            todos.map(todo =>
+                                React.createElement('div', {
+                                    key: todo.ID || todo.id,
+                                    className: "flex items-center gap-2 p-2 border rounded"
+                                },
+                                    React.createElement('input', {
+                                        type: "checkbox",
+                                        checked: todo.Completed || todo.completed,
+                                        onChange: () => onToggleTodo && onToggleTodo(todo.ID || todo.id),
+                                        className: "h-4 w-4"
+                                    }),
+                                    React.createElement('span', {
+                                        className: cn(
+                                            "flex-1",
+                                            (todo.Completed || todo.completed) && "line-through text-muted-foreground"
+                                        )
+                                    }, todo.Text || todo.text),
+                                    React.createElement(Button, {
+                                        variant: "destructive",
+                                        size: "sm",
+                                        onClick: () => removeTodo(todo.ID || todo.id)
+                                    }, "Delete")
+                                )
+                            )
+                    )
+                )
+            );
+        }
+
+        function ThemeToggle({ theme, onThemeChange }) {
+            const toggleTheme = () => {
+                window.goToggleTheme && window.goToggleTheme();
+            };
+
+            return React.createElement('div', { className: "flex items-center gap-2" },
+                React.createElement(Button, {
+                    id: "theme-toggle",
+                    variant: "outline",
+                    size: "sm",
+                    onClick: toggleTheme
+                }, theme === "light" ? "🌙 Dark" : "☀️ Light"),
+                React.createElement(Badge, {
+                    variant: "outline"
+                }, `Theme: ${theme}`)
+            );
+        }
+
+        // Main Demo Component
+        function ShadcnDemo({
+            initialCount = 0,
+            initialName = "World",
+            initialTheme = "light",
+            initialTodos = [],
+            counter = 0,
+            count,
+            name,
+            theme,
+            todos,
+            newTodoText = "",
+            onCountChange,
+            onNameChange,
+            onThemeChange,
+            onAddTodo,
+            onToggleTodo,
+            onDeleteTodo,
+            onNewTodoChange
+        }) {
+            const [localCount, setLocalCount] = useState(count ?? counter ?? initialCount);
+            const [localName, setLocalName] = useState(name ?? initialName);
+            const [localTheme, setLocalTheme] = useState(theme ?? initialTheme);
+            const [localTodos, setLocalTodos] = useState(todos ?? initialTodos);
+            const [localNewTodoText, setLocalNewTodoText] = useState(newTodoText);
+
+            // Update local state when props change
+            useEffect(() => {
+                if (count !== undefined) setLocalCount(count);
+                else if (counter !== undefined) setLocalCount(counter);
+            }, [count, counter]);
+
+            useEffect(() => {
+                if (name !== undefined) setLocalName(name);
+            }, [name]);
+
+            useEffect(() => {
+                if (theme !== undefined) setLocalTheme(theme);
+            }, [theme]);
+
+            useEffect(() => {
+                if (todos !== undefined) setLocalTodos(todos);
+            }, [todos]);
+
+            useEffect(() => {
+                if (newTodoText !== undefined) setLocalNewTodoText(newTodoText);
+            }, [newTodoText]);
+
+            // Apply theme to document
+            useEffect(() => {
+                document.documentElement.className = localTheme === "dark" ? "dark" : "";
+            }, [localTheme]);
+
+            const handleCountChange = useCallback((delta) => {
+                if (onCountChange) {
+                    onCountChange(delta);
+                } else {
+                    setLocalCount(prev => delta === 0 ? 0 : prev + delta);
+                }
+            }, [onCountChange]);
+
+            const handleNameChange = useCallback((newName) => {
+                if (onNameChange) {
+                    onNameChange(newName);
+                } else {
+                    setLocalName(newName);
+                }
+            }, [onNameChange]);
+
+            const handleThemeChange = useCallback((newTheme) => {
+                if (onThemeChange) {
+                    onThemeChange(newTheme);
+                } else {
+                    setLocalTheme(newTheme);
+                }
+            }, [onThemeChange]);
+
+            return React.createElement('div', { className: "space-y-6" },
+                React.createElement('div', { className: "flex justify-between items-center" },
+                    React.createElement('h1', {
+                        className: "text-3xl font-bold tracking-tight"
+                    }, "shadcn/ui + React Demo"),
+                    React.createElement(ThemeToggle, {
+                        theme: localTheme,
+                        onThemeChange: handleThemeChange
+                    })
+                ),
+                React.createElement('div', { className: "grid gap-6 md:grid-cols-2" },
+                    React.createElement(ButtonDemo, {
+                        counter: localCount,
+                        onCountChange: handleCountChange
+                    }),
+                    React.createElement(CardDemo, {
+                        count: localCount,
+                        name: localName
+                    }),
+                    React.createElement(InputDemo, {
+                        name: localName,
+                        onNameChange: handleNameChange
+                    }),
+                    React.createElement(TodoDemo, {
+                        todos: localTodos,
+                        newTodoText: localNewTodoText,
+                        onAddTodo,
+                        onToggleTodo,
+                        onDeleteTodo,
+                        onNewTodoChange
+                    })
+                )
+            );
+        }
+
+        // Make components globally available
+        window.ShadcnDemo = ShadcnDemo;
+        window.ButtonDemo = ButtonDemo;
+        window.CardDemo = CardDemo;
+        window.InputDemo = InputDemo;
+        window.TodoDemo = TodoDemo;
+        window.ThemeToggle = ThemeToggle;
+    </script>
+
+    <!-- WASM and React Bridge -->
+    <script src="/wasm_exec.js"></script>
+    <script type="module" src="/compat/react/bridge.js"></script>
+    <script type="module" src="/compat/react/props.js"></script>
+    <script type="module" src="/compat/react/callbacks.js"></script>
+    <script type="module" src="/compat/react/errors.js"></script>
+
+    <!-- Register React components with the ReactCompat bridge EARLY (before Go runs) -->
+    <script type="module">
+        const tryRegister = () => {
+            if (window.ReactCompat && window.ShadcnDemo) {
+                try {
+                    window.ReactCompat.register('ShadcnDemo', window.ShadcnDemo);
+                    console.log('[ReactCompat] Registered ShadcnDemo');
+                    return true;
+                } catch (e) {
+                    console.error('[ReactCompat] Failed to register components', e);
+                }
+            }
+            return false;
+        };
+        let attempts = 0;
+        const maxAttempts = 40; // ~2s with 50ms interval
+        if (!tryRegister()) {
+            const interval = setInterval(() => {
+                attempts++;
+                if (tryRegister() || attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    if (attempts >= maxAttempts) {
+                        console.warn('[ReactCompat] Registration attempts exhausted');
+                    }
+                }
+            }, 50);
+        }
+
+        // Fallback: if Go/WASM didn't render within a short delay, render the component directly via ReactDOM
+        setTimeout(() => {
+            const container = document.getElementById('app');
+            const hasContent = container && container.firstElementChild;
+            if (!hasContent && window.ShadcnDemo && window.React && window.ReactDOM) {
+                try {
+                    const root = window.ReactDOM.createRoot(container);
+                    root.render(window.React.createElement(window.ShadcnDemo, {
+                        counter: 0,
+                        theme: 'light',
+                        todos: [],
+                        newTodoText: ''
+                    }));
+                    console.log('[Fallback] Rendered ShadcnDemo directly with ReactDOM');
+                } catch (e) {
+                    console.error('[Fallback] Direct ReactDOM render failed', e);
+                }
+            }
+        }, 300);
+    </script>
+
+    <!-- Start Go WASM runtime AFTER registration attempt -->
+    <script>
+        (function startGoWhenReady(){
+            const start = () => {
+                const go = new Go();
+                console.log("Starting WASM load...");
+                WebAssembly.instantiateStreaming(fetch("/main.wasm"), go.importObject).then((result) => {
+                    console.log("WASM loaded, starting Go runtime...");
+                    go.run(result.instance);
+                }).catch((err) => {
+                    console.error("Failed to load WASM:", err);
+                });
+            };
+            let attempts = 0;
+            const max = 60; // up to ~3s
+            const timer = setInterval(() => {
+                attempts++;
+                const ready = window.ReactCompat && window.ShadcnDemo;
+                if (ready) {
+                    clearInterval(timer);
+                    // Ensure registered
+                    try { window.ReactCompat.register && window.ReactCompat.register('ShadcnDemo', window.ShadcnDemo); } catch(e){}
+                    start();
+                } else if (attempts >= max) {
+                    clearInterval(timer);
+                    console.warn('[GoStart] ReactCompat/ShadcnDemo not ready, starting Go anyway');
+                    start();
+                }
+            }, 50);
+        })();
+    </script>
+</body>
+</html>
