@@ -1,0 +1,903 @@
+# UIwGo AI Code Generator Guide
+
+This comprehensive guide is designed for AI code generators to understand and utilize the UIwGo project effectively. UIwGo is a browser-first Go UI runtime for WebAssembly that enables building reactive web applications using Go.
+
+## Project Overview
+
+UIwGo provides a type-safe, reactive framework for building web applications in Go that compile to WebAssembly. It combines the power of Go's type system with modern web development patterns.
+
+### Key Features
+- **Browser-first**: Designed specifically for WebAssembly execution in browsers
+- **Type-safe HTML**: No template languages, pure Go with gomponents
+- **Fine-grained reactivity**: Signals-based reactive system
+- **Functional components**: Clean, composable component architecture
+- **Client-side routing**: Built-in router for SPAs
+- **React compatibility**: Familiar patterns for React developers
+- **Comprehensive testing**: Both unit and browser-driven tests
+
+### Target Use Cases
+- Single Page Applications (SPAs)
+- Interactive web components
+- Data-heavy interfaces
+- Progressive enhancement of existing sites
+
+## Prerequisites and Setup
+
+### Required Dependencies
+- Go 1.21+ with WebAssembly support (GOOS=js, GOARCH=wasm)
+- Modern web browser
+- HTTP server capability
+- Node.js and npm (for development server)
+
+### Recommended Tools
+- Make (for build automation)
+- Git
+- VS Code with Go extension
+- Chrome/Chromium (for browser testing)
+
+### Project Structure
+```
+uiwgo/
+├── examples/           # Example applications
+│   ├── counter/       # Basic counter example
+│   ├── todo/          # Todo list application
+│   ├── router_demo/   # Routing demonstration
+│   └── resource/      # Data fetching patterns
+├── docs/              # Comprehensive documentation
+├── internal/          # Internal packages
+├── reactivity/        # Core reactivity system
+├── dom/              # DOM manipulation utilities
+├── comps/            # Component utilities
+├── router/           # Client-side routing
+└── logutil/          # Cross-platform logging
+```
+
+### Quick Start Commands
+```bash
+# Clone and setup
+git clone <repository>
+cd uiwgo
+npm install
+
+# Run development server (defaults to counter example)
+make run
+# Or specify example
+make run todo
+make run EX=router_demo
+
+# Build WebAssembly binary
+make build counter
+
+# Run tests
+make test                    # Unit tests
+make test-example counter    # Browser tests for specific example
+make test-examples          # All example browser tests
+make test-all              # Everything
+
+# Clean build artifacts
+make clean
+```
+
+## Core Architecture
+
+### Mental Model
+UIwGo follows a two-phase approach:
+1. **Render Phase**: Generate static HTML using gomponents
+2. **Attach Phase**: Enhance with reactive behavior using signals
+
+### Component Structure
+```go
+type Component struct {
+    // State (signals)
+    count *reactivity.Signal[int]
+    
+    // Computed state (memos)
+    displayText *reactivity.Memo[string]
+}
+
+func NewComponent() *Component {
+    c := &Component{
+        count: reactivity.NewSignal(0),
+    }
+    
+    c.displayText = reactivity.NewMemo(func() string {
+        return fmt.Sprintf("Count: %d", c.count.Get())
+    })
+    
+    return c
+}
+
+// Render: Generate static HTML structure
+func (c *Component) Render() g.Node {
+    return h.Div(
+        h.P(g.Attr("data-text", "display"), g.Text(c.displayText.Get())),
+        h.Button(g.Attr("data-click", "increment"), g.Text("Increment")),
+    )
+}
+
+// Attach: Add reactive behavior
+func (c *Component) Attach() {
+    comps.BindText("display", c.displayText)
+    comps.BindClick("increment", c.increment)
+}
+
+func (c *Component) increment() {
+    c.count.Set(c.count.Get() + 1)
+}
+```
+
+## Reactivity System
+
+### Signals
+Signals are reactive primitives that hold state and notify dependents of changes.
+
+```go
+// Create signals
+count := reactivity.NewSignal(0)
+name := reactivity.NewSignal("John")
+items := reactivity.NewSignal([]string{})
+
+// Read values
+value := count.Get()
+
+// Update values
+count.Set(42)
+count.Update(func(current int) int {
+    return current + 1
+})
+
+// Subscribe to changes
+count.Subscribe(func(newValue int) {
+    logutil.Logf("Count changed to: %d", newValue)
+})
+```
+
+### Memos (Computed Values)
+Memos are derived state that automatically update when dependencies change.
+
+```go
+firstName := reactivity.NewSignal("John")
+lastName := reactivity.NewSignal("Doe")
+
+fullName := reactivity.NewMemo(func() string {
+    return fmt.Sprintf("%s %s", firstName.Get(), lastName.Get())
+})
+
+// Automatically updates when firstName or lastName changes
+fmt.Println(fullName.Get()) // "John Doe"
+firstName.Set("Jane")
+fmt.Println(fullName.Get()) // "Jane Doe"
+```
+
+### Effects
+Effects perform side effects in response to signal changes.
+
+```go
+effect := reactivity.NewEffect(func() {
+    logutil.Logf("Current count: %d", count.Get())
+})
+
+// Cleanup when done
+defer effect.Dispose()
+```
+
+### Batching
+Batch multiple updates for performance.
+
+```go
+reactivity.Batch(func() {
+    count.Set(10)
+    name.Set("Alice")
+    // Only one update cycle triggered
+})
+```
+
+## DOM Interaction and Data Binding
+
+### Data Attributes
+UIwGo uses data attributes to create binding contracts between HTML and Go code.
+
+| Attribute Pattern | Purpose | Go Binding |
+|------------------|---------|------------|
+| `data-text="key"` | Text content | `comps.BindText("key", signal)` |
+| `data-html="key"` | HTML content | `comps.BindHTML("key", memo)` |
+| `data-click="key"` | Click events | `comps.BindClick("key", handler)` |
+| `data-input="key"` | Input events | `comps.BindInput("key", signal)` |
+| `data-visible="key"` | Visibility | `comps.BindVisible("key", signal)` |
+| `data-class="key"` | CSS classes | `comps.BindClass("key", memo)` |
+
+### Reactive Content Helpers
+```go
+// Reactive text content
+h.P(comps.BindText(func() string {
+    return fmt.Sprintf("Count: %d", count.Get())
+}))
+
+// Reactive HTML content
+h.Div(comps.BindHTML(func() string {
+    if showMessage.Get() {
+        return "<strong>Important!</strong>"
+    }
+    return "<em>Nothing to show</em>"
+}))
+
+// Reactive visibility
+h.Div(
+    comps.BindVisible(func() bool {
+        return count.Get() > 0
+    }),
+    g.Text("Visible when count > 0"),
+)
+```
+
+### Inline Event Binding (Preferred)
+Inline event binding is the recommended approach for handling DOM events.
+
+```go
+// Preferred: Inline event binding
+h.Button(
+    g.Text("Click me"),
+    dom.OnClickInline(func(el dom.Element) {
+        count.Set(count.Get() + 1)
+    }),
+)
+
+// Input handling
+h.Input(
+    g.Attr("type", "text"),
+    dom.OnInputInline(func(el dom.Element) {
+        value := el.Underlying().Get("value").String()
+        name.Set(value)
+    }),
+)
+
+// Keyboard events
+h.Input(
+    g.Attr("type", "text"),
+    dom.OnEnterInline(func(el dom.Element) {
+        // Handle Enter key
+        submitForm()
+    }),
+)
+```
+
+## Component Patterns
+
+### Functional Components
+```go
+func Counter() g.Node {
+    count := reactivity.NewSignal(0)
+    
+    return h.Div(
+        h.P(comps.BindText(func() string {
+            return fmt.Sprintf("Count: %d", count.Get())
+        })),
+        h.Button(
+            g.Text("Increment"),
+            dom.OnClickInline(func(el dom.Element) {
+                count.Set(count.Get() + 1)
+            }),
+        ),
+    )
+}
+```
+
+### Stateful Components
+```go
+type TodoApp struct {
+    todos       *reactivity.Signal[[]Todo]
+    newTodo     *reactivity.Signal[string]
+    remaining   *reactivity.Memo[int]
+    hasCompleted *reactivity.Memo[bool]
+}
+
+func NewTodoApp() *TodoApp {
+    app := &TodoApp{
+        todos:   reactivity.NewSignal([]Todo{}),
+        newTodo: reactivity.NewSignal(""),
+    }
+    
+    app.remaining = reactivity.NewMemo(func() int {
+        count := 0
+        for _, todo := range app.todos.Get() {
+            if !todo.Completed {
+                count++
+            }
+        }
+        return count
+    })
+    
+    app.hasCompleted = reactivity.NewMemo(func() bool {
+        for _, todo := range app.todos.Get() {
+            if todo.Completed {
+                return true
+            }
+        }
+        return false
+    })
+    
+    return app
+}
+```
+
+### Component Lifecycle
+```go
+func (c *Component) Render() g.Node {
+    // Generate static HTML structure
+    return h.Div(/* ... */)
+}
+
+func (c *Component) Attach() {
+    // Setup reactive bindings
+    comps.OnMount(func() {
+        // Component mounted
+        c.setupEventListeners()
+    })
+    
+    comps.OnUnmount(func() {
+        // Component unmounted
+        c.cleanup()
+    })
+}
+```
+
+## Control Flow Patterns
+
+### Conditional Rendering
+```go
+// Using memos for conditional content
+content := reactivity.NewMemo(func() string {
+    if showMessage.Get() {
+        return fmt.Sprintf(`<p>%s</p>`, message.Get())
+    }
+    return `<p>Nothing to show</p>`
+})
+
+// In render
+h.Div(
+    g.Attr("data-html", "content"),
+    g.Text(content.Get()),
+)
+
+// In attach
+comps.BindHTML("content", content)
+```
+
+### Lists and Loops
+```go
+// Dynamic list rendering
+listHTML := reactivity.NewMemo(func() string {
+    var html strings.Builder
+    for i, item := range items.Get() {
+        html.WriteString(fmt.Sprintf(
+            `<li data-click="item-%d">%s</li>`,
+            i, item.Name,
+        ))
+    }
+    return html.String()
+})
+
+// Bind list and individual item handlers
+comps.BindHTML("list", listHTML)
+for i := range items.Get() {
+    comps.BindClick(fmt.Sprintf("item-%d", i), func() {
+        handleItemClick(i)
+    })
+}
+```
+
+## Routing
+
+### Basic Router Setup
+```go
+var router = uiwgo_router.NewRouter()
+
+func init() {
+    router.Route("/", HomeComponent)
+    router.Route("/about", AboutComponent)
+    router.Route("/users/:id", UserProfileComponent)
+}
+
+func main() {
+    router.Start()
+    comps.Mount("app", AppComponent())
+    select {} // Keep alive
+}
+```
+
+### Navigation
+```go
+// Programmatic navigation
+router.Navigate("/users/123")
+
+// Link components
+h.A(
+    g.Attr("href", "/about"),
+    g.Attr("data-click", "navigate-about"),
+    g.Text("About"),
+)
+
+// Prevent default and use router
+comps.BindClick("navigate-about", func() {
+    router.Navigate("/about")
+})
+```
+
+### Route Parameters
+```go
+func UserProfileComponent() g.Node {
+    userID := router.GetParam("id")
+    
+    return h.Div(
+        h.H1(g.Text(fmt.Sprintf("User Profile: %s", userID))),
+        // ... rest of component
+    )
+}
+```
+
+## Form Handling
+
+### Basic Form
+```go
+type ContactForm struct {
+    name    *reactivity.Signal[string]
+    email   *reactivity.Signal[string]
+    message *reactivity.Signal[string]
+    errors  *reactivity.Signal[map[string]string]
+}
+
+func (f *ContactForm) Render() g.Node {
+    return h.Form(
+        g.Attr("data-submit", "submit"),
+        h.Div(
+            h.Label(g.Text("Name:")),
+            h.Input(
+                g.Attr("type", "text"),
+                g.Attr("data-input", "name"),
+                g.Attr("value", f.name.Get()),
+            ),
+        ),
+        h.Div(
+            h.Label(g.Text("Email:")),
+            h.Input(
+                g.Attr("type", "email"),
+                g.Attr("data-input", "email"),
+                g.Attr("value", f.email.Get()),
+            ),
+        ),
+        h.Button(
+            g.Attr("type", "submit"),
+            g.Text("Submit"),
+        ),
+    )
+}
+
+func (f *ContactForm) Attach() {
+    comps.BindInput("name", f.name)
+    comps.BindInput("email", f.email)
+    comps.BindSubmit("submit", f.handleSubmit)
+}
+```
+
+### Form Validation
+```go
+func (f *ContactForm) validate() map[string]string {
+    errors := make(map[string]string)
+    
+    if strings.TrimSpace(f.name.Get()) == "" {
+        errors["name"] = "Name is required"
+    }
+    
+    email := f.email.Get()
+    if !strings.Contains(email, "@") {
+        errors["email"] = "Valid email is required"
+    }
+    
+    return errors
+}
+
+func (f *ContactForm) handleSubmit() {
+    errors := f.validate()
+    f.errors.Set(errors)
+    
+    if len(errors) == 0 {
+        // Submit form
+        f.submitForm()
+    }
+}
+```
+
+## Testing Patterns
+
+### Unit Tests
+```go
+//go:build js && wasm
+
+package main
+
+import (
+    "testing"
+    "github.com/ozanturksever/uiwgo/reactivity"
+)
+
+func TestSignalBasics(t *testing.T) {
+    signal := reactivity.NewSignal(0)
+    
+    if signal.Get() != 0 {
+        t.Errorf("Expected 0, got %d", signal.Get())
+    }
+    
+    signal.Set(42)
+    if signal.Get() != 42 {
+        t.Errorf("Expected 42, got %d", signal.Get())
+    }
+}
+```
+
+### Browser Tests
+```go
+//go:build !js && !wasm
+
+package main
+
+import (
+    "testing"
+    "github.com/chromedp/chromedp"
+    "github.com/ozanturksever/uiwgo/internal/devserver"
+    "github.com/ozanturksever/uiwgo/internal/testhelpers"
+)
+
+func TestCounterIncrement(t *testing.T) {
+    server := devserver.NewServer("counter", "localhost:0")
+    if err := server.Start(); err != nil {
+        t.Fatalf("Failed to start dev server: %v", err)
+    }
+    defer server.Stop()
+    
+    chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
+    defer chromedpCtx.Cancel()
+    
+    var text string
+    err := chromedp.Run(chromedpCtx.Ctx,
+        testhelpers.Actions.NavigateAndWaitForLoad(server.URL(), "body"),
+        chromedp.Text("#count", &text),
+        chromedp.Click("#increment"),
+        chromedp.Text("#count", &text),
+    )
+    
+    if err != nil {
+        t.Fatalf("Test failed: %v", err)
+    }
+    
+    if text != "Count: 1" {
+        t.Errorf("Expected 'Count: 1', got '%s'", text)
+    }
+}
+```
+
+## Best Practices
+
+### Code Organization
+1. **Separate concerns**: Keep state, computed values, and UI separate
+2. **Use functional components** for simple cases
+3. **Use stateful components** for complex state management
+4. **Compose components** rather than creating monolithic structures
+
+### Performance
+1. **Use memos** for expensive computations
+2. **Batch updates** when making multiple state changes
+3. **Dispose effects** when components unmount
+4. **Avoid creating signals in render functions**
+
+### State Management
+1. **Keep state close to where it's used**
+2. **Use signals for primitive values**
+3. **Use memos for derived state**
+4. **Use effects for side effects only**
+
+### Event Handling
+1. **Prefer inline event binding** over manual DOM queries
+2. **Use data attributes** for declarative event binding
+3. **Handle cleanup** in component unmount
+
+### Testing
+1. **Write unit tests** for core logic
+2. **Write browser tests** for user interactions
+3. **Use testhelpers** for consistent test setup
+4. **Test both success and error scenarios**
+
+## Common Patterns
+
+### Loading States
+```go
+type AsyncComponent struct {
+    loading *reactivity.Signal[bool]
+    data    *reactivity.Signal[*Data]
+    error   *reactivity.Signal[error]
+}
+
+func (c *AsyncComponent) fetchData() {
+    c.loading.Set(true)
+    c.error.Set(nil)
+    
+    go func() {
+        data, err := api.FetchData()
+        c.loading.Set(false)
+        if err != nil {
+            c.error.Set(err)
+        } else {
+            c.data.Set(data)
+        }
+    }()
+}
+```
+
+### Modal Dialogs
+```go
+type Modal struct {
+    isOpen *reactivity.Signal[bool]
+    title  *reactivity.Signal[string]
+    content *reactivity.Signal[string]
+}
+
+func (m *Modal) Render() g.Node {
+    return h.Div(
+        comps.BindVisible(func() bool {
+            return m.isOpen.Get()
+        }),
+        g.Class("modal-overlay"),
+        h.Div(
+            g.Class("modal-content"),
+            h.H2(comps.BindText(func() string {
+                return m.title.Get()
+            })),
+            h.P(comps.BindText(func() string {
+                return m.content.Get()
+            })),
+            h.Button(
+                g.Text("Close"),
+                dom.OnClickInline(func(el dom.Element) {
+                    m.isOpen.Set(false)
+                }),
+            ),
+        ),
+    )
+}
+```
+
+### Data Tables
+```go
+type DataTable struct {
+    data       *reactivity.Signal[[]TableRow]
+    sortColumn *reactivity.Signal[string]
+    sortOrder  *reactivity.Signal[string]
+    sortedData *reactivity.Memo[[]TableRow]
+}
+
+func NewDataTable() *DataTable {
+    dt := &DataTable{
+        data:       reactivity.NewSignal([]TableRow{}),
+        sortColumn: reactivity.NewSignal(""),
+        sortOrder:  reactivity.NewSignal("asc"),
+    }
+    
+    dt.sortedData = reactivity.NewMemo(func() []TableRow {
+        data := dt.data.Get()
+        column := dt.sortColumn.Get()
+        order := dt.sortOrder.Get()
+        
+        if column == "" {
+            return data
+        }
+        
+        // Sort logic here
+        return sortData(data, column, order)
+    })
+    
+    return dt
+}
+```
+
+## Error Handling
+
+### Error Boundaries
+```go
+type ErrorBoundary struct {
+    hasError *reactivity.Signal[bool]
+    error    *reactivity.Signal[error]
+}
+
+func (eb *ErrorBoundary) Render() g.Node {
+    return h.Div(
+        comps.BindHTML(func() string {
+            if eb.hasError.Get() {
+                return fmt.Sprintf(
+                    `<div class="error">Error: %s</div>`,
+                    eb.error.Get().Error(),
+                )
+            }
+            return `<div id="content"></div>`
+        }),
+    )
+}
+
+func (eb *ErrorBoundary) CatchError(err error) {
+    eb.hasError.Set(true)
+    eb.error.Set(err)
+    logutil.Logf("Error caught: %v", err)
+}
+```
+
+### Async Error Handling
+```go
+func (c *Component) handleAsyncOperation() {
+    go func() {
+        defer func() {
+            if r := recover(); r != nil {
+                err := fmt.Errorf("panic: %v", r)
+                c.errorBoundary.CatchError(err)
+            }
+        }()
+        
+        result, err := someAsyncOperation()
+        if err != nil {
+            c.errorBoundary.CatchError(err)
+            return
+        }
+        
+        c.result.Set(result)
+    }()
+}
+```
+
+## Logging Guidelines
+
+Always use the logutil package for cross-platform logging:
+
+```go
+import "github.com/ozanturksever/uiwgo/logutil"
+
+// Basic logging
+logutil.Log("Application started")
+logutil.Log("User clicked button", userID)
+
+// Formatted logging
+logutil.Logf("Processing %d items", len(items))
+logutil.Logf("User %s logged in at %v", username, time.Now())
+
+// Error logging
+if err != nil {
+    logutil.Logf("Error occurred: %v", err)
+}
+```
+
+## DOM Interop Guidelines
+
+Prefer honnef.co/go/js/dom/v2 for browser DOM and Web APIs:
+
+```go
+import "honnef.co/go/js/dom/v2"
+
+// Preferred: Type-safe DOM access
+doc := dom.GetWindow().Document()
+element := doc.GetElementByID("myElement")
+element.SetTextContent("Hello, World!")
+
+// Use syscall/js only when necessary
+import "syscall/js"
+
+// Only when API unavailable in dom/v2
+js.Global().Call("someSpecialAPI", args...)
+```
+
+## Development Workflow
+
+### Adding New Examples
+1. Create folder under `examples/`
+2. Add `main.go` with your application
+3. **Mandatory**: Add browser tests in `main_test.go`
+4. Use the devserver pattern for testing
+5. Follow existing examples for structure
+
+### Testing Workflow
+```bash
+# Develop with live reload
+make run my_example
+
+# Test during development
+make test-example my_example
+
+# Run specific test
+make test-example my_example RUN=TestSpecificFunction
+
+# Full validation
+make test-all
+```
+
+### Build and Deploy
+```bash
+# Build for production
+make build my_example
+
+# Output: examples/my_example/main.wasm
+# Serve with your preferred web server
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Empty page**: Check browser console for WASM loading errors
+2. **Changes not reflecting**: Ensure dev server is running with live reload
+3. **Port in use**: Run `make kill` to free port 8080
+4. **Build errors**: Verify Go WebAssembly support with `GOOS=js GOARCH=wasm go version`
+5. **Test failures**: Run individual tests first to isolate issues
+
+### Debug Tips
+
+1. **Use logutil for debugging**: Works in both browser and standard Go
+2. **Check browser DevTools**: Network, Console, and Sources tabs
+3. **Verify WASM loading**: Look for `main.wasm` in Network tab
+4. **Test incrementally**: Start with simple components and build up
+5. **Use visible browser config**: `testhelpers.VisibleConfig()` for debugging tests
+
+## Integration Examples
+
+### Complete Application Structure
+```go
+package main
+
+import (
+    "github.com/maragudk/gomponents"
+    "github.com/maragudk/gomponents/html as h"
+    "github.com/ozanturksever/uiwgo/comps"
+    "github.com/ozanturksever/uiwgo/reactivity"
+    "github.com/ozanturksever/uiwgo/logutil"
+)
+
+type App struct {
+    currentView *reactivity.Signal[string]
+    user        *reactivity.Signal[*User]
+    notifications *reactivity.Signal[[]Notification]
+}
+
+func NewApp() *App {
+    return &App{
+        currentView: reactivity.NewSignal("home"),
+        user:        reactivity.NewSignal((*User)(nil)),
+        notifications: reactivity.NewSignal([]Notification{}),
+    }
+}
+
+func (app *App) Render() gomponents.Node {
+    return h.Div(
+        g.ID("app"),
+        app.renderHeader(),
+        app.renderMain(),
+        app.renderFooter(),
+    )
+}
+
+func (app *App) Attach() {
+    comps.OnMount(func() {
+        logutil.Log("App mounted")
+        app.initializeApp()
+    })
+    
+    comps.OnUnmount(func() {
+        logutil.Log("App unmounted")
+        app.cleanup()
+    })
+}
+
+func main() {
+    app := NewApp()
+    comps.Mount("app", app.Render())
+    app.Attach()
+    
+    // Keep the program running
+    select {}
+}
+```
+
+This guide provides comprehensive coverage of UIwGo's capabilities and patterns. Use it as a reference for building reactive web applications with Go and WebAssembly.
