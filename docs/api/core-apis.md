@@ -211,6 +211,49 @@ func Component() g.Node {
 
 ### Event Binding
 
+#### Inline Event Binding (Preferred)
+
+**Inline event binding is the recommended approach** for handling DOM events in uiwgo applications. This method allows you to attach event handlers directly during element creation without requiring DOM queries or lifecycle hooks.
+
+```go
+// Inline event handlers - attach directly to elements
+dom.OnClickInline(func(el dom.Element) { /* handler */ })     // Click events
+dom.OnInputInline(func(el dom.Element) { /* handler */ })     // Input events
+dom.OnChangeInline(func(el dom.Element) { /* handler */ })    // Change events
+dom.OnEnterInline(func(el dom.Element) { /* handler */ })     // Enter key
+dom.OnEscapeInline(func(el dom.Element) { /* handler */ })    // Escape key
+dom.OnKeyDownInline(func(el dom.Element) { /* handler */ }, "key") // Custom keys
+```
+
+#### Inline Events Example (Recommended)
+```go
+func Component() g.Node {
+    count := reactivity.NewSignal(0)
+
+    return Div(
+        Button(
+            Text("+"),
+            dom.OnClickInline(func(el dom.Element) {
+                count.Set(count.Get() + 1)
+            }),
+        ),
+        Button(
+            Text("Reset"),
+            dom.OnClickInline(func(el dom.Element) {
+                count.Set(0)
+            }),
+        ),
+        P(comps.BindText(func() string {
+            return fmt.Sprintf("Count: %d", count.Get())
+        })),
+    )
+}
+```
+
+#### Traditional Event Binding (Legacy)
+
+> **Note**: Traditional event binding is still supported but **not recommended** for new code. Use inline events instead.
+
 Event binding is performed on `dom.Element` objects, typically within a `comps.OnMount` hook.
 
 ```go
@@ -224,7 +267,7 @@ func BindClickToSignal[T any](element dom.Element, signal reactivity.Signal[T], 
 func BindEvent(element dom.Element, eventType string, handler func(event dom.Event)) *EventBinding
 ```
 
-#### Example
+#### Traditional Example (Not Recommended)
 ```go
 func Component() g.Node {
     count := reactivity.NewSignal(0)
