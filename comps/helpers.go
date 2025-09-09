@@ -277,6 +277,8 @@ func attachBinders(root js.Value) {
 	attachIndexBindersIn(root)
 	attachSwitchBindersIn(root)
 	attachDynamicBindersIn(root)
+	// Enable inline DOM event handlers (e.g., dom.OnClickInline) via delegated listeners
+	dom.AttachInlineDelegates(root)
 }
 
 func attachTextBindersIn(root js.Value) {

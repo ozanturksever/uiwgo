@@ -19,7 +19,8 @@
     "dev:router_test": "vite -c examples/router_test/vite.config.js",
     "dev:appmanager_demo": "vite -c examples/appmanager_demo/vite.config.js",
     "dev:shadcn_react_demo": "vite -c examples/shadcn_react_demo/vite.config.js",
-    "dev:mui_button_react_demo": "vite -c examples/mui_button_react_demo/vite.config.js"
+    "dev:mui_button_react_demo": "vite -c examples/mui_button_react_demo/vite.config.js",
+    "dev:inline_events_demo": "vite -c examples/inline_events_demo/vite.config.js"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.0.2",

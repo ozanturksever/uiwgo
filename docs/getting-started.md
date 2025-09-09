@@ -51,94 +51,94 @@ Open your browser to `http://localhost:8080` and you should see a working counte
 
 ### 3. Explore the Code
 
-Let's look at the counter example to understand the basic structure:
+Let's look at the counter example to understand the basic functional structure:
 
 ```go
 // examples/counter/main.go
 package main
 
 import (
-    "github.com/ozanturksever/uiwgo/comps"
-    "github.com/ozanturksever/uiwgo/reactivity"
-    g "maragu.dev/gomponents"
-    h "maragu.dev/gomponents/html"
+	"fmt"
+	"github.com/ozanturksever/uiwgo/comps"
+	"github.com/ozanturksever/uiwgo/dom"
+	"github.com/ozanturksever/uiwgo/reactivity"
+	. "maragu.dev/gomponents"
+	. "maragu.dev/gomponents/html"
 )
 
-type Counter struct {
-    count *reactivity.Signal[int]
-}
+// A component is a function that returns a gomponents.Node
+func Counter() Node {
+	// Create a reactive signal to hold the count.
+	count := reactivity.NewSignal(0)
 
-func NewCounter() *Counter {
-    return &Counter{
-        count: reactivity.NewSignal(0),
-    }
-}
+	// Use OnMount to set up event listeners after the DOM is created.
+	comps.OnMount(func() {
+		// Get elements by ID.
+		incrementBtn := dom.GetElementByID("increment-btn")
+		decrementBtn := dom.GetElementByID("decrement-btn")
 
-// Render returns the gomponents Node structure
-func (c *Counter) Render() g.Node {
-    return h.Div(g.Class("counter"),
-        h.H1(g.Text("Counter Example")),
-        h.Div(g.Class("controls"),
-            h.Button(g.Attr("data-click", "decrement"), g.Text("-")),
-            h.Span(
-                g.Attr("data-text", "count"),
-                g.Class("count"),
-                g.Text("0"),
-            ),
-            h.Button(g.Attr("data-click", "increment"), g.Text("+")),
-        ),
-    )
-}
+		// Bind click handlers directly to the DOM elements.
+		dom.BindClickToCallback(incrementBtn, func() {
+			count.Set(count.Get() + 1
+		})
+		dom.BindClickToCallback(decrementBtn, func() {
+			count.Set(count.Get() - 1
+		})
+	})
 
-// Attach wires up the reactive behavior
-func (c *Counter) Attach() {
-    // Bind the count signal to the text content
-    c.BindText("count", c.count)
-    
-    // Bind click handlers
-    c.BindClick("increment", func() {
-        c.count.Set(c.count.Get() + 1)
-    })
-    
-    c.BindClick("decrement", func() {
-        c.count.Set(c.count.Get() - 1)
-    })
+	// Return the UI structure using gomponents.
+	return Div(
+		H1(Text("Counter Example")),
+		Div(Class("controls"),
+			Button(ID("decrement-btn"), Text("-")),
+			Span(
+				Class("count"),
+				// Bind the text content directly to the count signal.
+				comps.BindText(func() string {
+					return fmt.Sprintf("%d", count.Get())
+				}),
+			),
+			Button(ID("increment-btn"), Text("+")),
+		),
+	)
 }
 
 func main() {
-    counter := NewCounter()
-    
-    // Mount the component to the DOM
-    comps.Mount("app", counter)
+	// Mount the component function to the DOM element with the ID "app".
+	comps.Mount("app", Counter)
+
+	// Prevent the Go program from exiting.
+	select {}
 }
 ```
 
 ## Understanding the Flow
 
-### 1. Gomponents-Based Rendering
+### 1. Functional Components with gomponents
 
-UIwGo follows a **gomponents-first** approach for type-safe HTML generation:
+UIwGo uses a **functional** approach where components are simply Go functions that return a `gomponents.Node`.
 
-1. **Render** - Generate gomponents Node with data attributes as markers
-2. **Attach** - Scan the DOM and bind reactive behavior to marked elements
-3. **Update** - Fine-grained updates when signals change
+1.  **Define State**: Reactive state is created using signals (`reactivity.NewSignal`).
+2.  **Define View**: The UI structure is defined using `gomponents` functions. Reactive content is embedded directly using helpers like `comps.BindText`.
+3.  **Define Behavior**: Side effects, like event handling, are set up within lifecycle hooks like `comps.OnMount`. This ensures the DOM elements exist before you try to access them.
+4.  **Mount**: The top-level component function is mounted to a DOM element, which renders the UI and activates the reactive bindings.
 
 ```go
-// Step 1: Render gomponents Node with markers
-func (c *Counter) Render() g.Node {
-    return h.Span(
-        g.Attr("data-text", "count"),
-        g.Text("0"), // Initial value
+// A component is just a function.
+func MyComponent() g.Node {
+    // 1. State
+    message := reactivity.NewSignal("Hello!")
+
+    // 2. Behavior (runs after render)
+    comps.OnMount(func() {
+        // ... event binding ...
+    })
+
+    // 3. View
+    return h.Div(
+        comps.BindText(message.Get), // Reactive binding
     )
 }
-
-// Step 2: Attach reactive behavior
-func (c *Counter) Attach() {
-    c.BindText("count", c.count) // Bind signal to marker
-}
-
-// Step 3: Updates happen automatically
-c.count.Set(42) // DOM automatically updates to show "42"
 ```
 
 ### 2. Signals and Reactivity
@@ -162,16 +162,13 @@ effect := reactivity.NewEffect(func() {
 // Effect runs immediately and re-runs when count changes
 ```
 
-### 3. Data Attributes as Binding Markers
+### 3. Direct DOM Interaction
 
-UIwGo uses data attributes to mark elements for binding:
+Instead of using abstract binding markers, you interact with the DOM directly when needed, primarily for attaching event listeners.
 
-| Attribute | Purpose | Example |
-|-----------|---------|----------|
-| `data-text="key"` | Text content binding | `<span data-text="count">0</span>` |
-| `data-click="key"` | Click event binding | `<button data-click="increment">+</button>` |
-| `data-show="key"` | Conditional visibility | `<div data-show="isVisible">Content</div>` |
-| `data-for="key"` | List rendering | `<ul data-for="items">...</ul>` |
+-   Give elements an `ID` in your `gomponents` structure.
+-   Use `dom.GetElementByID` within `comps.OnMount` to get a reference to the element.
+-   Use `dom.BindClickToCallback` and other `dom.Bind*` functions to attach handlers.
 
 ## Creating Your First Component
 
@@ -194,71 +191,59 @@ package main
 import (
     "fmt"
     "github.com/ozanturksever/uiwgo/comps"
+    "github.com/ozanturksever/uiwgo/dom"
     "github.com/ozanturksever/uiwgo/reactivity"
     g "maragu.dev/gomponents"
     h "maragu.dev/gomponents/html"
 )
 
-type HelloSignals struct {
-    name     *reactivity.Signal[string]
-    greeting *reactivity.Memo[string]
-}
+func HelloSignals() g.Node {
+    // Signals for state
+    name := reactivity.NewSignal("World")
 
-func NewHelloSignals() *HelloSignals {
-    h := &HelloSignals{
-        name: reactivity.NewSignal("World"),
-    }
-    
-    // Memo automatically recomputes when name changes
-    h.greeting = reactivity.NewMemo(func() string {
-        return fmt.Sprintf("Hello, %s!", h.name.Get())
+    // Memo for computed state
+    greeting := reactivity.NewMemo(func() string {
+        return fmt.Sprintf("Hello, %s!", name.Get())
     })
-    
-    return h
-}
 
-func (h *HelloSignals) Render() g.Node {
+    // Lifecycle hook for event binding
+    comps.OnMount(func() {
+        nameInput := dom.GetElementByID("name-input")
+        resetBtn := dom.GetElementByID("reset-btn")
+
+        // Two-way binding for the input field
+        dom.BindValue(nameInput, name)
+
+        // Click handler for the reset button
+        dom.BindClickToCallback(resetBtn, func() {
+            name.Set("World")
+        })
+    })
+
+    // Return the UI tree
     return h.Div(g.Class("hello-signals"),
         h.H1(
-            g.Attr("data-text", "greeting"),
-            g.Text("Hello, World!"),
+            // Bind the computed greeting to the heading's text
+            comps.BindText(greeting.Get),
         ),
         h.Div(g.Class("input-group"),
-            h.Label(
-                g.Attr("for", "name-input"),
-                g.Text("Enter your name:"),
-            ),
+            h.Label(For("name-input"), g.Text("Enter your name:")),
             h.Input(
-                g.Attr("id", "name-input"),
-                g.Attr("type", "text"),
-                g.Attr("data-input", "name"),
-                g.Attr("placeholder", "Your name"),
-                g.Attr("value", "World"),
+                ID("name-input"),
+                Type("text"),
+                Placeholder("Your name"),
             ),
         ),
         h.Button(
-            g.Attr("data-click", "reset"),
+            ID("reset-btn"),
             g.Text("Reset"),
         ),
     )
 }
 
-func (h *HelloSignals) Attach() {
-    // Bind the computed greeting to the heading
-    h.BindText("greeting", h.greeting)
-    
-    // Bind the input to the name signal (two-way binding)
-    h.BindInput("name", h.name)
-    
-    // Bind reset button
-    h.BindClick("reset", func() {
-        h.name.Set("World")
-    })
-}
-
 func main() {
-    hello := NewHelloSignals()
-    comps.Mount("app", hello)
+    comps.Mount("app", HelloSignals)
+    select {}
 }
 ```
 
@@ -352,22 +337,29 @@ greeting := reactivity.NewMemo(func() string {
 
 ### Two-Way Data Binding
 ```go
-// HTML
-`<input data-input="name" value="World" />`
+// In component function
+name := reactivity.NewSignal("")
+comps.OnMount(func() {
+    nameInput := dom.GetElementByID("name-input")
+    dom.BindValue(nameInput, name) // Binds signal to input value
+})
 
-// Go
-h.BindInput("name", h.name) // Input updates signal, signal updates input
+// In gomponents tree
+Input(ID("name-input"))
 ```
 
 ### Event Handling
 ```go
-// HTML
-`<button data-click="reset">Reset</button>`
-
-// Go
-h.BindClick("reset", func() {
-    h.name.Set("World")
+// In component function
+comps.OnMount(func() {
+    resetBtn := dom.GetElementByID("reset-btn")
+    dom.BindClickToCallback(resetBtn, func() {
+        name.Set("World")
+    })
 })
+
+// In gomponents tree
+Button(ID("reset-btn"), Text("Reset"))
 ```
 
 ## Development Workflow

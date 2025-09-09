@@ -100,3 +100,69 @@ func CounterApp() Node {
 		),
 	)
 }
+
+func CounterAppWish() Node {
+	count := reactivity.CreateSignal(0)
+	double := reactivity.CreateMemo(func() int { return count.Get() * 2 })
+
+	// Effect logging to console
+	reactivity.CreateEffect(func() {
+		logutil.Log("Count changed:", count.Get())
+	})
+
+	return Div(
+		Style("font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; background-color: #f5f5f5; min-height: 100vh;"),
+		Div(
+			Style("background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center;"),
+			H1(Text("Counter Example")),
+			P(Text("A simple counter demonstrating uiwgo's reactive signals")),
+
+			Div(
+				ID("count-display"),
+				Style("font-size: 2em; font-weight: bold; color: #333; margin: 20px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef;"),
+				comps.BindText(func() string { return fmt.Sprintf("Count: %d (double: %d)", count.Get(), double.Get()) }),
+			),
+
+			Div(
+				Button(
+					ID("increment-btn"),
+					Style("font-size: 1.2em; padding: 10px 20px; margin: 0 10px; border: none; border-radius: 5px; cursor: pointer; background-color: #28a745; color: white; transition: background-color 0.2s;"),
+					Text("+ Increment"),
+					dom.OnClickInline(func(el dom.Element) {
+						count.Set(count.Get() + 1)
+					}),
+				),
+				Button(
+					ID("decrement-btn"),
+					Style("font-size: 1.2em; padding: 10px 20px; margin: 0 10px; border: none; border-radius: 5px; cursor: pointer; background-color: #dc3545; color: white; transition: background-color 0.2s;"),
+					Text("- Decrement"),
+					dom.OnClickInline(func(el dom.Element) {
+						count.Set(count.Get() - 1)
+					}),
+				),
+				Br(),
+				Button(
+					ID("reset-btn"),
+					Style("font-size: 1.2em; padding: 10px 20px; margin: 10px; border: none; border-radius: 5px; cursor: pointer; background-color: #6c757d; color: white; transition: background-color 0.2s;"),
+					Text("Reset"),
+					dom.OnClickInline(func(el dom.Element) {
+						count.Set(0)
+					}),
+				),
+			),
+
+			Div(
+				Style("margin-top: 20px; color: #666; font-style: italic;"),
+				comps.BindText(func() string {
+					c := count.Get()
+					if c == 0 {
+						return "Counter is at zero"
+					} else if c > 0 {
+						return fmt.Sprintf("Counter is positive (+%d)", c)
+					}
+					return fmt.Sprintf("Counter is negative (%d)", c)
+				}),
+			),
+		),
+	)
+}

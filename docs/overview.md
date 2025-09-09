@@ -41,25 +41,34 @@ effect := reactivity.NewEffect(func() {
 count.Set(1) // Effect automatically re-runs
 ```
 
-### 🏗️ Gomponents-Based Components
+### 🏗️ Functional Components with gomponents
 ```go
-// Use gomponents for type-safe HTML generation
 import (
-    g "maragu.dev/gomponents"
-    h "maragu.dev/gomponents/html"
+    "fmt"
+    "github.com/ozanturksever/uiwgo/comps"
+    "github.com/ozanturksever/uiwgo/dom"
+    "github.com/ozanturksever/uiwgo/reactivity"
+    . "maragu.dev/gomponents"
+    . "maragu.dev/gomponents/html"
 )
 
-func (c *Counter) Render() g.Node {
-    return h.Div(
-        h.Span(g.Attr("data-text", "count"), g.Text("0")),
-        h.Button(g.Attr("data-click", "increment"), g.Text("+")),
-    )
-}
+// A component is a Go function that returns a gomponents.Node.
+func Counter() Node {
+    count := reactivity.NewSignal(0)
 
-// Binders attach reactive behavior
-func (c *CounterComponent) Attach() {
-    c.BindText("count", c.count)
-    c.BindClick("increment", func() { c.count.Set(c.count.Get() + 1) })
+    // Event handlers are set up in OnMount, after the DOM exists.
+    comps.OnMount(func() {
+        incrementBtn := dom.GetElementByID("increment-btn")
+        dom.BindClickToCallback(incrementBtn, func() {
+            count.Set(count.Get() + 1)
+        })
+    })
+
+    // The UI tree is returned using type-safe gomponents.
+    return Div(
+        Span(comps.BindText(func() string { return fmt.Sprintf("%d", count.Get()) })),
+        Button(ID("increment-btn"), Text("+")),
+    )
 }
 ```
 
@@ -114,26 +123,28 @@ function Counter() {
 ```go
 // Gomponents + fine-grained reactivity
 import (
-    g "maragu.dev/gomponents"
-    h "maragu.dev/gomponents/html"
+    "fmt"
+    "github.com/ozanturksever/uiwgo/comps"
+    "github.com/ozanturksever/uiwgo/dom"
+    "github.com/ozanturksever/uiwgo/reactivity"
+    . "maragu.dev/gomponents"
+    . "maragu.dev/gomponents/html"
 )
 
-type Counter struct {
-    count *reactivity.Signal[int]
-}
+func Counter() Node {
+    count := reactivity.NewSignal(0)
 
-func (c *Counter) Render() g.Node {
-    return h.Div(
-        h.Span(g.Attr("data-text", "count"), g.Text("0")),
-        h.Button(g.Attr("data-click", "increment"), g.Text("+")),
-    )
-}
-
-func (c *Counter) Attach() {
-    c.BindText("count", c.count)
-    c.BindClick("increment", func() {
-        c.count.Set(c.count.Get() + 1)
+    comps.OnMount(func() {
+        incrementBtn := dom.GetElementByID("increment-btn")
+        dom.BindClickToCallback(incrementBtn, func() {
+            count.Set(count.Get() + 1)
+        })
     })
+
+    return Div(
+        Span(comps.BindText(func() string { return fmt.Sprintf("%d", count.Get()) })),
+        Button(ID("increment-btn"), Text("+")),
+    )
 }
 ```
 

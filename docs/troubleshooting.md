@@ -17,351 +17,250 @@ This guide helps you diagnose and solve common issues when developing with UIwGo
 When something isn't working, check these items first:
 
 ### ✅ Component Basics
-- [ ] Component implements `Render()` and `Attach()` methods
-- [ ] `Render()` returns valid HTML with data attributes
-- [ ] `Attach()` binds all data attributes to signals/memos
-- [ ] Component is properly mounted with `comps.Mount()`
+- [ ] Component is a function that returns a `gomponents.Node`.
+- [ ] The component function is properly mounted with `comps.Mount("id", MyComponent)`.
+- [ ] `gomponents` structure is valid Go code.
 
 ### ✅ Reactivity
-- [ ] Signals are created with `reactivity.NewSignal()`
-- [ ] Memos access signals with `.Get()` inside the function
-- [ ] Effects track dependencies by calling `.Get()` on signals
-- [ ] No infinite loops in effects (signal updates triggering themselves)
+- [ ] Signals are created with `reactivity.NewSignal()`.
+- [ ] Memos and Effects access signals with `.Get()` to track them as dependencies.
+- [ ] Reactive content is rendered with helpers like `comps.BindText(signal.Get)`.
+- [ ] No infinite loops in effects (e.g., an effect setting a signal that it depends on).
 
-### ✅ DOM Binding
-- [ ] Data attributes match binding selectors exactly
-- [ ] HTML elements exist when `Attach()` is called
-- [ ] Event handlers are bound to existing elements
-- [ ] No typos in data attribute names
+### ✅ DOM Interaction & Events
+- [ ] DOM element access and event binding happens inside `comps.OnMount`.
+- [ ] Element IDs used in `dom.GetElementByID("my-id")` match the `ID("my-id")` in the `gomponents` tree.
+- [ ] Event handlers are bound to the correct `dom.Element` objects.
+- [ ] `comps.OnCleanup` is used to remove global listeners or stop timers to prevent memory leaks.
 
 ### ✅ Browser Console
-- [ ] Check for JavaScript errors in browser console
-- [ ] Verify WASM module loads successfully
-- [ ] Look for UIwGo-specific error messages
+- [ ] Check for JavaScript errors.
+- [ ] Verify the `.wasm` module loads successfully (check the Network tab).
+- [ ] Look for any logs from `logutil`.
 
 ## Common Issues
 
-### Component Not Rendering
+### Component Not Rendering or Blank
 
-**Problem**: Component appears blank or shows default content
-
-**Symptoms**:
-```html
-<!-- Expected: <div>Hello, World!</div> -->
-<!-- Actual: <div data-text="greeting">Loading...</div> -->
-```
+**Problem**: The component appears blank or doesn't render at all.
 
 **Solutions**:
 
-1. **Check if `Attach()` is called**:
-```go
-// BAD: Only renders, doesn't attach
-func main() {
-    comp := NewMyComponent()
-    html := comp.Render()
-    // Missing: comp.Attach()
-}
+1.  **Check Mounting**: Ensure `comps.Mount` is called correctly with the right element ID and component function.
+    ```go
+    // GOOD: Mount the component function
+    func main() {
+        comps.Mount("app", MyComponent)
+        select {}
+    }
+    ```
 
-// GOOD: Proper mounting
-func main() {
-    comp := NewMyComponent()
-    comps.Mount("app", comp) // Calls both Render() and Attach()
-}
-```
+2.  **Check HTML Host File**: Make sure you have an element in your `index.html` with the ID you're mounting to.
+    ```html
+    <!-- index.html -->
+    <body>
+        <div id="app"></div> <!-- This ID must match the Mount call -->
+        <script src="wasm_exec.js"></script>
+        <!-- ... -->
+    </body>
+    ```
 
-2. **Verify data attribute binding**:
-```go
-// Check that selector matches HTML
-func (c *MyComponent) Render() g.Node {
-    return h.Div(
-        g.Attr("data-text", "greeting"), // selector: "greeting"
-        g.Text("Loading..."),
-    )
-}
+3.  **Ensure Signal Has a Value**: If using `comps.BindText`, make sure the signal has an initial value that isn't empty.
+    ```go
+    // GOOD
+    message := reactivity.NewSignal("Hello, World!")
 
-func (c *MyComponent) Attach() {
-    c.BindText("greeting", c.message) // Must match exactly
-}
-```
-
-3. **Ensure signal has a value**:
-```go
-// Check signal initialization
-message := reactivity.NewSignal("") // Empty string won't show
-message := reactivity.NewSignal("Hello, World!") // Will show
-```
+    // POTENTIAL ISSUE (will render nothing)
+    message := reactivity.NewSignal("")
+    ```
 
 ### Reactivity Not Working
 
-**Problem**: UI doesn't update when signals change
-
-**Symptoms**:
-```go
-count.Set(5) // Signal updates
-// But UI still shows old value
-```
+**Problem**: The UI doesn't update when a signal's value changes.
 
 **Solutions**:
 
-1. **Check effect dependencies**:
-```go
-// BAD: Effect doesn't track signal
-reactivity.NewEffect(func() {
-    value := 42 // Static value, no dependencies
-    logutil.Logf("Value: %d", value)
-})
+1.  **Check Dependencies**: Ensure your Memos and Effects are calling `.Get()` on the signals they should be tracking.
+    ```go
+    // BAD: Effect doesn't track the 'count' signal
+    reactivity.NewEffect(func() {
+        logutil.Log("This runs only once.")
+    })
 
-// GOOD: Effect tracks signal
-reactivity.NewEffect(func() {
-    value := count.Get() // Tracks count signal
-    logutil.Logf("Count: %d", value)
-})
-```
+    // GOOD: Effect tracks the 'count' signal
+    reactivity.NewEffect(func() {
+        value := count.Get() // Tracks the signal
+        logutil.Logf("Count is now: %d", value)
+    })
+    ```
 
-2. **Verify memo dependencies**:
-```go
-// BAD: Memo doesn't access signals
-displayText := reactivity.NewMemo(func() string {
-    return "Static text" // No signal access
-})
+2.  **Verify Reactive Binding**: Make sure you are using a reactive helper like `comps.BindText`.
+    ```go
+    // BAD: This will only render the initial value
+    return Span(Text(fmt.Sprintf("%d", count.Get())))
 
-// GOOD: Memo accesses signals
-displayText := reactivity.NewMemo(func() string {
-    return "Count: " + strconv.Itoa(count.Get()) // Tracks count
-})
-```
+    // GOOD: This creates a reactive text node
+    return Span(comps.BindText(func() string {
+        return fmt.Sprintf("%d", count.Get())
+    }))
+    ```
 
-3. **Check for disposed effects**:
-```go
-effect := reactivity.NewEffect(func() {
-    logutil.Logf("Count: %d", count.Get())
-})
-
-effect.Dispose() // Effect stops working after this
-count.Set(10)    // Won't trigger the effect
-```
+3.  **Check for Disposed Effects**: An effect will stop working if its scope is cleaned up or if it's manually disposed. Use `comps.OnCleanup` to manage effect lifecycles.
 
 ### Event Handlers Not Working
 
-**Problem**: Clicks and other events don't trigger handlers
+**Problem**: Clicks or other events don't trigger the expected Go functions.
 
 **Solutions**:
 
-1. **Check data attribute syntax**:
-```html
-<!-- BAD: Wrong attribute name -->
-<button data-onclick="increment">+</button>
+1.  **Bind Inside `OnMount`**: DOM elements do not exist until the component is mounted. All event binding must happen inside `comps.OnMount`.
+    ```go
+    // BAD: This will panic because the element is not yet in the DOM
+    incrementBtn := dom.GetElementByID("increment-btn")
+    dom.BindClickToCallback(incrementBtn, handler)
 
-<!-- GOOD: Correct attribute name -->
-<button data-click="increment">+</button>
-```
+    // GOOD
+    comps.OnMount(func() {
+        incrementBtn := dom.GetElementByID("increment-btn")
+        if incrementBtn != nil {
+            dom.BindClickToCallback(incrementBtn, handler)
+        }
+    })
+    ```
 
-2. **Verify handler binding**:
-```go
-func (c *Counter) Attach() {
-    // Make sure selector matches data attribute
-    c.BindClick("increment", c.increment) // data-click="increment"
-}
+2.  **Verify Element ID**: Double-check that the ID used in `dom.GetElementByID` exactly matches the `ID()` attribute in your `gomponents` tree.
+    ```go
+    // In the component function's return
+    Button(ID("increment-btn"), Text("+"))
 
-func (c *Counter) increment() {
-    c.count.Update(func(n int) int { return n + 1 })
-}
-```
+    // In comps.OnMount
+    comps.OnMount(func() {
+        // The ID "increment-btn" must match
+        btn := dom.GetElementByID("increment-btn")
+        // ...
+    })
+    ```
 
-3. **Check element exists**:
-```go
-// Debug: Check if element is found
-func (c *Counter) Attach() {
-    element := dom.QuerySelector(`[data-click="increment"]`)
-    if element == nil {
-        logutil.Log("ERROR: Increment button not found!")
+3.  **Check for `nil` Elements**: Always check if `GetElementByID` returned `nil` before trying to bind an event to it. This tells you if the element was not found.
+    ```go
+    if btn == nil {
+        logutil.Log("ERROR: Increment button not found in the DOM!")
+        return
     }
-    
-    c.BindClick("increment", c.increment)
-}
-```
+    dom.BindClickToCallback(btn, handler)
+    ```
 
 ### Memory Leaks
 
-**Problem**: Application becomes slow over time
-
-**Symptoms**:
-- Increasing memory usage
-- Slower response times
-- Browser becomes unresponsive
+**Problem**: Application becomes slow over time, or the browser becomes unresponsive.
 
 **Solutions**:
 
-1. **Implement proper cleanup**:
-```go
-type Component struct {
-    effects []reactivity.Effect
-    timer   *time.Timer
-}
+1.  **Implement Cleanup with `OnCleanup`**: If you set up manual event listeners, timers, or WebSocket connections, you must clean them up in a `comps.OnCleanup` hook.
+    ```go
+    func MyComponent() g.Node {
+        ticker := time.NewTicker(1 * time.Second)
 
-func (c *Component) setupEffects() {
-    effect := reactivity.NewEffect(func() {
-        // Effect logic
+        comps.OnCleanup(func() {
+            logutil.Log("Stopping ticker.")
+            ticker.Stop() // IMPORTANT: Stop the ticker to prevent a leak.
+        })
+
+        go func() {
+            for range ticker.C {
+                logutil.Log("Tick")
+            }
+        }()
+        // ...
+        return Div()
+    }
+    ```
+
+2.  **Avoid Infinite Effect Loops**: An effect that sets a signal it depends on will create an infinite loop.
+    ```go
+    // BAD: Infinite loop
+    reactivity.NewEffect(func() {
+        count := counter.Get()
+        counter.Set(count + 1) // This triggers the effect again!
     })
-    c.effects = append(c.effects, effect)
-}
 
-func (c *Component) Cleanup() {
-    // Dispose all effects
-    for _, effect := range c.effects {
-        effect.Dispose()
-    }
-    
-    // Stop timers
-    if c.timer != nil {
-        c.timer.Stop()
-    }
-}
-```
-
-2. **Avoid infinite effect loops**:
-```go
-// BAD: Infinite loop
-reactivity.NewEffect(func() {
-    count := counter.Get()
-    counter.Set(count + 1) // Triggers effect again!
-})
-
-// GOOD: Use different signals
-reactivity.NewEffect(func() {
-    count := counter.Get()
-    displayText.Set(fmt.Sprintf("Count: %d", count))
-})
-```
+    // GOOD: Use a separate signal for the output
+    reactivity.NewEffect(func() {
+        count := counter.Get()
+        displayText.Set(fmt.Sprintf("Count: %d", count))
+    })
+    ```
 
 ### WASM Loading Issues
 
-**Problem**: Application doesn't start or shows WASM errors
+**Problem**: Application doesn't start or shows WASM-related errors in the browser console.
 
 **Solutions**:
 
-1. **Check WASM file path**:
-```html
-<!-- Make sure path is correct -->
-<script>
-    const go = new Go();
-    WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject)
-        .then((result) => {
-            go.run(result.instance);
-        })
-        .catch((err) => {
-            console.error("WASM loading failed:", err);
-        });
-</script>
-```
+1.  **Check WASM File Path**: Ensure the `fetch("main.wasm")` path in your `index.html` is correct relative to where the HTML file is served.
+    ```html
+    <script>
+        const go = new Go();
+        WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject)
+            .then((result) => go.run(result.instance))
+            .catch((err) => console.error("WASM loading failed:", err));
+    </script>
+    ```
 
-2. **Verify build process**:
-```bash
-# Make sure WASM is built correctly
-make build counter
-# Check if main.wasm exists
-ls examples/counter/main.wasm
-```
+2.  **Verify Build Process**: Make sure the WASM file was compiled successfully.
+    ```bash
+    # Run the build for your example
+    make build counter
+    # Check that the output file exists
+    ls examples/counter/main.wasm
+    ```
 
-3. **Check server MIME types**:
-```go
-// Ensure server serves .wasm files correctly
-func main() {
-    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        if strings.HasSuffix(r.URL.Path, ".wasm") {
-            w.Header().Set("Content-Type", "application/wasm")
-        }
-        http.ServeFile(w, r, "."+r.URL.Path)
-    })
-}
-```
+3.  **Check Server MIME Types**: The development server handles this automatically, but for a custom server, ensure it serves `.wasm` files with the `Content-Type: application/wasm` header.
 
 ## Debugging Techniques
 
 ### Using logutil for Debugging
 
+The `logutil` package is your best friend for debugging, as it works correctly in browser environments.
+
 ```go
-// Use logutil instead of fmt.Println for WASM compatibility
-import "github.com/ozanturksever/uiwgo/internal/logutil"
+import "github.com/ozanturksever/logutil"
 
-// Basic logging
-logutil.Log("Component attached")
-logutil.Logf("Count value: %d", count.Get())
+// Log a simple message
+logutil.Log("Component OnMount hook fired.")
 
-// Debug signal changes
+// Log formatted strings and variables
+logutil.Logf("Current count: %d", count.Get())
+
+// Debug signal changes by subscribing to them
 count.Subscribe(func(value int) {
-    logutil.Logf("Count changed: %d", value)
+    logutil.Logf("Signal 'count' changed to: %d", value)
 })
-
-// Debug effect execution
-reactivity.NewEffect(func() {
-    value := count.Get()
-    logutil.Logf("Effect triggered with count: %d", value)
-})
-```
-
-### Debugging Reactivity
-
-```go
-// Create a debug wrapper for signals
-func DebugSignal[T any](name string, initial T) *reactivity.Signal[T] {
-    signal := reactivity.NewSignal(initial)
-    
-    // Log all changes
-    signal.Subscribe(func(value T) {
-        logutil.Logf("Signal %s changed to: %v", name, value)
-    })
-    
-    return signal
-}
-
-// Usage
-count := DebugSignal("count", 0)
-name := DebugSignal("name", "")
 ```
 
 ### DOM Inspection
 
 ```go
-// Check if elements exist
-func debugElement(selector string) {
-    element := dom.QuerySelector(selector)
-    if element == nil {
-        logutil.Logf("Element not found: %s", selector)
+// Check if an element exists within OnMount
+comps.OnMount(func() {
+    el := dom.GetElementByID("my-button")
+    if el == nil {
+        logutil.Log("Element with ID 'my-button' was not found!")
     } else {
-        logutil.Logf("Element found: %s", element.TagName())
+        logutil.Log("Successfully found element:", el.TagName())
     }
-}
-
-// Debug data attributes
-func debugDataAttributes() {
-    elements := dom.QuerySelectorAll("[data-text]")
-    logutil.Logf("Found %d elements with data-text", len(elements))
-    
-    for i, el := range elements {
-        attr := el.GetAttribute("data-text")
-        logutil.Logf("Element %d: data-text=%s", i, attr)
-    }
-}
+})
 ```
 
 ### Effect Debugging
 
-```go
-// Debug effect dependencies
-func DebugEffect(name string, fn func()) reactivity.Effect {
-    logutil.Logf("Creating effect: %s", name)
-    
-    return reactivity.NewEffect(func() {
-        logutil.Logf("Effect %s triggered", name)
-        fn()
-        logutil.Logf("Effect %s completed", name)
-    })
-}
+Wrap your effect's logic in logs to see when it triggers.
 
-// Usage
-DebugEffect("counter-display", func() {
-    count := counter.Get()
+```go
+// Debug an effect's execution
+reactivity.NewEffect(func() {
+    logutil.Log("Counter display effect is running...")
+    count := counter.Get() // This is the dependency
     displayText.Set(fmt.Sprintf("Count: %d", count))
 })
 ```
