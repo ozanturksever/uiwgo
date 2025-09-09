@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UIwGo Helpers Demo</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f8f9fa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        #app {
+            min-height: 100vh;
+        }
+        
+        /* Loading state */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-size: 18px;
+            color: #666;
+        }
+        
+        .loading::after {
+            content: '';
+            width: 20px;
+            height: 20px;
+            border: 2px solid #007bff;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            margin-left: 10px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="loading">Loading UIwGo Helpers Demo...</div>
+    </div>
+    
+    <script src="wasm_exec.js"></script>
+    <script>
+        const go = new Go();
+        WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then((result) => {
+            go.run(result.instance);
+        }).catch((err) => {
+            console.error('Failed to load WASM:', err);
+            document.getElementById('app').innerHTML = `
+                <div style="padding: 20px; text-align: center; color: #dc3545;">
+                    <h2>❌ Failed to Load Application</h2>
+                    <p>Error: ${err.message}</p>
+                    <p>Please check the console for more details.</p>
+                </div>
+            `;
+        });
+    </script>
+</body>
+</html>

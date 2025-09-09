@@ -26,7 +26,7 @@ func TestShadcnReactDemo_BasicRendering(t *testing.T) {
 	err := chromedp.Run(chromedpCtx.Ctx,
 		testhelpers.Actions.NavigateAndWaitForLoad(server.URL(), "body"),
 		// Wait longer for WASM to load and React to render
-		chromedp.Sleep(3*time.Second),
+		chromedp.Sleep(500*time.Millisecond),
 		// Check if the app container has content
 		chromedp.WaitVisible(`#app`, chromedp.ByID),
 		// Wait for the page to load and check basic elements
@@ -65,7 +65,7 @@ func TestShadcnReactDemo_ButtonInteraction(t *testing.T) {
 	err := chromedp.Run(chromedpCtx.Ctx,
 		testhelpers.Actions.NavigateAndWaitForLoad(server.URL(), "body"),
 		// Wait longer for WASM to load and React to render
-		chromedp.Sleep(3*time.Second),
+		chromedp.Sleep(500*time.Millisecond),
 		// Check if the app container has content
 		chromedp.WaitVisible(`#app`, chromedp.ByID),
 		// Wait for the counter value element specifically

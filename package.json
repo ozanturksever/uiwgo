@@ -23,7 +23,8 @@
     "dev:inline_events_demo": "vite -c examples/inline_events_demo/vite.config.js",
     "dev:file_upload": "vite -c examples/file_upload/vite.config.js",
     "dev:helpers_demo": "vite -c examples/helpers_demo/vite.config.js",
-    "dev:ecommerce_catalog": "vite -c examples/ecommerce_catalog/vite.config.js"
+    "dev:ecommerce_catalog": "vite -c examples/ecommerce_catalog/vite.config.js",
+    "dev:task_dashboard": "vite -c examples/task_dashboard/vite.config.js"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.0.2",
