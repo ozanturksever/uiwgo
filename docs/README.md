@@ -12,9 +12,14 @@ A browser-first UI runtime for Go targeting WebAssembly with gomponents-based ty
 ### Guides
 - [Reactivity & State](./guides/reactivity-state.md) - Signals, Effects, Memos, Store, Resources
 - [Control Flow](./guides/control-flow.md) - Show, For, Index, Switch, Dynamic components
+- [Helper Functions](./guides/helper-functions.md) - Comprehensive guide to UIwGo helper functions
 - [Forms & Events](./guides/forms-events.md) - Event handling and form patterns
 - [Lifecycle & Effects](./guides/lifecycle-effects.md) - Component lifecycle and effect management
 - [Application Manager](./guides/application-manager.md) - Application lifecycle and management
+- [Real-World Examples](./guides/real-world-examples.md) - Practical usage patterns with real applications
+- [Integration Examples](./guides/integration-examples.md) - Complex examples showing helpers working together
+- [Performance Optimization](./guides/performance-optimization.md) - Optimizing UIwGo application performance
+- [Troubleshooting](./guides/troubleshooting.md) - Common issues and debugging techniques
 
 ### Reference
 - [Core APIs](./api/core-apis.md) - Complete API documentation

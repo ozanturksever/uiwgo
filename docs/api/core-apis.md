@@ -418,45 +418,565 @@ type Effect interface {
 
 ---
 
+## Control Flow Helpers
+
+UIwGo provides powerful helper functions for conditional rendering, loops, and dynamic content.
+
+### Show
+
+Conditionally render content based on a boolean signal.
+
+```go
+func Show(p ShowProps) g.Node
+
+type ShowProps struct {
+    When     reactivity.Signal[bool]
+    Children g.Node
+}
+```
+
+**Example:**
+```go
+func ConditionalContent() g.Node {
+    visible := reactivity.NewSignal(true)
+    
+    return Div(
+        Button(
+            Text("Toggle"),
+            OnClickInline(func(el dom.Element) {
+                visible.Set(!visible.Get())
+            }),
+        ),
+        Show(ShowProps{
+            When: visible,
+            Children: P(Text("This content is conditionally visible!")),
+        }),
+    )
+}
+```
+
+### For
+
+Render a list of items with efficient reconciliation and keying.
+
+```go
+func For[T any](p ForProps[T]) g.Node
+
+type ForProps[T any] struct {
+    Items    any // reactivity.Signal[[]T] or func() []T
+    Key      func(T) string
+    Children func(item T, index int) g.Node
+}
+```
+
+**Example:**
+```go
+type Todo struct {
+    ID   string
+    Text string
+    Done bool
+}
+
+func TodoList() g.Node {
+    todos := reactivity.NewSignal([]Todo{
+        {ID: "1", Text: "Learn UIwGo", Done: false},
+        {ID: "2", Text: "Build an app", Done: true},
+    })
+    
+    return Ul(
+        For(ForProps[Todo]{
+            Items: todos,
+            Key: func(todo Todo) string { return todo.ID },
+            Children: func(todo Todo, index int) g.Node {
+                return Li(
+                    Input(
+                        Type("checkbox"),
+                        If(todo.Done, Checked()),
+                    ),
+                    Text(todo.Text),
+                )
+            },
+        }),
+    )
+}
+```
+
+### Index
+
+Render a list with index-based reconciliation (useful when items don't have stable keys).
+
+```go
+func Index[T any](p IndexProps[T]) g.Node
+
+type IndexProps[T any] struct {
+    Items    any // reactivity.Signal[[]T] or func() []T
+    Children func(getItem func() T, index int) g.Node
+}
+```
+
+**Example:**
+```go
+func NumberList() g.Node {
+    numbers := reactivity.NewSignal([]int{1, 2, 3, 4, 5})
+    
+    return Ul(
+        Index(IndexProps[int]{
+            Items: numbers,
+            Children: func(getItem func() int, index int) g.Node {
+                return Li(
+                    Text(fmt.Sprintf("Item %d: %d", index, getItem())),
+                )
+            },
+        }),
+    )
+}
+```
+
+### Switch and Match
+
+Render different content based on a value (like a switch statement).
+
+```go
+func Switch(p SwitchProps) g.Node
+func Match(p MatchProps) g.Node
+
+type SwitchProps struct {
+    When     any // reactivity.Signal[any] or func() any
+    Fallback g.Node
+    Children []g.Node // Array of Match nodes
+}
+
+type MatchProps struct {
+    When     any // value or func() bool for matching
+    Children g.Node
+}
+```
+
+**Example:**
+```go
+func StatusDisplay() g.Node {
+    status := reactivity.NewSignal("loading")
+    
+    return Div(
+        Switch(SwitchProps{
+            When: status,
+            Fallback: P(Text("Unknown status")),
+            Children: []g.Node{
+                Match(MatchProps{
+                    When: "loading",
+                    Children: P(Text("Loading...")),
+                }),
+                Match(MatchProps{
+                    When: "success",
+                    Children: P(Text("✅ Success!")),
+                }),
+                Match(MatchProps{
+                    When: "error",
+                    Children: P(Text("❌ Error occurred")),
+                }),
+            },
+        }),
+    )
+}
+```
+
+### Dynamic
+
+Render components dynamically based on a signal.
+
+```go
+func Dynamic(p DynamicProps) g.Node
+
+type DynamicProps struct {
+    Component any // reactivity.Signal[ComponentFunc] or func() ComponentFunc
+}
+```
+
+**Example:**
+```go
+func DynamicView() g.Node {
+    currentView := reactivity.NewSignal(func() g.Node {
+        return P(Text("Home View"))
+    })
+    
+    return Div(
+        Button(
+            Text("Switch to Profile"),
+            OnClickInline(func(el dom.Element) {
+                currentView.Set(func() g.Node {
+                    return P(Text("Profile View"))
+                })
+            }),
+        ),
+        Dynamic(DynamicProps{
+            Component: currentView,
+        }),
+    )
+}
+```
+
+## Utility Helpers
+
+### Fragment
+
+Group multiple nodes without creating a wrapper element.
+
+```go
+func Fragment(children ...g.Node) g.Node
+```
+
+**Example:**
+```go
+func MultipleElements() g.Node {
+    return Fragment(
+        H1(Text("Title")),
+        P(Text("Description")),
+        Button(Text("Action")),
+    )
+}
+```
+
+### Portal
+
+Render content into a different DOM location.
+
+```go
+func Portal(target string, children g.Node) g.Node
+```
+
+**Example:**
+```go
+func ModalExample() g.Node {
+    showModal := reactivity.NewSignal(false)
+    
+    return Div(
+        Button(
+            Text("Open Modal"),
+            OnClickInline(func(el dom.Element) {
+                showModal.Set(true)
+            }),
+        ),
+        Show(ShowProps{
+            When: showModal,
+            Children: Portal("body", Div(
+                Class("modal-overlay"),
+                Div(
+                    Class("modal"),
+                    H2(Text("Modal Title")),
+                    P(Text("Modal content goes here")),
+                    Button(
+                        Text("Close"),
+                        OnClickInline(func(el dom.Element) {
+                            showModal.Set(false)
+                        }),
+                    ),
+                ),
+            )),
+        }),
+    )
+}
+```
+
+### Memo
+
+Memoize component rendering based on dependencies.
+
+```go
+func Memo(component func() g.Node, dependencies ...any) g.Node
+
+type MemoProps struct {
+    Component    func() g.Node
+    Dependencies []any
+}
+```
+
+**Example:**
+```go
+func ExpensiveComponent(data []string) g.Node {
+    return Memo(func() g.Node {
+        // Expensive rendering logic
+        var items []g.Node
+        for _, item := range data {
+            items = append(items, Li(Text(item)))
+        }
+        return Ul(items...)
+    }, data) // Re-render only when data changes
+}
+```
+
+### Lazy
+
+Lazy-load components for code splitting.
+
+```go
+func Lazy(loader func() func() g.Node) g.Node
+
+type LazyProps struct {
+    Loader func() func() g.Node
+}
+```
+
+**Example:**
+```go
+func LazyRoute() g.Node {
+    return Lazy(func() func() g.Node {
+        // This could load from a different module
+        return func() g.Node {
+            return Div(
+                H1(Text("Lazy Loaded Component")),
+                P(Text("This component was loaded on demand")),
+            )
+        }
+    })
+}
+```
+
+### ErrorBoundary
+
+Catch and handle errors in component trees.
+
+```go
+func ErrorBoundary(props ErrorBoundaryProps) g.Node
+
+type ErrorBoundaryProps struct {
+    Fallback func(error) g.Node
+    Children g.Node
+}
+```
+
+**Example:**
+```go
+func SafeComponent() g.Node {
+    return ErrorBoundary(ErrorBoundaryProps{
+        Fallback: func(err error) g.Node {
+            return Div(
+                Class("error-boundary"),
+                H2(Text("Something went wrong")),
+                P(Text(err.Error())),
+                Button(
+                    Text("Retry"),
+                    OnClickInline(func(el dom.Element) {
+                        // Retry logic
+                    }),
+                ),
+            )
+        },
+        Children: RiskyComponent(),
+    })
+}
+```
+
+## Helper Functions Integration
+
+UIwGo provides powerful helper functions that work seamlessly with the core APIs to simplify common UI patterns.
+
+### Conditional Rendering with Show
+
+```go
+// Basic conditional rendering
+func LoginStatus() g.Node {
+    isLoggedIn := reactivity.NewSignal(false)
+    
+    return comps.Show(comps.ShowProps{
+        When: isLoggedIn,
+        Children: h.Div(
+            h.Text("Welcome back!"),
+            h.Button(
+                h.Text("Logout"),
+                dom.OnClick(func() { isLoggedIn.Set(false) }),
+            ),
+        ),
+        Fallback: h.Div(
+            h.Text("Please log in"),
+            h.Button(
+                h.Text("Login"),
+                dom.OnClick(func() { isLoggedIn.Set(true) }),
+            ),
+        ),
+    })
+}
+```
+
+### List Rendering with For
+
+```go
+// Dynamic list with reactive data
+func TodoList() g.Node {
+    todos := reactivity.NewSignal([]Todo{
+        {ID: "1", Text: "Learn UIwGo", Done: false},
+        {ID: "2", Text: "Build an app", Done: false},
+    })
+    
+    return h.Div(
+        h.H2(h.Text("Todo List")),
+        h.Ul(
+            comps.For(comps.ForProps[Todo]{
+                Items: todos,
+                Key: func(todo Todo) string { return todo.ID },
+                Children: func(todo Todo, index int) g.Node {
+                    return h.Li(
+                        h.Input(
+                            h.Type("checkbox"),
+                            h.Checked(todo.Done),
+                            dom.OnChange(func(checked bool) {
+                                // Update todo status
+                                current := todos.Get()
+                                current[index].Done = checked
+                                todos.Set(current)
+                            }),
+                        ),
+                        h.Span(h.Text(todo.Text)),
+                    )
+                },
+            }),
+        ),
+    )
+}
+```
+
+### Multi-State Switching
+
+```go
+// Complex state management with Switch/Match
+func DataView() g.Node {
+    loadingState := reactivity.NewSignal("idle") // idle, loading, success, error
+    data := reactivity.NewSignal([]string{})
+    
+    return h.Div(
+        h.Button(
+            h.Text("Load Data"),
+            dom.OnClick(func() {
+                loadingState.Set("loading")
+                // Simulate async data loading
+                go func() {
+                    time.Sleep(2 * time.Second)
+                    data.Set([]string{"Item 1", "Item 2", "Item 3"})
+                    loadingState.Set("success")
+                }()
+            }),
+        ),
+        comps.Switch(comps.SwitchProps{
+            When: loadingState,
+            Children: []g.Node{
+                comps.Match(comps.MatchProps{
+                    When: "idle",
+                    Children: h.P(h.Text("Click to load data")),
+                }),
+                comps.Match(comps.MatchProps{
+                    When: "loading",
+                    Children: h.P(h.Text("Loading...")),
+                }),
+                comps.Match(comps.MatchProps{
+                    When: "success",
+                    Children: h.Ul(
+                        comps.For(comps.ForProps[string]{
+                            Items: data,
+                            Key: func(item string) string { return item },
+                            Children: func(item string, index int) g.Node {
+                                return h.Li(h.Text(item))
+                            },
+                        }),
+                    ),
+                }),
+                comps.Match(comps.MatchProps{
+                    When: "error",
+                    Children: h.P(
+                        h.Class("error"),
+                        h.Text("Failed to load data"),
+                    ),
+                }),
+            },
+        }),
+    )
+}
+```
+
+### Reactive Text Binding
+
+```go
+// Dynamic text content with BindText
+func UserProfile() g.Node {
+    user := reactivity.NewSignal(User{Name: "John", Email: "john@example.com"})
+    
+    return h.Div(
+        h.H1(
+            h.Text("Welcome, "),
+            comps.BindText(reactivity.NewMemo(func() string {
+                return user.Get().Name
+            })),
+        ),
+        h.P(
+            h.Text("Email: "),
+            comps.BindText(reactivity.NewMemo(func() string {
+                return user.Get().Email
+            })),
+        ),
+        h.Input(
+            h.Placeholder("Update name"),
+            dom.OnInput(func(value string) {
+                current := user.Get()
+                current.Name = value
+                user.Set(current)
+            }),
+        ),
+    )
+}
+```
+
+For comprehensive helper function documentation, see:
+- **[Helper Functions Guide](../guides/helper-functions.md)** - Complete guide with all patterns
+- **[Quick Reference](../guides/quick-reference.md)** - Syntax reference
+- **[Real-World Examples](../guides/real-world-examples.md)** - Practical applications
+
 ## Quick Reference
 
 ### Common Patterns
 
 ```go
-// 1. A basic functional component
-func MyComponent() g.Node {
-    // State
-    message := reactivity.NewSignal("Hello")
-
-    // View
-    return h.Div(
-        comps.BindText(message.Get),
+// Functional component with state
+func Counter() g.Node {
+    count := reactivity.NewSignal(0)
+    return Div(
+        P(Text("Count: "), BindText(func() string { return strconv.Itoa(count.Get()) })),
+        Button(Text("Increment"), OnClickInline(func(el dom.Element) {
+            count.Set(count.Get() + 1)
+        })),
     )
 }
 
-// 2. Computed state
+// Computed state
 fullName := reactivity.NewMemo(func() string {
     return firstName.Get() + " " + lastName.Get()
 })
 
-// 3. Side effects
+// Side effects
 reactivity.NewEffect(func() {
-    title := pageTitle.Get()
-    dom.GetWindow().Document().SetTitle(title)
+    logutil.Log("Count changed:", count.Get())
 })
 
-// 4. Event handling
-comps.OnMount(func() {
-    btn := dom.GetElementByID("my-btn")
-    dom.BindClickToCallback(btn, func() {
-        count.Update(func(c int) int { return c + 1 })
-    })
+// Event handling
+OnClickInline(func(el dom.Element) {
+    // Handle click
 })
 
-// 5. Cleanup
+// Cleanup
 comps.OnCleanup(func() {
-    myEffect.Dispose()
-    myTimer.Stop()
+    // Cleanup resources
+})
+
+// Conditional rendering
+Show(ShowProps{
+    When: visible,
+    Children: P(Text("Conditional content")),
+})
+
+// List rendering
+For(ForProps[Item]{
+    Items: items,
+    Key: func(item Item) string { return item.ID },
+    Children: func(item Item, index int) g.Node {
+        return Li(Text(item.Name))
+    },
 })
 ```
 

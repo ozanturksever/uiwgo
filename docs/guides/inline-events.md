@@ -87,6 +87,27 @@ dom.OnEscapeInline(func(el dom.Element) {
 })
 ```
 
+### File Upload Events
+```go
+// File selection handler
+dom.OnFileSelectInline(func(el dom.Element, files []js.Value) {
+    for _, file := range files {
+        name := file.Get("name").String()
+        size := file.Get("size").Int()
+        // Process selected file
+    }
+})
+
+// File drop handler
+dom.OnFileDropInline(func(el dom.Element, files []js.Value) {
+    for _, file := range files {
+        name := file.Get("name").String()
+        size := file.Get("size").Int()
+        // Process dropped file
+    }
+})
+```
+
 ## Complete Example
 
 Here's a comprehensive example showing various inline event handlers:
@@ -165,6 +186,41 @@ func InteractiveComponent() Node {
                         items = append(items, Li(Text(todo)))
                     }
                     return Group(items)
+                }),
+            ),
+        ),
+        
+        // File upload with drag and drop
+        Div(
+            H3(Text("File Upload")),
+            Div(
+                Style("border: 2px dashed #ccc; padding: 20px; text-align: center; margin: 10px 0;"),
+                Text("Drop files here or click to select"),
+                dom.OnFileDropInline(func(el dom.Element, files []js.Value) {
+                    for _, file := range files {
+                        name := file.Get("name").String()
+                        size := file.Get("size").Int()
+                        logutil.Logf("Dropped file: %s (%d bytes)", name, size)
+                    }
+                }),
+                dom.OnClickInline(func(el dom.Element) {
+                    // Trigger file input
+                    input := dom.GetDocument().CreateElement("input")
+                    input.SetAttribute("type", "file")
+                    input.SetAttribute("multiple", "true")
+                    input.Underlying().Call("click")
+                }),
+            ),
+            Input(
+                Type("file"),
+                Multiple(true),
+                Style("margin: 10px 0;"),
+                dom.OnFileSelectInline(func(el dom.Element, files []js.Value) {
+                    for _, file := range files {
+                        name := file.Get("name").String()
+                        size := file.Get("size").Int()
+                        logutil.Logf("Selected file: %s (%d bytes)", name, size)
+                    }
                 }),
             ),
         ),
