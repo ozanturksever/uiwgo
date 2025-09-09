@@ -382,6 +382,51 @@ func OnFileDropInline(handler func(el Element, files []js.Value)) g.Node {
 	return g.Attr("data-uiwgo-onfiledrop", id)
 }
 
+// Alpine-inspired: run once when element is connected
+func OnInitInline(handler func(el Element)) g.Node {
+	id := nextInlineID("init")
+	inlineHandlersMu.Lock()
+	inlineInitHandlers[id] = handler
+	inlineHandlersMu.Unlock()
+	return g.Attr("data-uiwgo-oninit", id)
+}
+
+// Alpine-inspired: run when element is disconnected from DOM
+func OnDestroyInline(handler func(el Element)) g.Node {
+	id := nextInlineID("destroy")
+	inlineHandlersMu.Lock()
+	inlineDestroyHandlers[id] = handler
+	inlineHandlersMu.Unlock()
+	return g.Attr("data-uiwgo-ondestroy", id)
+}
+
+// Alpine-inspired: visibility observer (IntersectionObserver), fires once on enter
+func OnVisibleInline(handler func(el Element)) g.Node {
+	id := nextInlineID("visible")
+	inlineHandlersMu.Lock()
+	inlineVisibleHandlers[id] = handler
+	inlineHandlersMu.Unlock()
+	return g.Attr("data-uiwgo-onvisible", id)
+}
+
+// Alpine-inspired: size observer (ResizeObserver)
+func OnResizeInline(handler func(el Element)) g.Node {
+	id := nextInlineID("resize")
+	inlineHandlersMu.Lock()
+	inlineResizeHandlers[id] = handler
+	inlineHandlersMu.Unlock()
+	return g.Attr("data-uiwgo-onresize", id)
+}
+
+// Alpine-inspired: click once convenience
+func OnClickOnceInline(handler func(el Element)) g.Node {
+	id := nextInlineID("clk1")
+	inlineHandlersMu.Lock()
+	inlineClickOnceHandlers[id] = handler
+	inlineHandlersMu.Unlock()
+	return g.Attr("data-uiwgo-onclick-once", id)
+}
+
 func serializeFormData(formEl Element) map[string]string {
 	formData := make(map[string]string)
 	if formEl == nil {
@@ -1432,6 +1477,220 @@ func AttachInlineDelegates(root js.Value) {
 		}
 	}
 
+	// Alpine-inspired: click once handler
+	clickOnceInstalled := false
+	var clickOnceFn js.Func
+	var clickOnceIDs []string
+	{
+		marker := "[data-uiwgo-onclick-once]"
+		nodes := root.Call("querySelectorAll", marker)
+		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
+			clickOnceIDs = collect("data-uiwgo-onclick-once")
+			clickOnceFn = js.FuncOf(func(this js.Value, args []js.Value) any {
+				if len(args) == 0 { return nil }
+				rawEvent := args[0]
+				target := rawEvent.Get("target")
+				if target.IsUndefined() || target.IsNull() { return nil }
+				matched := target.Call("closest", marker)
+				if matched.IsUndefined() || matched.IsNull() { return nil }
+				id := matched.Call("getAttribute", "data-uiwgo-onclick-once").String()
+				if id == "" { return nil }
+				inlineHandlersMu.RLock()
+				h := inlineClickOnceHandlers[id]
+				inlineHandlersMu.RUnlock()
+				if h == nil { return nil }
+				el := domv2.WrapElement(matched)
+				if el == nil { return nil }
+				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline click-once: %v", r) } }()
+				h(el)
+				inlineHandlersMu.Lock()
+				delete(inlineClickOnceHandlers, id)
+				inlineHandlersMu.Unlock()
+				matched.Call("removeAttribute", "data-uiwgo-onclick-once")
+				return nil
+			})
+			root.Call("addEventListener", "click", clickOnceFn)
+			clickOnceInstalled = true
+		}
+	}
+
+	// Alpine-inspired: OnInit (run once ASAP after connect)
+	initInstalled := false
+	{
+		marker := "[data-uiwgo-oninit]"
+		nodes := root.Call("querySelectorAll", marker)
+		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
+			ln := nodes.Get("length").Int()
+			for i := 0; i < ln; i++ {
+				node := nodes.Call("item", i)
+				if node.Call("hasAttribute", "data-uiwgo-oninit-done").Bool() { continue }
+				id := node.Call("getAttribute", "data-uiwgo-oninit").String()
+				if id == "" { continue }
+				inlineHandlersMu.RLock()
+				h := inlineInitHandlers[id]
+				inlineHandlersMu.RUnlock()
+				if h == nil { continue }
+				var f js.Func
+				f = js.FuncOf(func(this js.Value, args []js.Value) any {
+					el := domv2.WrapElement(node)
+					if el != nil { 
+						defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline oninit: %v", r) } }()
+						h(el)
+					}
+					node.Call("setAttribute", "data-uiwgo-oninit-done", "1")
+					inlineHandlersMu.Lock(); delete(inlineInitHandlers, id); inlineHandlersMu.Unlock()
+					f.Release()
+					return nil
+				})
+				js.Global().Call("queueMicrotask", f)
+			}
+			initInstalled = true
+		}
+	}
+
+	// Alpine-inspired: OnDestroy via MutationObserver for subtree removals
+	destroyInstalled := false
+	var destroyObserver js.Value
+	var destroyCb js.Func
+	var destroyIDs []string
+	{
+		marker := "[data-uiwgo-ondestroy]"
+		nodes := root.Call("querySelectorAll", marker)
+		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
+			destroyIDs = collect("data-uiwgo-ondestroy")
+		}
+		destroyCb = js.FuncOf(func(this js.Value, args []js.Value) any {
+			if len(args) == 0 { return nil }
+			mutations := args[0]
+			for i := 0; i < mutations.Length(); i++ {
+				m := mutations.Index(i)
+				removed := m.Get("removedNodes")
+				for j := 0; j < removed.Length(); j++ {
+					rn := removed.Index(j)
+					if !rn.Truthy() || rn.Get("nodeType").Int() != 1 { continue }
+					// If removed element itself has ondestroy
+					if rn.Call("hasAttribute", "data-uiwgo-ondestroy").Bool() {
+						id := rn.Call("getAttribute", "data-uiwgo-ondestroy").String()
+						inlineHandlersMu.RLock(); h := inlineDestroyHandlers[id]; inlineHandlersMu.RUnlock()
+						if h != nil {
+							el := domv2.WrapElement(rn)
+							if el != nil { defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline ondestroy: %v", r) } }(); h(el) }
+							inlineHandlersMu.Lock(); delete(inlineDestroyHandlers, id); inlineHandlersMu.Unlock()
+						}
+					}
+					// Also any descendants
+					desc := rn.Call("querySelectorAll", marker)
+					for k := 0; k < desc.Get("length").Int(); k++ {
+						elNode := desc.Index(k)
+						id := elNode.Call("getAttribute", "data-uiwgo-ondestroy").String()
+						inlineHandlersMu.RLock(); h := inlineDestroyHandlers[id]; inlineHandlersMu.RUnlock()
+						if h == nil { continue }
+						el := domv2.WrapElement(elNode)
+						if el == nil { continue }
+						defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline ondestroy (desc): %v", r) } }()
+						h(el)
+						inlineHandlersMu.Lock(); delete(inlineDestroyHandlers, id); inlineHandlersMu.Unlock()
+					}
+				}
+			}
+			return nil
+		})
+		observerCtor := js.Global().Get("MutationObserver")
+		if observerCtor.Truthy() {
+			destroyObserver = observerCtor.New(destroyCb)
+			opt := js.Global().Get("Object").New()
+			opt.Set("childList", true)
+			opt.Set("subtree", true)
+			destroyObserver.Call("observe", root, opt)
+			destroyInstalled = true
+		}
+	}
+
+	// Alpine-inspired: Visibility via IntersectionObserver
+	visibleInstalled := false
+	var io js.Value
+	var ioCb js.Func
+	var visibleIDs []string
+	{
+		marker := "[data-uiwgo-onvisible]"
+		nodes := root.Call("querySelectorAll", marker)
+		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
+			visibleIDs = collect("data-uiwgo-onvisible")
+			ioCb = js.FuncOf(func(this js.Value, args []js.Value) any {
+				if len(args) < 1 { return nil }
+				entries := args[0]
+				observer := args[1]
+				ln := entries.Length()
+				for i := 0; i < ln; i++ {
+					entry := entries.Index(i)
+					if !entry.Get("isIntersecting").Bool() { continue }
+					target := entry.Get("target")
+					id := target.Call("getAttribute", "data-uiwgo-onvisible").String()
+					inlineHandlersMu.RLock(); h := inlineVisibleHandlers[id]; inlineHandlersMu.RUnlock()
+					if h == nil { continue }
+					el := domv2.WrapElement(target)
+					if el == nil { continue }
+					defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline onvisible: %v", r) } }()
+					h(el)
+					observer.Call("unobserve", target)
+					inlineHandlersMu.Lock(); delete(inlineVisibleHandlers, id); inlineHandlersMu.Unlock()
+					target.Call("removeAttribute", "data-uiwgo-onvisible")
+				}
+				return nil
+			})
+			ctor := js.Global().Get("IntersectionObserver")
+			if ctor.Truthy() {
+				io = ctor.New(ioCb)
+				ln := nodes.Get("length").Int()
+				for i := 0; i < ln; i++ {
+					elNode := nodes.Call("item", i)
+					io.Call("observe", elNode)
+				}
+				visibleInstalled = true
+			}
+		}
+	}
+
+	// Alpine-inspired: Resize via ResizeObserver
+	resizeInstalled := false
+	var ro js.Value
+	var roCb js.Func
+	var resizeIDs []string
+	{
+		marker := "[data-uiwgo-onresize]"
+		nodes := root.Call("querySelectorAll", marker)
+		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
+			resizeIDs = collect("data-uiwgo-onresize")
+			roCb = js.FuncOf(func(this js.Value, args []js.Value) any {
+				if len(args) < 1 { return nil }
+				entries := args[0]
+				ln := entries.Length()
+				for i := 0; i < ln; i++ {
+					entry := entries.Index(i)
+					target := entry.Get("target")
+					id := target.Call("getAttribute", "data-uiwgo-onresize").String()
+					inlineHandlersMu.RLock(); h := inlineResizeHandlers[id]; inlineHandlersMu.RUnlock()
+					if h == nil { continue }
+					el := domv2.WrapElement(target)
+					if el == nil { continue }
+					defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline onresize: %v", r) } }()
+					h(el)
+				}
+				return nil
+			})
+			ctor := js.Global().Get("ResizeObserver")
+			if ctor.Truthy() {
+				ro = ctor.New(roCb)
+				ln := nodes.Get("length").Int()
+				for i := 0; i < ln; i++ {
+					elNode := nodes.Call("item", i)
+					ro.Call("observe", elNode)
+				}
+				resizeInstalled = true
+			}
+		}
+	}
+
 	// Cleanup
 	reactivity.OnCleanup(func() {
 		if clickInstalled {
@@ -1643,6 +1902,38 @@ func AttachInlineDelegates(root js.Value) {
 			dragOverPreventFn.Release()
 			inlineHandlersMu.Lock()
 			for _, id := range fileDropIDs { delete(inlineFileDropHandlers, id) }
+			inlineHandlersMu.Unlock()
+		}
+		// Cleanup for Alpine-inspired additions
+		if clickOnceInstalled {
+			root.Call("removeEventListener", "click", clickOnceFn)
+			clickOnceFn.Release()
+			inlineHandlersMu.Lock()
+			for _, id := range clickOnceIDs { delete(inlineClickOnceHandlers, id) }
+			inlineHandlersMu.Unlock()
+		}
+		if initInstalled {
+			// No event listener to remove; OnInit used microtask and cleared its handler
+		}
+		if destroyInstalled {
+			if destroyObserver.Truthy() { destroyObserver.Call("disconnect") }
+			destroyCb.Release()
+			inlineHandlersMu.Lock()
+			for _, id := range destroyIDs { delete(inlineDestroyHandlers, id) }
+			inlineHandlersMu.Unlock()
+		}
+		if visibleInstalled {
+			if io.Truthy() { io.Call("disconnect") }
+			ioCb.Release()
+			inlineHandlersMu.Lock()
+			for _, id := range visibleIDs { delete(inlineVisibleHandlers, id) }
+			inlineHandlersMu.Unlock()
+		}
+		if resizeInstalled {
+			if ro.Truthy() { ro.Call("disconnect") }
+			roCb.Release()
+			inlineHandlersMu.Lock()
+			for _, id := range resizeIDs { delete(inlineResizeHandlers, id) }
 			inlineHandlersMu.Unlock()
 		}
 	})

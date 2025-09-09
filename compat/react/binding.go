@@ -41,15 +41,15 @@ type ComponentBinding struct {
 // The component will automatically update when any signals used in the Props function change
 func Bind(options BindingOptions) (*ComponentBinding, error) {
 	if options.ComponentID == "" {
-		return nil, NewReactBridgeError("component ID is required", ErrorTypeInvalidArgument, ErrorSeverityError, nil)
+		return nil, ErrComponentIDRequired
 	}
 
 	if options.ComponentName == "" {
-		return nil, NewReactBridgeError("component name is required", ErrorTypeInvalidArgument, ErrorSeverityError, nil)
+		return nil, ErrComponentNameRequired
 	}
 
 	if options.Props == nil {
-		return nil, NewReactBridgeError("props function is required", ErrorTypeInvalidArgument, ErrorSeverityError, nil)
+		return nil, ErrPropsFuncRequired
 	}
 
 	binding := &ComponentBinding{

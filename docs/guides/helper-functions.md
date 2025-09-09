@@ -783,3 +783,75 @@ func goodMemo(data reactivity.Signal[[]DataPoint]) g.Node {
 This guide provides a comprehensive foundation for using UIwGo's helper functions effectively. Remember to always consider performance, maintainability, and user experience when choosing patterns and implementing components.
 
 For more detailed examples and patterns, see the [Real-World Examples](./real-world-examples.md) guide.
+
+
+## Alpine-inspired inline helpers
+
+These helpers bring Alpine.js-like ergonomics to inline events and lifecycle, while staying idiomatic to UIwGo and gomponents. They all return gomponents attributes so you can attach them directly to element builders. See the design notes for more options and rationale in [Alpine-inspired inline events and lifecycle hooks](../alpine_inline_events.md).
+
+- OnInitInline(handler func(el dom.Element))
+  - Run once shortly after the element is connected to the DOM (x-init style)
+  - Schedules on a microtask to avoid layout thrash
+  - Example:
+    ```go
+    g.Div(
+      dom.OnInitInline(func(el dom.Element) {
+        // do one-time setup
+      }),
+      g.Text("Ready")
+    )
+    ```
+
+- OnDestroyInline(handler func(el dom.Element))
+  - Run when the element is removed from the DOM
+  - Uses MutationObserver under the hood and auto-cleans
+  - Example:
+    ```go
+    g.Div(
+      dom.OnDestroyInline(func(el dom.Element) {
+        // cleanup timers/listeners
+      }),
+    )
+    ```
+
+- OnVisibleInline(handler func(el dom.Element))
+  - Fire once when the element first becomes visible in the viewport
+  - Uses IntersectionObserver; automatically unobserves after first fire
+  - Example:
+    ```go
+    g.Div(
+      dom.OnVisibleInline(func(el dom.Element) {
+        // lazy-load, start animations, etc.
+      }),
+    )
+    ```
+
+- OnResizeInline(handler func(el dom.Element))
+  - Listen to element size changes
+  - Uses ResizeObserver; cleans up with scope
+  - Example:
+    ```go
+    g.Div(
+      dom.OnResizeInline(func(el dom.Element) {
+        // react to size changes
+      }),
+    )
+    ```
+
+- OnClickOnceInline(handler func(el dom.Element))
+  - Convenience for a click handler that runs only once per element
+  - Automatically removes its attribute and handler after running
+  - Example:
+    ```go
+    g.Button(
+      g.Text("Once"),
+      dom.OnClickOnceInline(func(el dom.Element) {
+        // runs a single time
+      }),
+    )
+    ```
+
+Notes
+- All helpers follow our JS/DOM interop guideline: prefer honnef.co/go/js/dom/v2 typed elements (re-exported as dom.Element)
+- Handlers are tied to the current cleanup scope and are disposed automatically
+- For additional planned modifiers (debounce, throttle, outside, capture, etc.), see the design doc linked above

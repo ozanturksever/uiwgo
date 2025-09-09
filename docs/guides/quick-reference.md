@@ -499,3 +499,45 @@ badMemo := reactivity.NewMemo(func() string {
 5. **Memory Leaks**: Clean up effects and subscriptions when components unmount
 
 For more detailed information, see the [Helper Functions Guide](./helper-functions.md) and [Performance Optimization](./performance-optimization.md).
+
+
+## Alpine-inspired inline helpers
+
+A concise list of new inline event and lifecycle helpers inspired by Alpine.js. Each returns a gomponents attribute you can attach to elements directly.
+
+- OnInitInline(fn)
+  - Run once after element connects to DOM
+  - Example:
+    ```go
+    g.Div(dom.OnInitInline(func(el dom.Element) { /* setup */ }))
+    ```
+
+- OnDestroyInline(fn)
+  - Run when element is removed from DOM
+  - Example:
+    ```go
+    g.Div(dom.OnDestroyInline(func(el dom.Element) { /* cleanup */ }))
+    ```
+
+- OnVisibleInline(fn)
+  - Fire once when element enters viewport (IntersectionObserver)
+  - Example:
+    ```go
+    g.Div(dom.OnVisibleInline(func(el dom.Element) { /* lazy-load */ }))
+    ```
+
+- OnResizeInline(fn)
+  - React to element resize events (ResizeObserver)
+  - Example:
+    ```go
+    g.Div(dom.OnResizeInline(func(el dom.Element) { /* size changed */ }))
+    ```
+
+- OnClickOnceInline(fn)
+  - Click handler that runs only once and then auto-unregisters
+  - Example:
+    ```go
+    g.Button(g.Text("Once"), dom.OnClickOnceInline(func(el dom.Element) { /* do */ }))
+    ```
+
+See also: Design notes and options in [Alpine-inspired inline events](../alpine_inline_events.md).

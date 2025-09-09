@@ -47,6 +47,11 @@ func NewReactBridge() (*ReactBridge, error) {
 func (rb *ReactBridge) Render(componentName string, props Props, options *RenderOptions) (ComponentID, error) {
 	logutil.Logf("Rendering React component: %s", componentName)
 
+	// Validate props for unsupported types to preserve predictable interop
+	if err := validateProps(props); err != nil {
+		return "", fmt.Errorf("failed to serialize props: %w", err)
+	}
+
 	// Convert props directly to a JS object to avoid JSON marshalling
 	propsJS := MapToJSObject(props)
 
@@ -81,6 +86,11 @@ func (rb *ReactBridge) Render(componentName string, props Props, options *Render
 // Update updates the props of an existing React component
 func (rb *ReactBridge) Update(componentID ComponentID, props Props) error {
 	logutil.Logf("Updating React component: %s", componentID)
+
+	// Validate props
+	if err := validateProps(props); err != nil {
+		return fmt.Errorf("failed to serialize props: %w", err)
+	}
 
 	// Convert props to JS object directly
 	propsJS := MapToJSObject(props)
@@ -167,10 +177,7 @@ var globalBridge *ReactBridge
 
 // InitializeBridge initializes the global React bridge
 func InitializeBridge() error {
-	if globalBridge != nil {
-		return nil // Already initialized
-	}
-
+	// Always (re)initialize to ensure tests that mutate the JS bridge get a fresh instance
 	bridge, err := NewReactBridge()
 	if err != nil {
 		return fmt.Errorf("failed to initialize React bridge: %w", err)
@@ -184,7 +191,7 @@ func InitializeBridge() error {
 // GetBridge returns the global React bridge instance
 func GetBridge() (*ReactBridge, error) {
 	if globalBridge == nil {
-		return nil, fmt.Errorf("React bridge not initialized")
+		return nil, ErrBridgeNotInitialized
 	}
 	return globalBridge, nil
 }

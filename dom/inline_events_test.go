@@ -1205,3 +1205,106 @@ func TestEdgeCases(t *testing.T) {
 		t.Error("Should generate ID even with empty prefix")
 	}
 }
+
+// Alpine-inspired helpers tests
+func TestOnClickOnceInline(t *testing.T) {
+    handler := func(el Element) {}
+    attr := OnClickOnceInline(handler)
+    if attr == nil {
+        t.Fatal("OnClickOnceInline should return an attribute")
+    }
+    inlineHandlersMu.RLock()
+    count := len(inlineClickOnceHandlers)
+    inlineHandlersMu.RUnlock()
+    if count == 0 {
+        t.Error("Click-once handler should be registered")
+    }
+    // Cleanup
+    inlineHandlersMu.Lock()
+    for id := range inlineClickOnceHandlers {
+        delete(inlineClickOnceHandlers, id)
+    }
+    inlineHandlersMu.Unlock()
+}
+
+func TestOnInitInline(t *testing.T) {
+    ran := false
+    handler := func(el Element) { ran = true }
+    attr := OnInitInline(handler)
+    if attr == nil {
+        t.Fatal("OnInitInline should return an attribute")
+    }
+    inlineHandlersMu.RLock()
+    count := len(inlineInitHandlers)
+    inlineHandlersMu.RUnlock()
+    if count == 0 {
+        t.Error("Init handler should be registered")
+    }
+    // Cleanup
+    inlineHandlersMu.Lock()
+    for id := range inlineInitHandlers {
+        delete(inlineInitHandlers, id)
+    }
+    inlineHandlersMu.Unlock()
+    _ = ran // avoid unused variable warning
+}
+
+func TestOnDestroyInline(t *testing.T) {
+    handler := func(el Element) {}
+    attr := OnDestroyInline(handler)
+    if attr == nil {
+        t.Fatal("OnDestroyInline should return an attribute")
+    }
+    inlineHandlersMu.RLock()
+    count := len(inlineDestroyHandlers)
+    inlineHandlersMu.RUnlock()
+    if count == 0 {
+        t.Error("Destroy handler should be registered")
+    }
+    // Cleanup
+    inlineHandlersMu.Lock()
+    for id := range inlineDestroyHandlers {
+        delete(inlineDestroyHandlers, id)
+    }
+    inlineHandlersMu.Unlock()
+}
+
+func TestOnVisibleInline(t *testing.T) {
+    handler := func(el Element) {}
+    attr := OnVisibleInline(handler)
+    if attr == nil {
+        t.Fatal("OnVisibleInline should return an attribute")
+    }
+    inlineHandlersMu.RLock()
+    count := len(inlineVisibleHandlers)
+    inlineHandlersMu.RUnlock()
+    if count == 0 {
+        t.Error("Visible handler should be registered")
+    }
+    // Cleanup
+    inlineHandlersMu.Lock()
+    for id := range inlineVisibleHandlers {
+        delete(inlineVisibleHandlers, id)
+    }
+    inlineHandlersMu.Unlock()
+}
+
+func TestOnResizeInline(t *testing.T) {
+    handler := func(el Element) {}
+    attr := OnResizeInline(handler)
+    if attr == nil {
+        t.Fatal("OnResizeInline should return an attribute")
+    }
+    inlineHandlersMu.RLock()
+    count := len(inlineResizeHandlers)
+    inlineHandlersMu.RUnlock()
+    if count == 0 {
+        t.Error("Resize handler should be registered")
+    }
+    // Cleanup
+    inlineHandlersMu.Lock()
+    for id := range inlineResizeHandlers {
+        delete(inlineResizeHandlers, id)
+    }
+    inlineHandlersMu.Unlock()
+}
