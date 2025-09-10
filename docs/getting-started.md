@@ -170,6 +170,230 @@ Instead of using abstract binding markers, you interact with the DOM directly wh
 -   Use `dom.GetElementByID` within `comps.OnMount` to get a reference to the element.
 -   Use `dom.BindClickToCallback` and other `dom.Bind*` functions to attach handlers.
 
+## Action System Basics
+
+UIwGo includes a powerful **Action System** that provides a structured way to handle events, state updates, and application logic. Actions work seamlessly with signals to create predictable, testable applications.
+
+### Why Use Actions?
+
+While signals handle reactive state, **actions** provide:
+- **Structured event handling** with typed payloads
+- **Centralized application logic** separate from UI concerns
+- **Built-in observability** for debugging and tracing
+- **Testable business logic** independent of DOM interactions
+
+### Action System + Counter Example
+
+Let's enhance our counter example with the action system:
+
+```go
+// examples/counter_actions/main.go
+package main
+
+import (
+    "fmt"
+    "github.com/ozanturksever/logutil"
+    "github.com/ozanturksever/uiwgo/action"
+    "github.com/ozanturksever/uiwgo/comps"
+    "github.com/ozanturksever/uiwgo/dom"
+    "github.com/ozanturksever/uiwgo/reactivity"
+    g "maragu.dev/gomponents"
+    h "maragu.dev/gomponents/html"
+)
+
+// Define typed actions
+var (
+    IncrementAction = action.DefineAction[int]("counter.increment")
+    DecrementAction = action.DefineAction[int]("counter.decrement")
+    ResetAction     = action.DefineAction[int]("counter.reset")
+)
+
+func CounterWithActions() g.Node {
+    // Create reactive state
+    count := reactivity.NewSignal(0)
+    
+    // Create action bus
+    bus := action.New()
+    
+    // Set up action handlers using OnAction for automatic cleanup
+    action.OnAction(bus, IncrementAction, func(ctx action.Context, amount int) {
+        count.Set(count.Get() + amount)
+        logutil.Logf("Incremented by %d (TraceID: %s)", amount, ctx.TraceID)
+    })
+    
+    action.OnAction(bus, DecrementAction, func(ctx action.Context, amount int) {
+        count.Set(count.Get() - amount)
+        logutil.Logf("Decremented by %d (TraceID: %s)", amount, ctx.TraceID)
+    })
+    
+    action.OnAction(bus, ResetAction, func(ctx action.Context, value int) {
+        count.Set(value)
+        logutil.Logf("Reset to %d (TraceID: %s)", value, ctx.TraceID)
+    })
+    
+    // Mount lifecycle for DOM event binding
+    comps.OnMount(func() {
+        incrementBtn := dom.GetElementByID("increment-btn")
+        decrementBtn := dom.GetElementByID("decrement-btn")
+        resetBtn := dom.GetElementByID("reset-btn")
+        
+        // Dispatch actions instead of directly updating state
+        dom.BindClickToCallback(incrementBtn, func() {
+            bus.Dispatch(action.Action[int]{
+                Type:    IncrementAction.Name,
+                Payload: 1,
+                Source:  "counter-ui",
+            })
+        })
+        
+        dom.BindClickToCallback(decrementBtn, func() {
+            bus.Dispatch(action.Action[int]{
+                Type:    DecrementAction.Name,
+                Payload: 1,
+                Source:  "counter-ui",
+            })
+        })
+        
+        dom.BindClickToCallback(resetBtn, func() {
+            bus.Dispatch(action.Action[int]{
+                Type:    ResetAction.Name,
+                Payload: 0,
+                Source:  "counter-ui",
+            })
+        })
+    })
+    
+    return h.Div(g.Class("counter-with-actions"),
+        h.H1(g.Text("Counter with Actions")),
+        h.Div(g.Class("controls"),
+            h.Button(g.ID("decrement-btn"), g.Text("-")),
+            h.Span(
+                g.Class("count"),
+                comps.BindText(func() string {
+                    return fmt.Sprintf("%d", count.Get())
+                }),
+            ),
+            h.Button(g.ID("increment-btn"), g.Text("+")),
+        ),
+        h.Button(
+            g.ID("reset-btn"),
+            g.Class("reset"),
+            g.Text("Reset"),
+        ),
+    )
+}
+
+func main() {
+    comps.Mount("app", CounterWithActions)
+    select {}
+}
+```
+
+### Action System Flow
+
+The action system follows a clear pattern:
+
+1. **Define Actions**: Create typed action definitions using [`action.DefineAction[T]()`](action/types.go:14)
+2. **Create Bus**: Initialize an action bus with [`action.New()`](action/bus.go:15)
+3. **Register Handlers**: Use [`action.OnAction()`](action/lifecycle.go:42) to handle specific actions
+4. **Dispatch Actions**: Send actions through the bus with [`bus.Dispatch()`](action/bus.go:89)
+
+```go
+// 1. Define - What can happen in your app
+var UserLoginAction = action.DefineAction[LoginData]("user.login")
+
+// 2. Handle - What should happen when it occurs
+action.OnAction(bus, UserLoginAction, func(ctx action.Context, data LoginData) {
+    // Handle the login logic
+    userStore.SetCurrentUser(data.User)
+    router.Navigate("/dashboard")
+})
+
+// 3. Dispatch - Trigger the action from UI
+bus.Dispatch(action.CreateAction(UserLoginAction, LoginData{
+    User: user,
+    Timestamp: time.Now(),
+}))
+```
+
+### Signals + Actions Integration
+
+Actions and signals work together seamlessly:
+
+```go
+func TodoAppComponent() g.Node {
+    // Signals for UI state
+    todos := reactivity.NewSignal([]Todo{})
+    filter := reactivity.NewSignal("all")
+    
+    // Action bus for application logic
+    bus := action.New()
+    
+    // Actions update signals through handlers
+    action.OnAction(bus, AddTodoAction, func(ctx action.Context, text string) {
+        current := todos.Get()
+        newTodo := Todo{ID: generateID(), Text: text, Done: false}
+        todos.Set(append(current, newTodo))
+    })
+    
+    action.OnAction(bus, ToggleTodoAction, func(ctx action.Context, id string) {
+        current := todos.Get()
+        for i, todo := range current {
+            if todo.ID == id {
+                current[i].Done = !current[i].Done
+                break
+            }
+        }
+        todos.Set(current) // Signal update triggers UI reactivity
+    })
+    
+    // UI dispatches actions, signals provide reactive rendering
+    // ... component implementation
+}
+```
+
+### Key Action System Benefits
+
+**Type Safety**
+```go
+// Actions are strongly typed - compiler catches errors
+var UpdateUserAction = action.DefineAction[UserData]("user.update")
+
+// This would be a compile error:
+// bus.Dispatch(action.CreateAction(UpdateUserAction, "wrong type"))
+```
+
+**Built-in Observability**
+```go
+// Enable debug logging to see action flow
+action.EnableDevLogger(bus, func(entry action.DevLogEntry) {
+    fmt.Printf("Action: %s took %v\n", entry.ActionType, entry.Duration)
+})
+
+// Actions include trace IDs for debugging
+action.OnAction(bus, MyAction, func(ctx action.Context, payload Data) {
+    fmt.Printf("Handling action with TraceID: %s\n", ctx.TraceID)
+})
+```
+
+**Testable Logic**
+```go
+// Business logic is separate from UI and easily testable
+func TestUserLogin(t *testing.T) {
+    bus := action.New()
+    userStore := NewUserStore()
+    
+    // Set up handlers
+    setupUserHandlers(bus, userStore)
+    
+    // Test the action
+    bus.Dispatch(action.CreateAction(UserLoginAction, testLoginData))
+    
+    // Assert expected state changes
+    assert.Equal(t, "john", userStore.GetCurrentUser().Name)
+}
+```
+
 ## Creating Your First Component
 
 Let's create a simple "Hello, Signals" component from scratch:
@@ -320,7 +544,7 @@ You should see:
 
 ## Key Concepts Demonstrated
 
-### Signals
+### Signals (Reactive State)
 ```go
 name := reactivity.NewSignal("World") // Reactive state
 name.Set("Alice")                     // Update triggers reactivity
@@ -333,6 +557,41 @@ greeting := reactivity.NewMemo(func() string {
     return fmt.Sprintf("Hello, %s!", name.Get())
 })
 // Automatically recomputes when name changes
+```
+
+### Actions (Structured Events)
+```go
+// Define typed actions
+var UpdateNameAction = action.DefineAction[string]("name.update")
+
+// Handle actions with automatic cleanup
+action.OnAction(bus, UpdateNameAction, func(ctx action.Context, newName string) {
+    name.Set(newName) // Action handlers update signals
+})
+
+// Dispatch from UI events
+bus.Dispatch(action.Action[string]{
+    Type:    UpdateNameAction.Name,
+    Payload: "Alice",
+    Source:  "ui-component",
+})
+```
+
+### Action System Integration
+```go
+func Component() g.Node {
+    // Signals for reactive UI state
+    count := reactivity.NewSignal(0)
+    
+    // Actions for structured application logic
+    bus := action.New()
+    action.OnAction(bus, IncrementAction, func(ctx action.Context, amount int) {
+        count.Set(count.Get() + amount) // Actions update signals
+    })
+    
+    // UI dispatches actions, signals drive reactivity
+    // ... rest of component
+}
 ```
 
 ### Two-Way Data Binding
@@ -348,18 +607,39 @@ comps.OnMount(func() {
 Input(ID("name-input"))
 ```
 
-### Event Handling
+### Event Handling (Traditional)
 ```go
-// In component function
+// Direct DOM event handling
 comps.OnMount(func() {
     resetBtn := dom.GetElementByID("reset-btn")
     dom.BindClickToCallback(resetBtn, func() {
-        name.Set("World")
+        name.Set("World") // Direct signal update
     })
 })
 
 // In gomponents tree
 Button(ID("reset-btn"), Text("Reset"))
+```
+
+### Event Handling (Action-Based)
+```go
+// Action-based event handling (recommended for complex apps)
+comps.OnMount(func() {
+    resetBtn := dom.GetElementByID("reset-btn")
+    dom.BindClickToCallback(resetBtn, func() {
+        bus.Dispatch(action.Action[string]{
+            Type:    ResetAction.Name,
+            Payload: "World",
+            Source:  "ui-component",
+        })
+    })
+})
+
+// Action handler processes the logic
+action.OnAction(bus, ResetAction, func(ctx action.Context, value string) {
+    name.Set(value)
+    logutil.Logf("Name reset to: %s (TraceID: %s)", value, ctx.TraceID)
+})
 ```
 
 ## Development Workflow
@@ -378,6 +658,11 @@ make test-example <example> # Run browser tests for example
 make test-examples          # Run all example tests
 make test-all              # Run everything
 
+# Action System Examples
+make run action_lifecycle_demo  # Advanced action system demo
+make run counter                # Basic functional approach
+make run todo                   # Action-based todo app
+
 # Utilities
 make kill                   # Free port 8080
 ```
@@ -393,18 +678,20 @@ The development server automatically:
 
 ```
 examples/
-├── counter/           # Basic counter example
-├── todo/             # Todo list with persistence
-├── router_demo/      # Client-side routing
-├── hello_signals/    # Your new component
+├── counter/              # Basic counter (functional approach)
+├── action_lifecycle_demo/# Advanced action system features
+├── todo/                 # Todo app with actions
+├── router_demo/          # Client-side routing
+├── hello_signals/        # Your new component
 └── ...
 
-docs/                 # Documentation
-src/                  # Core UIwGo source
-├── reactivity/       # Signals, effects, memos
-├── comps/           # Component system
-├── router/          # Client-side routing
-└── dom/             # DOM integration
+docs/                     # Documentation
+src/                      # Core UIwGo source
+├── reactivity/           # Signals, effects, memos
+├── action/              # Action system (events, bus, observability)
+├── comps/               # Component system
+├── router/              # Client-side routing
+└── dom/                 # DOM integration
 ```
 
 ## Next Steps
@@ -412,12 +699,19 @@ src/                  # Core UIwGo source
 ### Learn Core Concepts
 1. **[Concepts](./concepts.md)** - Understand the mental model
 2. **[Reactivity & State](./guides/reactivity-state.md)** - Master signals and effects
-3. **[Control Flow](./guides/control-flow.md)** - Conditional rendering and lists
+3. **[Action System](../action/ACTIONSYSTEM.md)** - Structured event handling and application logic
+4. **[Control Flow](./guides/control-flow.md)** - Conditional rendering and lists
 
 ### Build Something Real
 1. **[Forms & Events](./guides/forms-events.md)** - Handle user input
 2. **[Lifecycle & Effects](./guides/lifecycle-effects.md)** - Component lifecycle management
-3. **[Application Manager](./guides/application-manager.md)** - Application lifecycle and management
+3. **[Action System API](../action/API_REFERENCE.md)** - Complete action system reference
+4. **[Application Manager](./guides/application-manager.md)** - Application lifecycle and management
+
+### Explore Advanced Examples
+1. **Action Lifecycle Demo** - Run `make run action_lifecycle_demo` to see observability features
+2. **Todo with Actions** - Run `make run todo` to see action-based state management
+3. **Router Demo** - Run `make run router_demo` to see client-side routing patterns
 
 ## Troubleshooting
 

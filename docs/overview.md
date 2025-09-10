@@ -82,6 +82,28 @@ router.Route("/users/:id/posts/*", UserPostsView)
 router.Push("/users/123")
 ```
 
+### 🚌 Action System for Decoupled Communication
+```go
+// Define typed actions for different events
+var UserCreated = action.DefineAction[User]("user.created")
+var NotificationShown = action.DefineAction[string]("notification.shown")
+
+// Create a global bus for component communication
+bus := action.New()
+
+// Components subscribe to actions with lifecycle management
+action.OnAction(bus, UserCreated, func(ctx action.Context, user User) {
+    // Handler automatically disposed on component unmount
+    logutil.Logf("New user: %s (TraceID: %s)", user.Name, ctx.TraceID)
+})
+
+// Dispatch actions from anywhere in the application
+action.Dispatch(bus, UserCreated, User{Name: "Alice"})
+
+// Bridge actions to reactive signals for UI updates
+userSignal := action.ToSignal(bus, UserCreated)
+```
+
 ### ⚛️ React Compatibility
 ```go
 // Use React/shadcn/ui components as leaf widgets
@@ -157,6 +179,7 @@ func Counter() Node {
 | **Language** | JavaScript/TypeScript | Go + WebAssembly |
 | **Mental Model** | Functional components | Gomponents + binding |
 | **Performance** | Reconciliation overhead | Minimal update targeting |
+| **Communication** | Props/callbacks/context | Action system + signals |
 
 ## Architecture Overview
 
@@ -168,16 +191,22 @@ func Counter() Node {
 │ • Define State  │    │ • Effects        │    │ • Event Binding │
 │ • Handle Events │    │ • Memos          │    │ • Text Updates  │
 └─────────────────┘    │ • Cleanup        │    │ • Lifecycle     │
-                       └──────────────────┘    └─────────────────┘
-                                │
-                                ▼
-                       ┌──────────────────┐
-                       │   Browser DOM    │
-                       │                  │
-                       │ • Minimal Updates│
-                       │ • Event Handling │
-                       │ • User Interaction│
-                       └──────────────────┘
+         │              └──────────────────┘    └─────────────────┘
+         ▼                       │                       │
+┌─────────────────┐              │                       ▼
+│   Action System │              │              ┌──────────────────┐
+│                 │              │              │   Browser DOM    │
+│ • Event Bus     │──────────────┼─────────────▶│                  │
+│ • Typed Actions │              │              │ • Minimal Updates│
+│ • Subscriptions │              ▼              │ • Event Handling │
+│ • Observability │     ┌──────────────────┐    │ • User Interaction│
+└─────────────────┘     │   Cross-Component│    └──────────────────┘
+                        │   Communication  │
+                        │                  │
+                        │ • Decoupled      │
+                        │ • Traceable      │
+                        │ • Debuggable     │
+                        └──────────────────┘
 ```
 
 ## When to Choose UIwGo
