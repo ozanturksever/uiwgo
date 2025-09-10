@@ -22,7 +22,7 @@ Signals are **reactive containers** that hold values and automatically notify de
 
 ```go
 // Create a signal with an initial value
-count := reactivity.NewSignal(0)
+count := reactivity.CreateSignal(0)
 
 // Read the current value
 value := count.Get() // Returns 0
@@ -38,19 +38,19 @@ count.Set(42)
 **Type Safety**
 ```go
 // Signals are strongly typed
-name := reactivity.NewSignal("Alice")     // Signal[string]
-age := reactivity.NewSignal(25)          // Signal[int]
-active := reactivity.NewSignal(true)     // Signal[bool]
-items := reactivity.NewSignal([]Item{})  // Signal[[]Item]
+name := reactivity.CreateSignal("Alice")     // Signal[string]
+age := reactivity.CreateSignal(25)          // Signal[int]
+active := reactivity.CreateSignal(true)     // Signal[bool]
+items := reactivity.CreateSignal([]Item{})  // Signal[[]Item]
 ```
 
 **Automatic Dependency Tracking**
 ```go
-firstName := reactivity.NewSignal("John")
-lastName := reactivity.NewSignal("Doe")
+firstName := reactivity.CreateSignal("John")
+lastName := reactivity.CreateSignal("Doe")
 
 // This memo automatically tracks both firstName and lastName
-fullName := reactivity.NewMemo(func() string {
+fullName := reactivity.CreateMemo(func() string {
     return firstName.Get() + " " + lastName.Get()
 })
 
@@ -76,9 +76,9 @@ type UserProfile struct {
 
 func NewUserProfile() *UserProfile {
     return &UserProfile{
-        name:  reactivity.NewSignal("Anonymous"),
-        email: reactivity.NewSignal(""),
-        age:   reactivity.NewSignal(0),
+        name:  reactivity.CreateSignal("Anonymous"),
+        email: reactivity.CreateSignal(""),
+        age:   reactivity.CreateSignal(0),
     }
 }
 
@@ -101,10 +101,10 @@ func (u *UserProfile) GetDisplayName() string {
 
 ```go
 // Basic types
-count := reactivity.NewSignal(0)                    // int
-price := reactivity.NewSignal(19.99)               // float64
-name := reactivity.NewSignal("Product")             // string
-active := reactivity.NewSignal(true)               // bool
+count := reactivity.CreateSignal(0)                    // int
+price := reactivity.CreateSignal(19.99)               // float64
+name := reactivity.CreateSignal("Product")             // string
+active := reactivity.CreateSignal(true)               // bool
 ```
 
 ### Complex Types
@@ -117,17 +117,17 @@ type User struct {
     Email string `json:"email"`
 }
 
-user := reactivity.NewSignal(User{
+user := reactivity.CreateSignal(User{
     ID:   1,
     Name: "Alice",
     Email: "alice@example.com",
 })
 
 // Slices
-items := reactivity.NewSignal([]string{"apple", "banana", "cherry"})
+items := reactivity.CreateSignal([]string{"apple", "banana", "cherry"})
 
 // Maps
-scores := reactivity.NewSignal(map[string]int{
+scores := reactivity.CreateSignal(map[string]int{
     "alice": 100,
     "bob":   85,
 })
@@ -178,12 +178,12 @@ func (tl *TodoList) ToggleTodo(id int) {
 
 ```go
 // Signals only trigger updates when the value actually changes
-count := reactivity.NewSignal(5)
+count := reactivity.CreateSignal(5)
 count.Set(5) // No update triggered (same value)
 count.Set(6) // Update triggered (different value)
 
 // For complex types, use value equality
-user := reactivity.NewSignal(User{Name: "Alice"})
+user := reactivity.CreateSignal(User{Name: "Alice"})
 user.Set(User{Name: "Alice"}) // Update triggered (different instance)
 
 // To avoid unnecessary updates, check before setting
@@ -218,12 +218,12 @@ type CartItem struct {
 
 func NewShoppingCart() *ShoppingCart {
     cart := &ShoppingCart{
-        items:   reactivity.NewSignal([]CartItem{}),
-        taxRate: reactivity.NewSignal(0.08), // 8% tax
+        items:   reactivity.CreateSignal([]CartItem{}),
+        taxRate: reactivity.CreateSignal(0.08), // 8% tax
     }
     
     // Subtotal depends on items
-    cart.subtotal = reactivity.NewMemo(func() float64 {
+    cart.subtotal = reactivity.CreateMemo(func() float64 {
         total := 0.0
         for _, item := range cart.items.Get() {
             total += item.Price * float64(item.Quantity)
@@ -232,12 +232,12 @@ func NewShoppingCart() *ShoppingCart {
     })
     
     // Tax depends on subtotal and taxRate
-    cart.tax = reactivity.NewMemo(func() float64 {
+    cart.tax = reactivity.CreateMemo(func() float64 {
         return cart.subtotal.Get() * cart.taxRate.Get()
     })
     
     // Total depends on subtotal and tax
-    cart.total = reactivity.NewMemo(func() float64 {
+    cart.total = reactivity.CreateMemo(func() float64 {
         return cart.subtotal.Get() + cart.tax.Get()
     })
     
@@ -250,7 +250,7 @@ func NewShoppingCart() *ShoppingCart {
 **Automatic Caching**
 ```go
 // Expensive computation only runs when dependencies change
-expensiveResult := reactivity.NewMemo(func() ComplexResult {
+expensiveResult := reactivity.CreateMemo(func() ComplexResult {
     // This only runs when input signals change
     return performExpensiveCalculation(input.Get())
 })
@@ -272,17 +272,17 @@ type Analytics struct {
 }
 
 func (a *Analytics) setupMemos() {
-    a.dailyStats = reactivity.NewMemo(func() DailyStats {
+    a.dailyStats = reactivity.CreateMemo(func() DailyStats {
         return calculateDailyStats(a.events.Get())
     })
     
     // Weekly stats depend on daily stats (not raw events)
-    a.weeklyStats = reactivity.NewMemo(func() WeeklyStats {
+    a.weeklyStats = reactivity.CreateMemo(func() WeeklyStats {
         return calculateWeeklyStats(a.dailyStats.Get())
     })
     
     // Monthly stats depend on weekly stats
-    a.monthlyStats = reactivity.NewMemo(func() MonthlyStats {
+    a.monthlyStats = reactivity.CreateMemo(func() MonthlyStats {
         return calculateMonthlyStats(a.weeklyStats.Get())
     })
 }
@@ -300,7 +300,7 @@ type UserDashboard struct {
 }
 
 func (ud *UserDashboard) setupMemos() {
-    ud.advancedStats = reactivity.NewMemo(func() AdvancedStats {
+    ud.advancedStats = reactivity.CreateMemo(func() AdvancedStats {
         if !ud.showAdvanced.Get() {
             return AdvancedStats{} // Return empty stats
         }
@@ -325,7 +325,7 @@ type NotificationSystem struct {
 
 func (ns *NotificationSystem) setupEffects() {
     // Effect: Update document title with unread count
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         count := ns.unreadCount.Get()
         title := "My App"
         if count > 0 {
@@ -335,14 +335,14 @@ func (ns *NotificationSystem) setupEffects() {
     })
     
     // Effect: Log message changes
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         messages := ns.messages.Get()
         logutil.Logf("Messages updated: %d total", len(messages))
     })
     
     // Effect: Show browser notification for new messages
     var lastCount int
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         count := len(ns.messages.Get())
         if count > lastCount && lastCount > 0 {
             showBrowserNotification("New message received!")
@@ -365,7 +365,7 @@ type UserLoader struct {
 
 func (ul *UserLoader) setupEffects() {
     // Effect: Load user when userID changes
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         id := ul.userID.Get()
         if id == 0 {
             return
@@ -396,14 +396,14 @@ type Settings struct {
 
 func (s *Settings) setupPersistence() {
     // Effect: Save theme to localStorage
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         theme := s.theme.Get()
         localStorage := dom.GetWindow().LocalStorage()
         localStorage.SetItem("theme", theme)
     })
     
     // Effect: Save language to localStorage
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         lang := s.language.Get()
         localStorage := dom.GetWindow().LocalStorage()
         localStorage.SetItem("language", lang)
@@ -434,7 +434,7 @@ type WebSocketManager struct {
 
 func (wsm *WebSocketManager) setupEffects() {
     // Effect: Manage WebSocket connection
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         url := wsm.url.Get()
         shouldConnect := wsm.connected.Get()
         
@@ -477,8 +477,8 @@ type Counter struct {
 
 func NewCounter() *Counter {
     return &Counter{
-        count: reactivity.NewSignal(0),
-        step:  reactivity.NewSignal(1),
+        count: reactivity.CreateSignal(0),
+        step:  reactivity.CreateSignal(1),
     }
 }
 
@@ -501,10 +501,10 @@ var AppStore = struct {
     Notifications *reactivity.Signal[[]Notification]
     Settings    *reactivity.Signal[AppSettings]
 }{
-    User:          reactivity.NewSignal(User{}),
-    Theme:         reactivity.NewSignal("light"),
-    Notifications: reactivity.NewSignal([]Notification{}),
-    Settings:      reactivity.NewSignal(AppSettings{}),
+    User:          reactivity.CreateSignal(User{}),
+    Theme:         reactivity.CreateSignal("light"),
+    Notifications: reactivity.CreateSignal([]Notification{}),
+    Settings:      reactivity.CreateSignal(AppSettings{}),
 }
 
 // Components can access global state
@@ -518,10 +518,10 @@ type UserProfile struct {
 
 func NewUserProfile() *UserProfile {
     up := &UserProfile{
-        editing: reactivity.NewSignal(false),
+        editing: reactivity.CreateSignal(false),
     }
     
-    up.displayName = reactivity.NewMemo(func() string {
+    up.displayName = reactivity.CreateMemo(func() string {
         user := AppStore.User.Get()
         if user.Name != "" {
             return user.Name
@@ -545,10 +545,10 @@ type AppContext struct {
 
 func NewAppContext() *AppContext {
     return &AppContext{
-        User:     reactivity.NewSignal(User{}),
-        Theme:    reactivity.NewSignal("light"),
-        Router:   reactivity.NewSignal(Route{}),
-        Settings: reactivity.NewSignal(Settings{}),
+        User:     reactivity.CreateSignal(User{}),
+        Theme:    reactivity.CreateSignal("light"),
+        Router:   reactivity.CreateSignal(Route{}),
+        Settings: reactivity.CreateSignal(Settings{}),
     }
 }
 
@@ -581,7 +581,7 @@ type Header struct {
 func NewHeader(ctx *AppContext) *Header {
     return &Header{
         context:         ctx,
-        userMenuVisible: reactivity.NewSignal(false),
+        userMenuVisible: reactivity.CreateSignal(false),
     }
 }
 
@@ -626,12 +626,12 @@ type TodoStats struct {
 
 func NewTodoStore() *TodoStore {
     store := &TodoStore{
-        todos:  reactivity.NewSignal([]Todo{}),
-        filter: reactivity.NewSignal(FilterAll),
+        todos:  reactivity.CreateSignal([]Todo{}),
+        filter: reactivity.CreateSignal(FilterAll),
     }
     
     // Setup computed state
-    store.filteredTodos = reactivity.NewMemo(func() []Todo {
+    store.filteredTodos = reactivity.CreateMemo(func() []Todo {
         todos := store.todos.Get()
         filter := store.filter.Get()
         
@@ -645,7 +645,7 @@ func NewTodoStore() *TodoStore {
         }
     })
     
-    store.stats = reactivity.NewMemo(func() TodoStats {
+    store.stats = reactivity.CreateMemo(func() TodoStats {
         todos := store.todos.Get()
         stats := TodoStats{Total: len(todos)}
         
@@ -744,7 +744,7 @@ func NewCombinedSignal(signals ...reactivity.Signal[string]) *CombinedSignal {
         signals: signals,
     }
     
-    cs.combined = reactivity.NewMemo(func() string {
+    cs.combined = reactivity.CreateMemo(func() string {
         var parts []string
         for _, signal := range cs.signals {
             if value := signal.Get(); value != "" {
@@ -769,7 +769,7 @@ type AsyncDataLoader struct {
 }
 
 func (adl *AsyncDataLoader) setupEffects() {
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         url := adl.url.Get()
         if url == "" {
             return
@@ -799,7 +799,7 @@ func (adl *AsyncDataLoader) setupEffects() {
 
 ```go
 // Expensive computation - use memo
-expensiveResult := reactivity.NewMemo(func() ComplexResult {
+expensiveResult := reactivity.CreateMemo(func() ComplexResult {
     return performExpensiveCalculation(input.Get())
 })
 
@@ -817,11 +817,11 @@ type Component struct {
 }
 
 func (c *Component) setupEffects() {
-    effect1 := reactivity.NewEffect(func() {
+    effect1 := reactivity.CreateEffect(func() {
         // Effect logic
     })
     
-    effect2 := reactivity.NewEffect(func() {
+    effect2 := reactivity.CreateEffect(func() {
         // Effect logic
     })
     
@@ -841,11 +841,11 @@ func (c *Component) Cleanup() {
 // Avoid creating signals in loops
 for i := 0; i < 1000; i++ {
     // BAD: Creates 1000 signals
-    signal := reactivity.NewSignal(i)
+    signal := reactivity.CreateSignal(i)
 }
 
 // GOOD: Use a single signal for the collection
-items := reactivity.NewSignal(make([]int, 1000))
+items := reactivity.CreateSignal(make([]int, 1000))
 ```
 
 ## Common Patterns
@@ -902,21 +902,21 @@ type FormValidator struct {
 
 func NewFormValidator() *FormValidator {
     fv := &FormValidator{
-        email:    reactivity.NewSignal(""),
-        password: reactivity.NewSignal(""),
+        email:    reactivity.CreateSignal(""),
+        password: reactivity.CreateSignal(""),
     }
     
-    fv.emailValid = reactivity.NewMemo(func() bool {
+    fv.emailValid = reactivity.CreateMemo(func() bool {
         email := fv.email.Get()
         return strings.Contains(email, "@") && len(email) > 5
     })
     
-    fv.passwordValid = reactivity.NewMemo(func() bool {
+    fv.passwordValid = reactivity.CreateMemo(func() bool {
         password := fv.password.Get()
         return len(password) >= 8
     })
     
-    fv.formValid = reactivity.NewMemo(func() bool {
+    fv.formValid = reactivity.CreateMemo(func() bool {
         return fv.emailValid.Get() && fv.passwordValid.Get()
     })
     
@@ -931,13 +931,13 @@ func NewFormValidator() *FormValidator {
 **Infinite Update Loops**
 ```go
 // BAD: Creates infinite loop
-effect := reactivity.NewEffect(func() {
+effect := reactivity.CreateEffect(func() {
     count := counter.Get()
     counter.Set(count + 1) // This triggers the effect again!
 })
 
 // GOOD: Use conditions or different signals
-effect := reactivity.NewEffect(func() {
+effect := reactivity.CreateEffect(func() {
     count := counter.Get()
     if count < 10 {
         otherSignal.Set(count + 1) // Update different signal
@@ -949,8 +949,8 @@ effect := reactivity.NewEffect(func() {
 ```go
 // BAD: Effect never cleaned up
 func createComponent() {
-    signal := reactivity.NewSignal(0)
-    reactivity.NewEffect(func() {
+    signal := reactivity.CreateSignal(0)
+    reactivity.CreateEffect(func() {
         // This effect will never be disposed
         logutil.Log(signal.Get())
     })
@@ -963,7 +963,7 @@ type Component struct {
 }
 
 func (c *Component) setup() {
-    c.effect = reactivity.NewEffect(func() {
+    c.effect = reactivity.CreateEffect(func() {
         logutil.Log(c.signal.Get())
     })
 }
@@ -977,7 +977,7 @@ func (c *Component) Cleanup() {
 ```go
 // BAD: Captures stale value
 for i := 0; i < 3; i++ {
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         logutil.Log(i) // Always logs 3!
     })
 }
@@ -985,7 +985,7 @@ for i := 0; i < 3; i++ {
 // GOOD: Capture value properly
 for i := 0; i < 3; i++ {
     index := i // Capture current value
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         logutil.Log(index) // Logs 0, 1, 2
     })
 }
@@ -996,9 +996,9 @@ for i := 0; i < 3; i++ {
 **Signal Tracing**
 ```go
 // Add logging to track signal changes
-count := reactivity.NewSignal(0)
+count := reactivity.CreateSignal(0)
 
-reactivity.NewEffect(func() {
+reactivity.CreateEffect(func() {
     value := count.Get()
     logutil.Logf("Count changed to: %d", value)
 })
@@ -1007,7 +1007,7 @@ reactivity.NewEffect(func() {
 **Dependency Tracking**
 ```go
 // Log which signals a memo depends on
-computed := reactivity.NewMemo(func() string {
+computed := reactivity.CreateMemo(func() string {
     logutil.Log("Computing result...")
     a := signalA.Get()
     b := signalB.Get()

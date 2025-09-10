@@ -33,7 +33,7 @@ comps.Show(comps.ShowProps{
 
 // With memo for complex conditions
 comps.Show(comps.ShowProps{
-    When: reactivity.NewMemo(func() bool {
+    When: reactivity.CreateMemo(func() bool {
         return user.Get().IsAdmin && feature.Get().Enabled
     }),
     Children: g.Button(g.Text("Admin Panel")),
@@ -66,7 +66,7 @@ comps.Switch(comps.SwitchProps{
 
 // With computed values
 comps.Switch(comps.SwitchProps{
-    When: reactivity.NewMemo(func() string {
+    When: reactivity.CreateMemo(func() string {
         count := counter.Get()
         if count == 0 {
             return "empty"
@@ -126,7 +126,7 @@ comps.For(comps.ForProps[User]{
 })
 
 // With filtered/sorted data
-filteredUsers := reactivity.NewMemo(func() []User {
+filteredUsers := reactivity.CreateMemo(func() []User {
     users := allUsers.Get()
     filter := searchFilter.Get()
     
@@ -196,7 +196,7 @@ comps.Dynamic(comps.DynamicProps{
 
 // With computed component
 comps.Dynamic(comps.DynamicProps{
-    Component: reactivity.NewMemo(func() string {
+    Component: reactivity.CreateMemo(func() string {
         mode := viewMode.Get()
         switch mode {
         case "list":
@@ -209,7 +209,7 @@ comps.Dynamic(comps.DynamicProps{
             return "ListView"
         }
     }),
-    Props: reactivity.NewMemo(func() map[string]any {
+    Props: reactivity.CreateMemo(func() map[string]any {
         return map[string]any{
             "data": data.Get(),
             "options": viewOptions.Get(),
@@ -232,7 +232,7 @@ g.Span(
 
 // Computed text
 g.P(
-    comps.BindText(reactivity.NewMemo(func() string {
+    comps.BindText(reactivity.CreateMemo(func() string {
         count := itemCount.Get()
         if count == 1 {
             return "1 item"
@@ -243,7 +243,7 @@ g.P(
 
 // Formatted text
 g.Div(
-    comps.BindText(reactivity.NewMemo(func() string {
+    comps.BindText(reactivity.CreateMemo(func() string {
         user := currentUser.Get()
         return fmt.Sprintf("Welcome, %s!", user.Name)
     })),
@@ -291,7 +291,7 @@ comps.Switch(comps.SwitchProps{
 ```go
 // List with empty state
 comps.Show(comps.ShowProps{
-    When: reactivity.NewMemo(func() bool {
+    When: reactivity.CreateMemo(func() bool {
         return len(items.Get()) > 0
     }),
     Children: g.Ul(
@@ -328,7 +328,7 @@ g.Div(
         }),
     ),
     comps.Show(comps.ShowProps{
-        When: reactivity.NewMemo(func() bool {
+        When: reactivity.CreateMemo(func() bool {
             return !isValidEmail.Get() && email.Get() != ""
         }),
         Children: g.Div(
@@ -416,7 +416,7 @@ Key: func(user User) string {
 
 ```go
 // Good: Memo for expensive computations
-filteredItems := reactivity.NewMemo(func() []Item {
+filteredItems := reactivity.CreateMemo(func() []Item {
     items := allItems.Get()
     filter := searchFilter.Get()
     
@@ -425,7 +425,7 @@ filteredItems := reactivity.NewMemo(func() []Item {
 })
 
 // Good: Memo for complex conditions
-isVisible := reactivity.NewMemo(func() bool {
+isVisible := reactivity.CreateMemo(func() bool {
     return user.Get().IsAdmin && 
            feature.Get().Enabled && 
            !maintenance.Get().Active
@@ -465,13 +465,13 @@ comps.For(comps.ForProps[User]{
 
 ```go
 // Good: Minimal dependencies
-fullName := reactivity.NewMemo(func() string {
+fullName := reactivity.CreateMemo(func() string {
     user := currentUser.Get()
     return user.FirstName + " " + user.LastName
 })
 
 // Avoid: Unnecessary dependencies
-badMemo := reactivity.NewMemo(func() string {
+badMemo := reactivity.CreateMemo(func() string {
     user := currentUser.Get()
     settings := appSettings.Get() // Unnecessary if not used
     return user.FirstName + " " + user.LastName

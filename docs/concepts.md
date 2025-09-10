@@ -93,54 +93,90 @@ func (c *Counter) Render() g.Node {
 - Compile-time validation and IDE support
 - Can be server-side rendered or generated client-side
 
-#### Phase 2: Attach (Reactive Enhancement)
+#### Phase 2: Mount Effects (Reactive Enhancement)
 
 ```go
-func (c *Counter) Attach() {
-    // Scan DOM for markers and bind reactive behavior
-    c.BindText("count", c.count)        // data-text="count"
-    c.BindClick("increment", c.increment) // data-click="increment"
-    c.BindClick("decrement", c.decrement) // data-click="decrement"
+func Counter() g.Node {
+    count := reactivity.CreateSignal(0)
+    
+    // Set up mount effects for DOM interactions
+    comps.OnMount(func() {
+        // Set up any DOM interactions that need direct element access
+        if btn := dom.GetElementByID("special-btn"); btn != nil {
+            dom.BindClickToCallback(btn, func() {
+                // Handle special interactions
+            })
+        }
+    })
+    
+    return Div(
+        // Reactive text binding
+        comps.BindText(func() string {
+            return fmt.Sprintf("Count: %d", count.Get())
+        }),
+        // Inline event handlers
+        Button(
+            Text("Increment"),
+            dom.OnClickInline(func(el dom.Element) {
+                count.Set(count.Get() + 1)
+            }),
+        ),
+        Button(
+            Text("Decrement"),
+            dom.OnClickInline(func(el dom.Element) {
+                count.Set(count.Get() - 1)
+            }),
+        ),
+    )
 }
 ```
 
 **Key Points:**
-- Scans rendered HTML for data attributes
-- Establishes reactive connections
-- Sets up event listeners
-- Creates the "living" component
+- Uses reactive bindings for dynamic content
+- Inline event handlers for user interactions
+- Mount effects for DOM setup when needed
+- Functional, declarative component structure
 
-### Data Attributes as Binding Contract
+### Reactive Bindings as Component Contract
 
-Data attributes serve as a **contract** between the gomponents-generated HTML structure and Go behavior:
+Reactive bindings establish the **contract** between static HTML structure and dynamic behavior:
 
-| Attribute Pattern | Purpose | Go Binding |
-|------------------|---------|------------|
-| `data-text="key"` | Text content | `BindText("key", signal)` |
-| `data-html="key"` | HTML content | `BindHTML("key", signal)` |
-| `data-click="key"` | Click events | `BindClick("key", handler)` |
-| `data-input="key"` | Input binding | `BindInput("key", signal)` |
-| `data-show="key"` | Visibility | `BindShow("key", signal)` |
-| `data-for="key"` | List rendering | `BindFor("key", signal)` |
-| `data-class="key"` | CSS classes | `BindClass("key", signal)` |
-| `data-attr="key"` | Attributes | `BindAttr("key", signal)` |
+| Binding Type | Purpose | Usage Pattern |
+|--------------|---------|---------------|
+| `comps.BindText()` | Dynamic text content | `comps.BindText(func() string { return signal.Get() })` |
+| `comps.BindHTML()` | Dynamic HTML content | `comps.BindHTML(func() string { return htmlSignal.Get() })` |
+| `dom.OnClickInline()` | Click events | `dom.OnClickInline(func(el dom.Element) { ... })` |
+| `dom.OnInputInline()` | Input handling | `dom.OnInputInline(func(el dom.Element) { ... })` |
+| `comps.BindShow()` | Conditional visibility | `comps.BindShow(func() bool { return signal.Get() })` |
+| `comps.BindFor()` | List rendering | `comps.BindFor(items, func(item T) g.Node { ... })` |
+| `comps.BindClass()` | Dynamic CSS classes | `comps.BindClass("active", func() bool { return isActive.Get() })` |
+| `comps.BindAttr()` | Dynamic attributes | `comps.BindAttr("src", func() string { return url.Get() })` |
 
-### Benefits of HTML-First
+### Benefits of Functional Components
 
 **SEO and Accessibility**
-```html
-<!-- Semantic HTML structure -->
-<article data-show="isVisible">
-    <h1 data-text="title">Article Title</h1>
-    <p data-text="summary">Article summary...</p>
-    <button data-click="readMore">Read More</button>
-</article>
+```go
+func Article(title, summary string, isVisible *reactivity.Signal[bool]) g.Node {
+    return g.If(isVisible.Get(),
+        g.El("article",
+            g.El("h1", g.Text(title)),
+            g.El("p", comps.BindText(func() string { return summary })),
+            g.El("button",
+                g.Text("Read More"),
+                dom.OnClickInline(func(el dom.Element) {
+                    // Handle read more action
+                }),
+            ),
+        ),
+    )
+}
 ```
 
-**Progressive Enhancement**
-- Works without JavaScript (basic functionality)
-- Enhanced with JavaScript (full interactivity)
-- Graceful degradation
+**Reactive Enhancement**
+- Type-safe component definitions
+- Automatic reactivity through signals
+- Declarative event handling
+- Compile-time validation
 
 **Developer Understanding**
 - HTML structure is immediately visible
@@ -155,7 +191,7 @@ Signals are the foundation of UIwGo's reactivity system:
 
 ```go
 // Create a signal
-count := reactivity.NewSignal(0)
+count := reactivity.CreateSignal(0)
 
 // Read the current value
 value := count.Get() // 0
@@ -170,57 +206,67 @@ count.Set(42)
 
 #### 1. Basic Signals
 ```go
-type Counter struct {
-    count *reactivity.Signal[int]
-    name  *reactivity.Signal[string]
-    items *reactivity.Signal[[]Item]
-}
-
-func NewCounter() *Counter {
-    return &Counter{
-        count: reactivity.NewSignal(0),
-        name:  reactivity.NewSignal("Counter"),
-        items: reactivity.NewSignal([]Item{}),
-    }
+func Counter() g.Node {
+    // Create signals within the component function
+    count := reactivity.CreateSignal(0)
+    name := reactivity.CreateSignal("Counter")
+    items := reactivity.CreateSignal([]Item{})
+    
+    return Div(
+        comps.BindText(func() string {
+            return fmt.Sprintf("%s: %d", name.Get(), count.Get())
+        }),
+        // ... rest of component
+    )
 }
 ```
 
 #### 2. Computed Signals (Memos)
 ```go
-type ShoppingCart struct {
-    items *reactivity.Signal[[]Item]
-    total *reactivity.Memo[float64]
-}
-
-func NewShoppingCart() *ShoppingCart {
-    cart := &ShoppingCart{
-        items: reactivity.NewSignal([]Item{}),
-    }
+func ShoppingCart() g.Node {
+    items := reactivity.CreateSignal([]Item{})
     
     // Memo automatically recomputes when items change
-    cart.total = reactivity.NewMemo(func() float64 {
+    total := reactivity.CreateMemo(func() float64 {
         total := 0.0
-        for _, item := range cart.items.Get() {
+        for _, item := range items.Get() {
             total += item.Price * float64(item.Quantity)
         }
         return total
     })
     
-    return cart
+    return Div(
+        comps.BindText(func() string {
+            return fmt.Sprintf("Total: $%.2f", total.Get())
+        }),
+        // ... rest of component
+    )
 }
 ```
 
 #### 3. Effects (Side Effects)
 ```go
-func (c *Counter) Attach() {
-    // Effect runs when count changes
-    reactivity.NewEffect(func() {
-        count := c.count.Get()
-        if count > 10 {
-            // Side effect: show notification
-            showNotification("Count is getting high!")
-        }
+func Counter() g.Node {
+    count := reactivity.CreateSignal(0)
+    
+    comps.OnMount(func() {
+        // Effect runs when count changes
+        effect := reactivity.CreateEffect(func() {
+            if count.Get() > 10 {
+                // Side effect: show notification
+                showNotification("Count is getting high!")
+            }
+        })
+        
+        // Clean up effect when component unmounts
+        comps.OnCleanup(func() {
+            effect.Dispose()
+        })
     })
+    
+    return Div(
+        // ... component content
+    )
 }
 ```
 
@@ -321,7 +367,7 @@ func (up *UserProfile) Render() g.Node {
 
 func (up *UserProfile) Attach() {
     // Automatically updates when currentUser signal changes
-    up.BindText("username", reactivity.NewMemo(func() string {
+    up.BindText("username", reactivity.CreateMemo(func() string {
         user := up.currentUser.Get()
         if user.Name == "" {
             return "Not logged in"
@@ -356,7 +402,7 @@ func NewTodoApp() *TodoApp {
     bus := action.New()
     app := &TodoApp{
         bus:   bus,
-        todos: reactivity.NewSignal([]Todo{}),
+        todos: reactivity.CreateSignal([]Todo{}),
     }
     
     // Set up action handlers with automatic lifecycle management
@@ -406,7 +452,7 @@ func (app *TodoApp) Render() g.Node {
 }
 
 func (app *TodoApp) Attach() {
-    todoText := reactivity.NewSignal("")
+    todoText := reactivity.CreateSignal("")
     
     app.BindInput("todoText", todoText)
     
@@ -564,10 +610,10 @@ type MyComponent struct {
 // 4. Constructor
 func NewMyComponent() *MyComponent {
     c := &MyComponent{
-        data: reactivity.NewSignal("initial"),
+        data: reactivity.CreateSignal("initial"),
     }
     
-    c.computed = reactivity.NewMemo(func() string {
+    c.computed = reactivity.CreateMemo(func() string {
         return "Computed: " + c.data.Get()
     })
     
@@ -672,7 +718,7 @@ type Parent struct {
 
 func NewParent() *Parent {
     p := &Parent{
-        message: reactivity.NewSignal("Hello"),
+        message: reactivity.CreateSignal("Hello"),
     }
     
     // Pass signal to child
@@ -717,7 +763,7 @@ type UserDetails struct {
 func NewUserDetails(bus action.Bus) *UserDetails {
     ud := &UserDetails{
         bus: bus,
-        selectedUser: reactivity.NewSignal(User{}),
+        selectedUser: reactivity.CreateSignal(User{}),
     }
     
     // Subscribe to user selection events
@@ -769,8 +815,8 @@ var AppStore = struct {
     User     *reactivity.Signal[User]
     Settings *reactivity.Signal[Settings]
 }{
-    User:     reactivity.NewSignal(User{}),
-    Settings: reactivity.NewSignal(Settings{}),
+    User:     reactivity.CreateSignal(User{}),
+    Settings: reactivity.CreateSignal(Settings{}),
 }
 
 // Components access shared state
@@ -788,8 +834,8 @@ type AppContext struct {
 
 func NewAppWithContext() *App {
     ctx := &AppContext{
-        Theme: reactivity.NewSignal("light"),
-        User:  reactivity.NewSignal(User{}),
+        Theme: reactivity.CreateSignal("light"),
+        User:  reactivity.CreateSignal(User{}),
     }
     
     return &App{
@@ -974,11 +1020,11 @@ useEffect(() => {
 
 **UIwGo Signals:**
 ```go
-count := reactivity.NewSignal(0)
-doubled := reactivity.NewMemo(func() int {
+count := reactivity.CreateSignal(0)
+doubled := reactivity.CreateMemo(func() int {
     return count.Get() * 2
 })
-reactivity.NewEffect(func() {
+reactivity.CreateEffect(func() {
     dom.GetWindow().Document().SetTitle(fmt.Sprintf("Count: %d", count.Get()))
 })
 ```
@@ -1142,7 +1188,7 @@ type Counter struct {
 func NewCounter(bus action.Bus) *Counter {
     c := &Counter{
         bus:   bus,
-        count: reactivity.NewSignal(0),
+        count: reactivity.CreateSignal(0),
     }
     
     // Direct action handling - no boilerplate

@@ -70,18 +70,18 @@ comps.For(comps.ForProps[User]{
 **Solution**:
 ```go
 // ❌ Bad: Mutating signal value directly
-users := reactivity.NewSignal([]User{{ID: "1", Name: "John"}})
+users := reactivity.CreateSignal([]User{{ID: "1", Name: "John"}})
 // This won't trigger updates!
 users.Get()[0].Name = "Jane"
 
 // ✅ Good: Creating new value and setting signal
-users := reactivity.NewSignal([]User{{ID: "1", Name: "John"}})
+users := reactivity.CreateSignal([]User{{ID: "1", Name: "John"}})
 currentUsers := users.Get()
 currentUsers[0].Name = "Jane"
 users.Set(currentUsers) // This triggers updates
 
 // ✅ Better: Using immutable updates
-users := reactivity.NewSignal([]User{{ID: "1", Name: "John"}})
+users := reactivity.CreateSignal([]User{{ID: "1", Name: "John"}})
 newUsers := make([]User, len(users.Get()))
 copy(newUsers, users.Get())
 newUsers[0].Name = "Jane"
@@ -107,7 +107,7 @@ users.Set(newUsers)
 // ❌ Bad: Creating new signal in render function
 func renderComponent() g.Node {
     // This creates a new signal on every render!
-    count := reactivity.NewSignal(0)
+    count := reactivity.CreateSignal(0)
     return g.Div(g.Text(fmt.Sprintf("Count: %d", count.Get())))
 }
 
@@ -118,7 +118,7 @@ type Component struct {
 
 func NewComponent() *Component {
     return &Component{
-        count: reactivity.NewSignal(0),
+        count: reactivity.CreateSignal(0),
     }
 }
 
@@ -201,7 +201,7 @@ comps.For(comps.ForProps[Item]{
 })
 
 // ✅ Good: Virtual scrolling or pagination
-visibleItems := reactivity.NewMemo(func() []Item {
+visibleItems := reactivity.CreateMemo(func() []Item {
     items := allItems.Get()
     start := scrollPosition.Get() / itemHeight
     end := start + visibleCount
@@ -249,7 +249,7 @@ func renderStats() g.Node {
 }
 
 // ✅ Good: Using memo for expensive computation
-expensiveTotal := reactivity.NewMemo(func() int {
+expensiveTotal := reactivity.CreateMemo(func() int {
     total := 0
     for _, item := range items.Get() {
         total += expensiveCalculation(item)
@@ -263,7 +263,7 @@ func renderStats() g.Node {
 ```
 
 **Prevention**:
-- Use `reactivity.NewMemo()` for expensive computations
+- Use `reactivity.CreateMemo()` for expensive computations
 - Cache results when possible
 - Debounce frequent updates
 - Profile your application to identify bottlenecks
@@ -332,12 +332,12 @@ func (c *Component) destroy() {
 ```go
 // ❌ Bad: Accessing signal outside memo function
 baseValue := someSignal.Get() // Captured at creation time
-computed := reactivity.NewMemo(func() int {
+computed := reactivity.CreateMemo(func() int {
     return baseValue * 2 // Won't update when someSignal changes
 })
 
 // ✅ Good: Accessing signal inside memo function
-computed := reactivity.NewMemo(func() int {
+computed := reactivity.CreateMemo(func() int {
     return someSignal.Get() * 2 // Will update when someSignal changes
 })
 ```
@@ -359,20 +359,20 @@ computed := reactivity.NewMemo(func() int {
 **Solution**:
 ```go
 // ❌ Bad: Circular dependency
-signalA := reactivity.NewSignal(0)
-signalB := reactivity.NewSignal(0)
+signalA := reactivity.CreateSignal(0)
+signalB := reactivity.CreateSignal(0)
 
 // This creates a circular dependency!
-reactivity.NewEffect(func() {
+reactivity.CreateEffect(func() {
     signalB.Set(signalA.Get() + 1)
 })
-reactivity.NewEffect(func() {
+reactivity.CreateEffect(func() {
     signalA.Set(signalB.Get() + 1)
 })
 
 // ✅ Good: Break circular dependency
-signalA := reactivity.NewSignal(0)
-signalB := reactivity.NewMemo(func() int {
+signalA := reactivity.CreateSignal(0)
+signalB := reactivity.CreateMemo(func() int {
     return signalA.Get() + 1 // One-way dependency
 })
 ```
@@ -426,13 +426,13 @@ func renderUser() g.Node {
 // ❌ Bad: Using non-reactive condition
 isVisible := user.IsAdmin // Static value
 comps.Show(comps.ShowProps{
-    When: reactivity.NewSignal(isVisible),
+    When: reactivity.CreateSignal(isVisible),
     Children: g.Div(g.Text("Admin Panel")),
 })
 
 // ✅ Good: Using reactive condition
 comps.Show(comps.ShowProps{
-    When: reactivity.NewMemo(func() bool {
+    When: reactivity.CreateMemo(func() bool {
         return currentUser.Get().IsAdmin
     }),
     Children: g.Div(g.Text("Admin Panel")),
@@ -557,7 +557,7 @@ func TestComponent(t *testing.T) {
 ```go
 // Add debug logging to track signal updates
 func debugSignal[T any](name string, signal reactivity.Signal[T]) {
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         logutil.Logf("Signal %s updated: %v", name, signal.Get())
     })
 }
@@ -603,11 +603,11 @@ func (c *Component) handleClick() {
 ```go
 func TestReactivityChain(t *testing.T) {
     // Create test signals
-    input := reactivity.NewSignal("initial")
+    input := reactivity.CreateSignal("initial")
     
     // Track all updates
     var updates []string
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         updates = append(updates, input.Get())
     })
     

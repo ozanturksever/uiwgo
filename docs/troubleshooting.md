@@ -23,7 +23,7 @@ When something isn't working, check these items first:
 - [ ] `gomponents` structure is valid Go code.
 
 ### ✅ Reactivity
-- [ ] Signals are created with `reactivity.NewSignal()`.
+- [ ] Signals are created with `reactivity.CreateSignal()`.
 - [ ] Memos and Effects access signals with `.Get()` to track them as dependencies.
 - [ ] Reactive content is rendered with helpers like `comps.BindText(signal.Get)`.
 - [ ] No infinite loops in effects (e.g., an effect setting a signal that it depends on).
@@ -77,10 +77,10 @@ When something isn't working, check these items first:
 3.  **Ensure Signal Has a Value**: If using `comps.BindText`, make sure the signal has an initial value that isn't empty.
     ```go
     // GOOD
-    message := reactivity.NewSignal("Hello, World!")
+    message := reactivity.CreateSignal("Hello, World!")
 
     // POTENTIAL ISSUE (will render nothing)
-    message := reactivity.NewSignal("")
+    message := reactivity.CreateSignal("")
     ```
 
 ### Reactivity Not Working
@@ -92,15 +92,15 @@ When something isn't working, check these items first:
 1.  **Check Dependencies**: Ensure your Memos and Effects are calling `.Get()` on the signals they should be tracking.
     ```go
     // BAD: Effect doesn't track the 'count' signal
-    reactivity.NewEffect(func() {
-        logutil.Log("This runs only once.")
-    })
+reactivity.CreateEffect(func() {
+    logutil.Log("This runs only once.")
+})
 
-    // GOOD: Effect tracks the 'count' signal
-    reactivity.NewEffect(func() {
-        value := count.Get() // Tracks the signal
-        logutil.Logf("Count is now: %d", value)
-    })
+// GOOD: Effect tracks the 'count' signal
+reactivity.CreateEffect(func() {
+    value := count.Get() // Tracks the signal
+    logutil.Logf("Count is now: %d", value)
+})
     ```
 
 2.  **Verify Reactive Binding**: Make sure you are using a reactive helper like `comps.BindText`.
@@ -188,13 +188,13 @@ When something isn't working, check these items first:
 2.  **Avoid Infinite Effect Loops**: An effect that sets a signal it depends on will create an infinite loop.
     ```go
     // BAD: Infinite loop
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         count := counter.Get()
         counter.Set(count + 1) // This triggers the effect again!
     })
 
     // GOOD: Use a separate signal for the output
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         count := counter.Get()
         displayText.Set(fmt.Sprintf("Count: %d", count))
     })
@@ -489,7 +489,7 @@ Wrap your effect's logic in logs to see when it triggers.
 
 ```go
 // Debug an effect's execution
-reactivity.NewEffect(func() {
+reactivity.CreateEffect(func() {
     logutil.Log("Counter display effect is running...")
     count := counter.Get() // This is the dependency
     displayText.Set(fmt.Sprintf("Count: %d", count))
@@ -617,7 +617,7 @@ comps.OnCleanup(func() {
 
 ```go
 // BAD: Expensive computation in effect
-reactivity.NewEffect(func() {
+reactivity.CreateEffect(func() {
     items := itemList.Get()
     
     // Expensive operation runs on every change
@@ -630,7 +630,7 @@ reactivity.NewEffect(func() {
 })
 
 // GOOD: Use memo for expensive computation
-totalPrice := reactivity.NewMemo(func() int {
+totalPrice := reactivity.CreateMemo(func() int {
     items := itemList.Get()
     var total int
     for _, item := range items {
@@ -652,23 +652,23 @@ totalDisplay := totalPrice.Map(func(total int) string {
 
 ```go
 // BAD: Multiple effects for related updates
-reactivity.NewEffect(func() {
+reactivity.CreateEffect(func() {
     user := currentUser.Get()
     userName.Set(user.Name)
 })
 
-reactivity.NewEffect(func() {
+reactivity.CreateEffect(func() {
     user := currentUser.Get()
     userEmail.Set(user.Email)
 })
 
-reactivity.NewEffect(func() {
+reactivity.CreateEffect(func() {
     user := currentUser.Get()
     userAvatar.Set(user.AvatarURL)
 })
 
 // GOOD: Single effect for related updates
-reactivity.NewEffect(func() {
+reactivity.CreateEffect(func() {
     user := currentUser.Get()
     
     // Batch all updates
@@ -698,12 +698,12 @@ type PaginatedList struct {
 
 func NewPaginatedList(pageSize int) *PaginatedList {
     pl := &PaginatedList{
-        allItems:    reactivity.NewSignal([]Item{}),
-        currentPage: reactivity.NewSignal(0),
+        allItems:    reactivity.CreateSignal([]Item{}),
+        currentPage: reactivity.CreateSignal(0),
         pageSize:    pageSize,
     }
     
-    pl.visibleItems = reactivity.NewMemo(func() []Item {
+    pl.visibleItems = reactivity.CreateMemo(func() []Item {
         all := pl.allItems.Get()
         page := pl.currentPage.Get()
         
@@ -994,11 +994,11 @@ type Form struct {
 
 func NewForm() *Form {
     f := &Form{
-        email:    reactivity.NewSignal(""),
-        password: reactivity.NewSignal(""),
+        email:    reactivity.CreateSignal(""),
+        password: reactivity.CreateSignal(""),
     }
     
-    f.emailError = reactivity.NewMemo(func() string {
+    f.emailError = reactivity.CreateMemo(func() string {
         email := f.email.Get()
         if email == "" {
             return "Email is required"
@@ -1009,7 +1009,7 @@ func NewForm() *Form {
         return ""
     })
     
-    f.isValid = reactivity.NewMemo(func() bool {
+    f.isValid = reactivity.CreateMemo(func() bool {
         return f.emailError.Get() == "" && f.passwordError.Get() == ""
     })
     
@@ -1123,7 +1123,7 @@ A: Use browser dev tools and Go profiling:
 
 ```go
 // Add timing to effects
-reactivity.NewEffect(func() {
+reactivity.CreateEffect(func() {
     start := time.Now()
     defer func() {
         logutil.Logf("Effect took: %v", time.Since(start))

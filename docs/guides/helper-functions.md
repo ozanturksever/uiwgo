@@ -33,8 +33,8 @@ UIwGo provides a comprehensive set of helper functions that enable reactive, eff
 
 ```go
 // UIwGo helpers are reactive by design
-visible := reactivity.NewSignal(true)
-items := reactivity.NewSignal([]string{"a", "b", "c"})
+visible := reactivity.CreateSignal(true)
+items := reactivity.CreateSignal([]string{"a", "b", "c"})
 
 // Helpers automatically update when signals change
 comps.Show(comps.ShowProps{
@@ -91,7 +91,7 @@ type UserState struct {
 
 func (s *UserState) render() g.Node {
     // Computed condition based on multiple signals
-    canEdit := reactivity.NewMemo(func() bool {
+    canEdit := reactivity.CreateMemo(func() bool {
         user := s.user.Get()
         return user != nil && (s.isAdmin.Get() || user.ID == getCurrentUserID())
     })
@@ -111,13 +111,13 @@ func (s *UserState) render() g.Node {
 ```go
 func renderUserProfile(user reactivity.Signal[*User]) g.Node {
     return comps.Show(comps.ShowProps{
-        When: reactivity.NewMemo(func() bool {
+        When: reactivity.CreateMemo(func() bool {
             return user.Get() != nil
         }),
         Children: g.Div(
             g.H2(g.Text("User Profile")),
             comps.Show(comps.ShowProps{
-                When: reactivity.NewMemo(func() bool {
+                When: reactivity.CreateMemo(func() bool {
                     u := user.Get()
                     return u != nil && u.Avatar != ""
                 }),
@@ -211,7 +211,7 @@ type ProductFilter struct {
 }
 
 func (f *ProductFilter) render() g.Node {
-    filteredProducts := reactivity.NewMemo(func() []Product {
+    filteredProducts := reactivity.CreateMemo(func() []Product {
         products := f.products.Get()
         search := strings.ToLower(f.searchTerm.Get())
         cat := f.category.Get()
@@ -243,7 +243,7 @@ func (f *ProductFilter) render() g.Node {
 
 ```go
 func renderGroupedItems(items reactivity.Signal[[]Item]) g.Node {
-    groupedItems := reactivity.NewMemo(func() map[string][]Item {
+    groupedItems := reactivity.CreateMemo(func() map[string][]Item {
         groups := make(map[string][]Item)
         for _, item := range items.Get() {
             groups[item.Category] = append(groups[item.Category], item)
@@ -251,7 +251,7 @@ func renderGroupedItems(items reactivity.Signal[[]Item]) g.Node {
         return groups
     })
     
-    categories := reactivity.NewMemo(func() []string {
+    categories := reactivity.CreateMemo(func() []string {
         var cats []string
         for cat := range groupedItems.Get() {
             cats = append(cats, cat)
@@ -264,7 +264,7 @@ func renderGroupedItems(items reactivity.Signal[[]Item]) g.Node {
         Items: categories,
         Key: func(cat string) string { return cat },
         Children: func(category string, index int) g.Node {
-            categoryItems := reactivity.NewMemo(func() []Item {
+            categoryItems := reactivity.CreateMemo(func() []Item {
                 return groupedItems.Get()[category]
             })
             
@@ -330,7 +330,7 @@ const (
 )
 
 func renderDynamicWidget(componentType reactivity.Signal[ComponentType], data reactivity.Signal[any]) g.Node {
-    component := reactivity.NewMemo(func() func() g.Node {
+    component := reactivity.CreateMemo(func() func() g.Node {
         switch componentType.Get() {
         case ComponentChart:
             return func() g.Node { return renderChart(data) }
@@ -492,10 +492,10 @@ func (s *TabsState) render() g.Node {
         g.Div(
             g.Class("tab-headers"),
             comps.For(comps.ForProps[TabConfig]{
-                Items: reactivity.NewSignal(s.tabs),
+                Items: reactivity.CreateSignal(s.tabs),
                 Key: func(tab TabConfig) string { return tab.ID },
                 Children: func(tab TabConfig, index int) g.Node {
-                    isActive := reactivity.NewMemo(func() bool {
+                    isActive := reactivity.CreateMemo(func() bool {
                         return s.activeTab.Get() == tab.ID
                     })
                     
@@ -578,7 +578,7 @@ type AppState struct {
 
 // Good: Computed signals for derived state
 func (s *AppState) isDarkMode() reactivity.Signal[bool] {
-    return reactivity.NewMemo(func() bool {
+    return reactivity.CreateMemo(func() bool {
         return s.theme.Get() == ThemeDark
     })
 }
@@ -586,7 +586,7 @@ func (s *AppState) isDarkMode() reactivity.Signal[bool] {
 // Avoid: Creating signals in render functions
 func badRender() g.Node {
     // Bad: Creates new signal on every render
-    counter := reactivity.NewSignal(0)
+    counter := reactivity.CreateSignal(0)
     return g.Div(g.Text(strconv.Itoa(counter.Get())))
 }
 ```
@@ -670,7 +670,7 @@ func renderDataVisualization(data reactivity.Signal[[]DataPoint]) g.Node {
 ```go
 // Bad: Creates new signal on every render
 func badComponent() g.Node {
-    counter := reactivity.NewSignal(0) // New signal every time!
+    counter := reactivity.CreateSignal(0) // New signal every time!
     return g.Button(
         g.Text(strconv.Itoa(counter.Get())),
         dom.OnClick(func() {
@@ -686,7 +686,7 @@ type CounterComponent struct {
 
 func NewCounterComponent() *CounterComponent {
     return &CounterComponent{
-        counter: reactivity.NewSignal(0),
+        counter: reactivity.CreateSignal(0),
     }
 }
 
@@ -731,7 +731,7 @@ comps.For(comps.ForProps[Item]{
 ```go
 // Bad: Effect not cleaned up
 func badComponent() g.Node {
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         // This effect will never be disposed!
         logutil.Log("Effect running")
     })
@@ -741,7 +741,7 @@ func badComponent() g.Node {
 // Good: Effect cleaned up properly
 func goodComponent() g.Node {
     return comps.OnMount(func() {
-        effect := reactivity.NewEffect(func() {
+        effect := reactivity.CreateEffect(func() {
             logutil.Log("Effect running")
         })
         

@@ -23,19 +23,30 @@ This guide helps you diagnose and resolve common issues when working with inline
 
 **Possible Causes & Solutions:**
 
-#### A. Missing `dom.AttachInlineDelegates()` Call
+#### A. Incorrect Event Handler Setup
 
 ```go
-// ❌ Problem: Delegates not attached
+// ❌ Problem: Using old manual DOM binding approach
 func main() {
     comps.Mount("app", MyApp())
-    // Missing: dom.AttachInlineDelegates()
+    // Old approach - no longer needed
 }
 
-// ✅ Solution: Always call AttachInlineDelegates
-func main() {
-    comps.Mount("app", MyApp())
-    dom.AttachInlineDelegates() // Required!
+// ✅ Solution: Use inline event handlers directly
+func MyApp() g.Node {
+    count := reactivity.CreateSignal(0)
+    
+    return Div(
+        Button(
+            Text("Click me"),
+            dom.OnClickInline(func(el dom.Element) {
+                count.Set(count.Get() + 1)
+            }),
+        ),
+        comps.BindText(func() string {
+            return fmt.Sprintf("Count: %d", count.Get())
+        }),
+    )
 }
 ```
 
@@ -108,22 +119,35 @@ Div(
 
 **Possible Causes & Solutions:**
 
-#### A. Multiple `AttachInlineDelegates()` Calls
+#### A. Duplicate Event Handler Registration
 
 ```go
-// ❌ Problem: Multiple delegate attachments
-func main() {
-    comps.Mount("app", MyApp())
-    dom.AttachInlineDelegates()
+// ❌ Problem: Multiple event handlers on same element
+func BadComponent() g.Node {
+    count := reactivity.CreateSignal(0)
     
-    // Later in code...
-    dom.AttachInlineDelegates() // This creates duplicate listeners!
+    return Button(
+        Text("Click me"),
+        // Multiple handlers - creates duplicates!
+        dom.OnClickInline(func(el dom.Element) {
+            count.Set(count.Get() + 1)
+        }),
+        dom.OnClickInline(func(el dom.Element) {
+            count.Set(count.Get() + 1) // Duplicate!
+        }),
+    )
 }
 
-// ✅ Solution: Call AttachInlineDelegates only once
-func main() {
-    comps.Mount("app", MyApp())
-    dom.AttachInlineDelegates() // Only once!
+// ✅ Solution: Use single event handler per element
+func GoodComponent() g.Node {
+    count := reactivity.CreateSignal(0)
+    
+    return Button(
+        Text("Click me"),
+        dom.OnClickInline(func(el dom.Element) {
+            count.Set(count.Get() + 1) // Single handler
+        }),
+    )
 }
 ```
 
@@ -371,18 +395,31 @@ dom.OnClickInline(func(el dom.Element) {
 
 ### "Cannot read property 'addEventListener' of null"
 
-**Cause:** Trying to attach event listeners before DOM is ready.
+**Cause:** Trying to access DOM elements before they exist.
 
 **Solution:**
 ```go
-// ✅ Ensure DOM is ready
-func main() {
-    // Wait for DOM
-    js.Global().Get("document").Call("addEventListener", "DOMContentLoaded", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-        comps.Mount("app", MyApp())
-        dom.AttachInlineDelegates()
-        return nil
-    }))
+// ✅ Use comps.OnMount for DOM access
+func MyComponent() g.Node {
+    count := reactivity.CreateSignal(0)
+    
+    // Setup DOM interactions after mount
+    comps.OnMount(func() {
+        if btn := dom.GetElementByID("my-button"); btn != nil {
+            dom.BindClickToCallback(btn, func() {
+                count.Set(count.Get() + 1)
+            })
+        }
+    })
+    
+    return Button(
+        ID("my-button"),
+        Text("Click me"),
+        // Or use inline handlers directly
+        dom.OnClickInline(func(el dom.Element) {
+            count.Set(count.Get() + 1)
+        }),
+    )
 }
 ```
 
@@ -392,19 +429,32 @@ func main() {
 
 **Solution:**
 ```go
-// ✅ Ensure proper initialization order
+// ✅ Use proper component lifecycle
 func main() {
-    // 1. Mount components first
+    // Simply mount the app - inline handlers work automatically
     comps.Mount("app", MyApp())
+}
+
+func MyApp() g.Node {
+    count := reactivity.CreateSignal(0)
     
-    // 2. Then attach delegates
-    dom.AttachInlineDelegates()
+    // Verify component is working
+    comps.OnMount(func() {
+        logutil.Log("Component mounted successfully")
+    })
     
-    // 3. Verify handlers are registered
-    js.Global().Call("setTimeout", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
-        logutil.Log("Handlers registered:", js.Global().Get("inlineClickHandlers").Length())
-        return nil
-    }), 100)
+    return Div(
+        Button(
+            Text("Click me"),
+            dom.OnClickInline(func(el dom.Element) {
+                logutil.Log("Button clicked!")
+                count.Set(count.Get() + 1)
+            }),
+        ),
+        comps.BindText(func() string {
+            return fmt.Sprintf("Count: %d", count.Get())
+        }),
+    )
 }
 ```
 
@@ -497,12 +547,29 @@ func periodicCleanup() {
             // Force garbage collection
             runtime.GC()
             
-            // Optionally reset handlers (use sparingly)
-            if shouldResetHandlers() {
-                dom.AttachInlineDelegates()
-            }
+            // Log memory usage
+            logutil.Log("Periodic cleanup completed")
         }
     }()
+}
+
+// ✅ Component-level cleanup
+func MyComponent() g.Node {
+    // Use OnCleanup for proper resource management
+    comps.OnCleanup(func() {
+        logutil.Log("Component cleanup")
+        // Clean up any resources here
+    })
+    
+    return Div(
+        // Component content with inline handlers
+        Button(
+            Text("Click me"),
+            dom.OnClickInline(func(el dom.Element) {
+                // Handler automatically cleaned up on unmount
+            }),
+        ),
+    )
 }
 ```
 

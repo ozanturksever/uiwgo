@@ -79,20 +79,20 @@ type ProductCatalog struct {
 
 func NewProductCatalog() *ProductCatalog {
     return &ProductCatalog{
-        products:       reactivity.NewSignal([]Product{}),
-        searchTerm:     reactivity.NewSignal(""),
-        selectedCategory: reactivity.NewSignal(""),
-        viewMode:       reactivity.NewSignal(ViewModeGrid),
-        sortBy:         reactivity.NewSignal(SortByName),
-        sortAsc:        reactivity.NewSignal(true),
-        showOutOfStock: reactivity.NewSignal(true),
-        loading:        reactivity.NewSignal(false),
+        products:       reactivity.CreateSignal([]Product{}),
+        searchTerm:     reactivity.CreateSignal(""),
+        selectedCategory: reactivity.CreateSignal(""),
+        viewMode:       reactivity.CreateSignal(ViewModeGrid),
+        sortBy:         reactivity.CreateSignal(SortByName),
+        sortAsc:        reactivity.CreateSignal(true),
+        showOutOfStock: reactivity.CreateSignal(true),
+        loading:        reactivity.CreateSignal(false),
     }
 }
 
 func (pc *ProductCatalog) render() g.Node {
     // Computed filtered and sorted products
-    filteredProducts := reactivity.NewMemo(func() []Product {
+    filteredProducts := reactivity.CreateMemo(func() []Product {
         products := pc.products.Get()
         search := strings.ToLower(pc.searchTerm.Get())
         category := pc.selectedCategory.Get()
@@ -148,7 +148,7 @@ func (pc *ProductCatalog) render() g.Node {
     })
     
     // Get unique categories
-    categories := reactivity.NewMemo(func() []string {
+    categories := reactivity.CreateMemo(func() []string {
         products := pc.products.Get()
         catMap := make(map[string]bool)
         for _, p := range products {
@@ -285,7 +285,7 @@ func (pc *ProductCatalog) render() g.Node {
         
         // Products display
         comps.Show(comps.ShowProps{
-            When: reactivity.NewMemo(func() bool {
+            When: reactivity.CreateMemo(func() bool {
                 return !pc.loading.Get()
             }),
             Children: comps.Switch(comps.SwitchProps{
@@ -305,7 +305,7 @@ func (pc *ProductCatalog) render() g.Node {
         
         // Empty state
         comps.Show(comps.ShowProps{
-            When: reactivity.NewMemo(func() bool {
+            When: reactivity.CreateMemo(func() bool {
                 return !pc.loading.Get() && len(filteredProducts.Get()) == 0
             }),
             Children: g.Div(
@@ -350,7 +350,7 @@ func (pc *ProductCatalog) renderProductGrid(products reactivity.Signal[[]Product
                             g.Text(fmt.Sprintf("★ %.1f", p.Rating)),
                         ),
                         comps.Show(comps.ShowProps{
-                            When: reactivity.NewSignal(!p.InStock),
+                            When: reactivity.CreateSignal(!p.InStock),
                             Children: g.Span(
                                 g.Class("stock-status"),
                                 g.Text("Out of Stock"),
@@ -402,7 +402,7 @@ func (pc *ProductCatalog) renderProductList(products reactivity.Signal[[]Product
                                 g.Text(fmt.Sprintf("★ %.1f", p.Rating)),
                             ),
                             comps.Show(comps.ShowProps{
-                                When: reactivity.NewSignal(!p.InStock),
+                                When: reactivity.CreateSignal(!p.InStock),
                                 Children: g.Span(
                                     g.Class("stock-status"),
                                     g.Text("Out of Stock"),
@@ -470,18 +470,18 @@ type TaskDashboard struct {
 
 func NewTaskDashboard() *TaskDashboard {
     return &TaskDashboard{
-        tasks:          reactivity.NewSignal([]Task{}),
-        currentView:    reactivity.NewSignal(ViewBoard),
-        selectedTags:   reactivity.NewSignal([]string{}),
-        assigneeFilter: reactivity.NewSignal(""),
-        showCompleted:  reactivity.NewSignal(false),
-        searchTerm:     reactivity.NewSignal(""),
+        tasks:          reactivity.CreateSignal([]Task{}),
+        currentView:    reactivity.CreateSignal(ViewBoard),
+        selectedTags:   reactivity.CreateSignal([]string{}),
+        assigneeFilter: reactivity.CreateSignal(""),
+        showCompleted:  reactivity.CreateSignal(false),
+        searchTerm:     reactivity.CreateSignal(""),
     }
 }
 
 func (td *TaskDashboard) render() g.Node {
     // Computed filtered tasks
-    filteredTasks := reactivity.NewMemo(func() []Task {
+    filteredTasks := reactivity.CreateMemo(func() []Task {
         tasks := td.tasks.Get()
         search := strings.ToLower(td.searchTerm.Get())
         assignee := td.assigneeFilter.Get()
@@ -545,12 +545,12 @@ func (td *TaskDashboard) render() g.Node {
             g.Nav(
                 g.Class("view-switcher"),
                 comps.For(comps.ForProps[DashboardView]{
-                    Items: reactivity.NewSignal([]DashboardView{
+                    Items: reactivity.CreateSignal([]DashboardView{
                         ViewBoard, ViewList, ViewCalendar, ViewAnalytics,
                     }),
                     Key: func(view DashboardView) string { return string(view) },
                     Children: func(view DashboardView, index int) g.Node {
-                        isActive := reactivity.NewMemo(func() bool {
+                        isActive := reactivity.CreateMemo(func() bool {
                             return td.currentView.Get() == view
                         })
                         
@@ -621,7 +621,7 @@ func (td *TaskDashboard) render() g.Node {
 
 func (td *TaskDashboard) renderKanbanBoard(tasks reactivity.Signal[[]Task]) g.Node {
     // Group tasks by status
-    tasksByStatus := reactivity.NewMemo(func() map[TaskStatus][]Task {
+    tasksByStatus := reactivity.CreateMemo(func() map[TaskStatus][]Task {
         groups := make(map[TaskStatus][]Task)
         for _, task := range tasks.Get() {
             groups[task.Status] = append(groups[task.Status], task)
@@ -634,10 +634,10 @@ func (td *TaskDashboard) renderKanbanBoard(tasks reactivity.Signal[[]Task]) g.No
     return g.Div(
         g.Class("kanban-board"),
         comps.For(comps.ForProps[TaskStatus]{
-            Items: reactivity.NewSignal(statuses),
+            Items: reactivity.CreateSignal(statuses),
             Key: func(status TaskStatus) string { return string(status) },
             Children: func(status TaskStatus, index int) g.Node {
-                columnTasks := reactivity.NewMemo(func() []Task {
+                columnTasks := reactivity.CreateMemo(func() []Task {
                     return tasksByStatus.Get()[status]
                 })
                 
@@ -679,7 +679,7 @@ func (td *TaskDashboard) renderTaskCard(task Task) g.Node {
         ),
         
         comps.Show(comps.ShowProps{
-            When: reactivity.NewSignal(task.Description != ""),
+            When: reactivity.CreateSignal(task.Description != ""),
             Children: g.P(
                 g.Class("task-description"),
                 g.Text(task.Description),
@@ -688,11 +688,11 @@ func (td *TaskDashboard) renderTaskCard(task Task) g.Node {
         
         // Tags
         comps.Show(comps.ShowProps{
-            When: reactivity.NewSignal(len(task.Tags) > 0),
+            When: reactivity.CreateSignal(len(task.Tags) > 0),
             Children: g.Div(
                 g.Class("task-tags"),
                 comps.For(comps.ForProps[string]{
-                    Items: reactivity.NewSignal(task.Tags),
+                    Items: reactivity.CreateSignal(task.Tags),
                     Key: func(tag string) string { return tag },
                     Children: func(tag string, index int) g.Node {
                         return g.Span(
@@ -708,7 +708,7 @@ func (td *TaskDashboard) renderTaskCard(task Task) g.Node {
         g.Div(
             g.Class("task-meta"),
             comps.Show(comps.ShowProps{
-                When: reactivity.NewSignal(task.Assignee != ""),
+                When: reactivity.CreateSignal(task.Assignee != ""),
                 Children: g.Span(
                     g.Class("assignee"),
                     g.Text(task.Assignee),
@@ -716,7 +716,7 @@ func (td *TaskDashboard) renderTaskCard(task Task) g.Node {
             }),
             
             comps.Show(comps.ShowProps{
-                When: reactivity.NewSignal(!task.DueDate.IsZero()),
+                When: reactivity.CreateSignal(!task.DueDate.IsZero()),
                 Children: g.Span(
                     g.Class("due-date"),
                     g.Text(task.DueDate.Format("Jan 2")),
@@ -784,19 +784,19 @@ type SocialFeed struct {
 
 func NewSocialFeed() *SocialFeed {
     return &SocialFeed{
-        posts:          reactivity.NewSignal([]Post{}),
-        loading:        reactivity.NewSignal(false),
-        hasMore:        reactivity.NewSignal(true),
-        selectedFilter: reactivity.NewSignal(""),
-        showComments:   reactivity.NewSignal(make(map[string]bool)),
-        newPostContent: reactivity.NewSignal(""),
-        currentUser:    reactivity.NewSignal(User{}),
+        posts:          reactivity.CreateSignal([]Post{}),
+        loading:        reactivity.CreateSignal(false),
+        hasMore:        reactivity.CreateSignal(true),
+        selectedFilter: reactivity.CreateSignal(""),
+        showComments:   reactivity.CreateSignal(make(map[string]bool)),
+        newPostContent: reactivity.CreateSignal(""),
+        currentUser:    reactivity.CreateSignal(User{}),
     }
 }
 
 func (sf *SocialFeed) render() g.Node {
     // Filter posts based on selected type
-    filteredPosts := reactivity.NewMemo(func() []Post {
+    filteredPosts := reactivity.CreateMemo(func() []Post {
         posts := sf.posts.Get()
         filter := sf.selectedFilter.Get()
         
@@ -837,12 +837,12 @@ func (sf *SocialFeed) render() g.Node {
                     }),
                 ),
                 comps.For(comps.ForProps[PostType]{
-                    Items: reactivity.NewSignal([]PostType{
+                    Items: reactivity.CreateSignal([]PostType{
                         PostTypeText, PostTypeImage, PostTypeVideo, PostTypeLink,
                     }),
                     Key: func(pType PostType) string { return string(pType) },
                     Children: func(pType PostType, index int) g.Node {
-                        isActive := reactivity.NewMemo(func() bool {
+                        isActive := reactivity.CreateMemo(func() bool {
                             return sf.selectedFilter.Get() == pType
                         })
                         
@@ -881,7 +881,7 @@ func (sf *SocialFeed) render() g.Node {
             
             // Load more button
             comps.Show(comps.ShowProps{
-                When: reactivity.NewMemo(func() bool {
+                When: reactivity.CreateMemo(func() bool {
                     return sf.hasMore.Get() && !sf.loading.Get()
                 }),
                 Children: g.Button(
@@ -897,7 +897,7 @@ func (sf *SocialFeed) render() g.Node {
 }
 
 func (sf *SocialFeed) renderPost(post Post) g.Node {
-    commentsVisible := reactivity.NewMemo(func() bool {
+    commentsVisible := reactivity.CreateMemo(func() bool {
         return sf.showComments.Get()[post.ID]
     })
     
@@ -918,7 +918,7 @@ func (sf *SocialFeed) renderPost(post Post) g.Node {
                     g.Class("author-name"),
                     g.Text(post.Author.Name),
                     comps.Show(comps.ShowProps{
-                        When: reactivity.NewSignal(post.Author.Verified),
+                        When: reactivity.CreateSignal(post.Author.Verified),
                         Children: g.Span(
                             g.Class("verified-badge"),
                             g.Text("✓"),
@@ -943,12 +943,12 @@ func (sf *SocialFeed) renderPost(post Post) g.Node {
             
             // Media content based on post type
             comps.Switch(comps.SwitchProps{
-                When: reactivity.NewSignal(post.Type),
+                When: reactivity.CreateSignal(post.Type),
                 Children: []g.Node{
                     comps.Match(comps.MatchProps{
                         When: PostTypeImage,
                         Children: comps.Show(comps.ShowProps{
-                            When: reactivity.NewSignal(post.MediaURL != ""),
+                            When: reactivity.CreateSignal(post.MediaURL != ""),
                             Children: g.Img(
                                 g.Class("post-image"),
                                 g.Src(post.MediaURL),
@@ -959,7 +959,7 @@ func (sf *SocialFeed) renderPost(post Post) g.Node {
                     comps.Match(comps.MatchProps{
                         When: PostTypeVideo,
                         Children: comps.Show(comps.ShowProps{
-                            When: reactivity.NewSignal(post.MediaURL != ""),
+                            When: reactivity.CreateSignal(post.MediaURL != ""),
                             Children: g.Video(
                                 g.Class("post-video"),
                                 g.Attr("controls", ""),
@@ -1007,7 +1007,7 @@ func (sf *SocialFeed) renderPost(post Post) g.Node {
             Children: g.Div(
                 g.Class("comments-section"),
                 comps.For(comps.ForProps[Comment]{
-                    Items: reactivity.NewSignal(post.Comments),
+                    Items: reactivity.CreateSignal(post.Comments),
                     Key: func(comment Comment) string { return comment.ID },
                     Children: func(comment Comment, index int) g.Node {
                         return sf.renderComment(comment)

@@ -61,18 +61,18 @@ type DashboardState struct {
 
 func NewDashboardState() *DashboardState {
     return &DashboardState{
-        data:         reactivity.NewSignal([]DataPoint{}),
-        searchTerm:   reactivity.NewSignal(""),
-        sortBy:       reactivity.NewSignal("name"),
-        sortOrder:    reactivity.NewSignal("asc"),
-        filterStatus: reactivity.NewSignal("all"),
-        selectedItem: reactivity.NewSignal[*DataPoint](nil),
-        loading:      reactivity.NewSignal(false),
+        data:         reactivity.CreateSignal([]DataPoint{}),
+        searchTerm:   reactivity.CreateSignal(""),
+        sortBy:       reactivity.CreateSignal("name"),
+        sortOrder:    reactivity.CreateSignal("asc"),
+        filterStatus: reactivity.CreateSignal("all"),
+        selectedItem: reactivity.CreateSignal[*DataPoint](nil),
+        loading:      reactivity.CreateSignal(false),
     }
 }
 
 func (ds *DashboardState) filteredAndSortedData() reactivity.Memo[[]DataPoint] {
-    return reactivity.NewMemo(func() []DataPoint {
+    return reactivity.CreateMemo(func() []DataPoint {
         data := ds.data.Get()
         searchTerm := strings.ToLower(ds.searchTerm.Get())
         filterStatus := ds.filterStatus.Get()
@@ -219,13 +219,13 @@ func (ds *DashboardState) renderDataTable() g.Node {
         
         // Show data table when not loading
         comps.Show(comps.ShowProps{
-            When: reactivity.NewMemo(func() bool {
+            When: reactivity.CreateMemo(func() bool {
                 return !ds.loading.Get()
             }),
             Children: g.Div(
                 // Show empty state or data
                 comps.Switch(comps.SwitchProps{
-                    When: reactivity.NewMemo(func() string {
+                    When: reactivity.CreateMemo(func() string {
                         data := filteredData.Get()
                         if len(data) == 0 {
                             return "empty"
@@ -275,7 +275,7 @@ func (ds *DashboardState) renderDataTable() g.Node {
 }
 
 func (ds *DashboardState) renderDataRow(item DataPoint, index int) g.Node {
-    isSelected := reactivity.NewMemo(func() bool {
+    isSelected := reactivity.CreateMemo(func() bool {
         selected := ds.selectedItem.Get()
         return selected != nil && selected.ID == item.ID
     })
@@ -328,7 +328,7 @@ func (ds *DashboardState) renderDataRow(item DataPoint, index int) g.Node {
 
 func (ds *DashboardState) renderDetailPanel() g.Node {
     return comps.Show(comps.ShowProps{
-        When: reactivity.NewMemo(func() bool {
+        When: reactivity.CreateMemo(func() bool {
             return ds.selectedItem.Get() != nil
         }),
         Children: g.Div(
@@ -338,7 +338,7 @@ func (ds *DashboardState) renderDetailPanel() g.Node {
             g.H3(g.Text("Item Details")),
             
             comps.Switch(comps.SwitchProps{
-                When: reactivity.NewMemo(func() string {
+                When: reactivity.CreateMemo(func() string {
                     item := ds.selectedItem.Get()
                     if item == nil {
                         return "none"
@@ -426,7 +426,7 @@ func Dashboard() g.Node {
     state := NewDashboardState()
     
     // Load initial data
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         state.loadData()
     })
     
@@ -573,12 +573,12 @@ type Preferences struct {
 
 func NewMultiStepFormState() *MultiStepFormState {
     state := &MultiStepFormState{
-        currentStep:   reactivity.NewSignal(0),
-        personalInfo:  reactivity.NewSignal(PersonalInfo{}),
-        contactInfo:   reactivity.NewSignal(ContactInfo{}),
-        preferences:   reactivity.NewSignal(Preferences{Theme: "light", Language: "en"}),
-        errors:        reactivity.NewSignal(make(map[string]string)),
-        isSubmitting:  reactivity.NewSignal(false),
+        currentStep:   reactivity.CreateSignal(0),
+        personalInfo:  reactivity.CreateSignal(PersonalInfo{}),
+        contactInfo:   reactivity.CreateSignal(ContactInfo{}),
+        preferences:   reactivity.CreateSignal(Preferences{Theme: "light", Language: "en"}),
+        errors:        reactivity.CreateSignal(make(map[string]string)),
+        isSubmitting:  reactivity.CreateSignal(false),
     }
     
     state.steps = []FormStep{
@@ -667,7 +667,7 @@ func (mfs *MultiStepFormState) renderStepIndicator() g.Node {
         g.Style("display: flex; justify-content: space-between; margin-bottom: 2rem;"),
         
         comps.For(comps.ForProps[FormStep]{
-            Items: reactivity.NewSignal(mfs.steps),
+            Items: reactivity.CreateSignal(mfs.steps),
             Key: func(step FormStep) string {
                 return step.ID
             },
@@ -708,7 +708,7 @@ func (mfs *MultiStepFormState) renderStepIndicator() g.Node {
 
 func (mfs *MultiStepFormState) renderCurrentStep() g.Node {
     return comps.Switch(comps.SwitchProps{
-        When: reactivity.NewMemo(func() string {
+        When: reactivity.CreateMemo(func() string {
             step := mfs.currentStep.Get()
             if step >= 0 && step < len(mfs.steps) {
                 return mfs.steps[step].ID
@@ -757,7 +757,7 @@ func (mfs *MultiStepFormState) renderPersonalInfoStep() g.Node {
                 }),
             ),
             comps.Show(comps.ShowProps{
-                When: reactivity.NewMemo(func() bool {
+                When: reactivity.CreateMemo(func() bool {
                     return errors["firstName"] != ""
                 }),
                 Children: g.Div(
@@ -786,7 +786,7 @@ func (mfs *MultiStepFormState) renderPersonalInfoStep() g.Node {
                 }),
             ),
             comps.Show(comps.ShowProps{
-                When: reactivity.NewMemo(func() bool {
+                When: reactivity.CreateMemo(func() bool {
                     return errors["lastName"] != ""
                 }),
                 Children: g.Div(
@@ -815,7 +815,7 @@ func (mfs *MultiStepFormState) renderPersonalInfoStep() g.Node {
                 }),
             ),
             comps.Show(comps.ShowProps{
-                When: reactivity.NewMemo(func() bool {
+                When: reactivity.CreateMemo(func() bool {
                     return errors["birthDate"] != ""
                 }),
                 Children: g.Div(
@@ -874,7 +874,7 @@ func (mfs *MultiStepFormState) renderContactInfoStep() g.Node {
                 }),
             ),
             comps.Show(comps.ShowProps{
-                When: reactivity.NewMemo(func() bool {
+                When: reactivity.CreateMemo(func() bool {
                     return errors["email"] != ""
                 }),
                 Children: g.Div(
@@ -903,7 +903,7 @@ func (mfs *MultiStepFormState) renderContactInfoStep() g.Node {
                 }),
             ),
             comps.Show(comps.ShowProps{
-                When: reactivity.NewMemo(func() bool {
+                When: reactivity.CreateMemo(func() bool {
                     return errors["phone"] != ""
                 }),
                 Children: g.Div(
@@ -932,7 +932,7 @@ func (mfs *MultiStepFormState) renderContactInfoStep() g.Node {
                 }),
             ),
             comps.Show(comps.ShowProps{
-                When: reactivity.NewMemo(func() bool {
+                When: reactivity.CreateMemo(func() bool {
                     return errors["address"] != ""
                 }),
                 Children: g.Div(
@@ -1072,7 +1072,7 @@ func (mfs *MultiStepFormState) renderReviewStep() g.Node {
             g.P(g.Text(fmt.Sprintf("Name: %s %s", personalInfo.FirstName, personalInfo.LastName))),
             g.P(g.Text(fmt.Sprintf("Birth Date: %s", personalInfo.BirthDate))),
             comps.Show(comps.ShowProps{
-                When: reactivity.NewMemo(func() bool {
+                When: reactivity.CreateMemo(func() bool {
                     return personalInfo.Gender != ""
                 }),
                 Children: g.P(g.Text(fmt.Sprintf("Gender: %s", personalInfo.Gender))),
@@ -1086,7 +1086,7 @@ func (mfs *MultiStepFormState) renderReviewStep() g.Node {
             g.P(g.Text(fmt.Sprintf("Phone: %s", contactInfo.Phone))),
             g.P(g.Text(fmt.Sprintf("Address: %s", contactInfo.Address))),
             comps.Show(comps.ShowProps{
-                When: reactivity.NewMemo(func() bool {
+                When: reactivity.CreateMemo(func() bool {
                     return contactInfo.City != "" || contactInfo.Country != ""
                 }),
                 Children: g.P(g.Text(fmt.Sprintf("Location: %s, %s", contactInfo.City, contactInfo.Country))),
@@ -1116,7 +1116,7 @@ func (mfs *MultiStepFormState) renderNavigation() g.Node {
         
         // Previous button
         comps.Show(comps.ShowProps{
-            When: reactivity.NewMemo(func() bool {
+            When: reactivity.CreateMemo(func() bool {
                 return !isFirstStep
             }),
             Children: g.Button(
@@ -1133,7 +1133,7 @@ func (mfs *MultiStepFormState) renderNavigation() g.Node {
         
         // Next/Submit button
         comps.Switch(comps.SwitchProps{
-            When: reactivity.NewMemo(func() string {
+            When: reactivity.CreateMemo(func() string {
                 if isLastStep {
                     return "submit"
                 }

@@ -18,7 +18,7 @@ This guide provides practical examples and best practices for using inline event
 
 ```go
 func Counter() g.Node {
-    count := reactivity.NewSignal(0)
+    count := reactivity.CreateSignal(0)
 
     return Div(
         H2(Text("Counter Example")),
@@ -51,8 +51,8 @@ func Counter() g.Node {
 
 ```go
 func InputExample() g.Node {
-    text := reactivity.NewSignal("")
-    wordCount := reactivity.NewComputed(func() int {
+    text := reactivity.CreateSignal("")
+    wordCount := reactivity.CreateMemo(func() int {
         words := strings.Fields(text.Get())
         return len(words)
     })
@@ -88,9 +88,9 @@ type Todo struct {
 }
 
 func TodoApp() g.Node {
-    todos := reactivity.NewSignal([]Todo{})
-    newTodoText := reactivity.NewSignal("")
-    nextID := reactivity.NewSignal(1)
+    todos := reactivity.CreateSignal([]Todo{})
+    newTodoText := reactivity.CreateSignal("")
+    nextID := reactivity.CreateSignal(1)
 
     addTodo := func() {
         text := strings.TrimSpace(newTodoText.Get())
@@ -190,18 +190,18 @@ func TodoApp() g.Node {
 
 ```go
 func ContactForm() g.Node {
-    name := reactivity.NewSignal("")
-    email := reactivity.NewSignal("")
-    message := reactivity.NewSignal("")
+    name := reactivity.CreateSignal("")
+    email := reactivity.CreateSignal("")
+    message := reactivity.CreateSignal("")
     
-    nameError := reactivity.NewComputed(func() string {
+    nameError := reactivity.CreateMemo(func() string {
         if len(strings.TrimSpace(name.Get())) < 2 {
             return "Name must be at least 2 characters"
         }
         return ""
     })
     
-    emailError := reactivity.NewComputed(func() string {
+    emailError := reactivity.CreateMemo(func() string {
         email := strings.TrimSpace(email.Get())
         if email == "" {
             return "Email is required"
@@ -212,7 +212,7 @@ func ContactForm() g.Node {
         return ""
     })
     
-    isValid := reactivity.NewComputed(func() bool {
+    isValid := reactivity.CreateMemo(func() bool {
         return nameError.Get() == "" && emailError.Get() == "" && 
                strings.TrimSpace(message.Get()) != ""
     })
@@ -355,7 +355,7 @@ dom.OnInputInline(func(el dom.Element) {
 })
 
 // ✅ Good: Computed values for derived state
-filteredItems := reactivity.NewComputed(func() []Item {
+filteredItems := reactivity.CreateMemo(func() []Item {
     term := strings.ToLower(searchTerm.Get())
     var filtered []Item
     for _, item := range allItems.Get() {
@@ -454,7 +454,7 @@ func NumberInput(value reactivity.Signal[int], min, max int) g.Node {
 ```go
 func RadioGroup(options []string, selected reactivity.Signal[string]) g.Node {
     return Div(
-        comps.BindList(reactivity.NewSignal(options), func(option string) g.Node {
+        comps.BindList(reactivity.CreateSignal(options), func(option string) g.Node {
             return Label(
                 Input(
                     Type("radio"),
@@ -482,7 +482,7 @@ func RadioGroup(options []string, selected reactivity.Signal[string]) g.Node {
 
 ```go
 func ReactiveForm() g.Node {
-    formData := reactivity.NewSignal(map[string]string{
+    formData := reactivity.CreateSignal(map[string]string{
         "name":  "",
         "email": "",
     })
@@ -526,8 +526,8 @@ func ReactiveForm() g.Node {
 
 ```go
 func DebouncedSearch() g.Node {
-    searchTerm := reactivity.NewSignal("")
-    debouncedTerm := reactivity.NewSignal("")
+    searchTerm := reactivity.CreateSignal("")
+    debouncedTerm := reactivity.CreateSignal("")
     
     var debounceTimer *time.Timer
     
@@ -564,8 +564,8 @@ func DebouncedSearch() g.Node {
 
 ```go
 func MultiStepForm() g.Node {
-    currentStep := reactivity.NewSignal(1)
-    formData := reactivity.NewSignal(map[string]interface{}{})
+    currentStep := reactivity.CreateSignal(1)
+    formData := reactivity.CreateSignal(map[string]interface{}{})
     
     nextStep := func() {
         if currentStep.Get() < 3 {
@@ -659,7 +659,7 @@ func MultiStepForm() g.Node {
 
 ```go
 func NavigableList(items []string) g.Node {
-    selectedIndex := reactivity.NewSignal(0)
+    selectedIndex := reactivity.CreateSignal(0)
     
     return Div(
         Tabindex("0"), // Make div focusable
@@ -681,7 +681,7 @@ func NavigableList(items []string) g.Node {
             logutil.Log("Selected:", selected)
         }),
         
-        comps.BindList(reactivity.NewSignal(items), func(item string) g.Node {
+        comps.BindList(reactivity.CreateSignal(items), func(item string) g.Node {
             index := 0
             for i, it := range items {
                 if it == item {

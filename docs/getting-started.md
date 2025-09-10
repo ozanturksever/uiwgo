@@ -69,7 +69,7 @@ import (
 // A component is a function that returns a gomponents.Node
 func Counter() Node {
 	// Create a reactive signal to hold the count.
-	count := reactivity.NewSignal(0)
+	count := reactivity.CreateSignal(0)
 
 	// Use OnMount to set up event listeners after the DOM is created.
 	comps.OnMount(func() {
@@ -118,7 +118,7 @@ func main() {
 
 UIwGo uses a **functional** approach where components are simply Go functions that return a `gomponents.Node`.
 
-1.  **Define State**: Reactive state is created using signals (`reactivity.NewSignal`).
+1.  **Define State**: Reactive state is created using signals (`reactivity.CreateSignal`).
 2.  **Define View**: The UI structure is defined using `gomponents` functions. Reactive content is embedded directly using helpers like `comps.BindText`.
 3.  **Define Behavior**: Side effects, like event handling, are set up within lifecycle hooks like `comps.OnMount`. This ensures the DOM elements exist before you try to access them.
 4.  **Mount**: The top-level component function is mounted to a DOM element, which renders the UI and activates the reactive bindings.
@@ -127,7 +127,7 @@ UIwGo uses a **functional** approach where components are simply Go functions th
 // A component is just a function.
 func MyComponent() g.Node {
     // 1. State
-    message := reactivity.NewSignal("Hello!")
+    message := reactivity.CreateSignal("Hello!")
 
     // 2. Behavior (runs after render)
     comps.OnMount(func() {
@@ -147,7 +147,7 @@ func MyComponent() g.Node {
 
 ```go
 // Create a signal
-count := reactivity.NewSignal(0)
+count := reactivity.CreateSignal(0)
 
 // Read the value
 value := count.Get()
@@ -156,7 +156,7 @@ value := count.Get()
 count.Set(value + 1)
 
 // Signals automatically track dependencies
-effect := reactivity.NewEffect(func() {
+effect := reactivity.CreateEffect(func() {
     fmt.Printf("Count is: %d\n", count.Get())
 })
 // Effect runs immediately and re-runs when count changes
@@ -210,7 +210,7 @@ var (
 
 func CounterWithActions() g.Node {
     // Create reactive state
-    count := reactivity.NewSignal(0)
+    count := reactivity.CreateSignal(0)
     
     // Create action bus
     bus := action.New()
@@ -323,8 +323,8 @@ Actions and signals work together seamlessly:
 ```go
 func TodoAppComponent() g.Node {
     // Signals for UI state
-    todos := reactivity.NewSignal([]Todo{})
-    filter := reactivity.NewSignal("all")
+    todos := reactivity.CreateSignal([]Todo{})
+    filter := reactivity.CreateSignal("all")
     
     // Action bus for application logic
     bus := action.New()
@@ -423,10 +423,10 @@ import (
 
 func HelloSignals() g.Node {
     // Signals for state
-    name := reactivity.NewSignal("World")
+    name := reactivity.CreateSignal("World")
 
     // Memo for computed state
-    greeting := reactivity.NewMemo(func() string {
+    greeting := reactivity.CreateMemo(func() string {
         return fmt.Sprintf("Hello, %s!", name.Get())
     })
 
@@ -546,14 +546,14 @@ You should see:
 
 ### Signals (Reactive State)
 ```go
-name := reactivity.NewSignal("World") // Reactive state
+name := reactivity.CreateSignal("World") // Reactive state
 name.Set("Alice")                     // Update triggers reactivity
 value := name.Get()                   // Read current value
 ```
 
 ### Memos (Computed Values)
 ```go
-greeting := reactivity.NewMemo(func() string {
+greeting := reactivity.CreateMemo(func() string {
     return fmt.Sprintf("Hello, %s!", name.Get())
 })
 // Automatically recomputes when name changes
@@ -581,7 +581,7 @@ bus.Dispatch(action.Action[string]{
 ```go
 func Component() g.Node {
     // Signals for reactive UI state
-    count := reactivity.NewSignal(0)
+    count := reactivity.CreateSignal(0)
     
     // Actions for structured application logic
     bus := action.New()
@@ -597,7 +597,7 @@ func Component() g.Node {
 ### Two-Way Data Binding
 ```go
 // In component function
-name := reactivity.NewSignal("")
+name := reactivity.CreateSignal("")
 comps.OnMount(func() {
     nameInput := dom.GetElementByID("name-input")
     dom.BindValue(nameInput, name) // Binds signal to input value

@@ -34,8 +34,8 @@ Start with server-rendered HTML and progressively enhance with client-side inter
 ### 🎯 Fine-Grained Reactivity
 ```go
 // Signals automatically track dependencies
-count := reactivity.NewSignal(0)
-effect := reactivity.NewEffect(func() {
+count := reactivity.CreateSignal(0)
+effect := reactivity.CreateEffect(func() {
     fmt.Printf("Count is: %d\n", count.Get())
 })
 count.Set(1) // Effect automatically re-runs
@@ -54,7 +54,7 @@ import (
 
 // A component is a Go function that returns a gomponents.Node.
 func Counter() Node {
-    count := reactivity.NewSignal(0)
+    count := reactivity.CreateSignal(0)
 
     // Event handlers are set up in OnMount, after the DOM exists.
     comps.OnMount(func() {
@@ -154,7 +154,7 @@ import (
 )
 
 func Counter() Node {
-    count := reactivity.NewSignal(0)
+    count := reactivity.CreateSignal(0)
 
     comps.OnMount(func() {
         incrementBtn := dom.GetElementByID("increment-btn")
@@ -187,7 +187,7 @@ func Counter() Node {
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   Go Components │    │   Reactivity     │    │   DOM Binding   │
 │                 │    │                  │    │                 │
-│ • Render HTML   │───▶│ • Signals        │───▶│ • Attach Phase  │
+│ • Render HTML   │───▶│ • Signals        │───▶│ • Mount Phase   │
 │ • Define State  │    │ • Effects        │    │ • Event Binding │
 │ • Handle Events │    │ • Memos          │    │ • Text Updates  │
 └─────────────────┘    │ • Cleanup        │    │ • Lifecycle     │

@@ -29,16 +29,16 @@ UIwGo's performance is built on efficient reactivity. Understanding how signals,
 
 ```go
 // Signals: Store reactive state
-count := reactivity.NewSignal(0)
+count := reactivity.CreateSignal(0)
 
 // Memos: Cache expensive computations
-expensiveResult := reactivity.NewMemo(func() int {
+expensiveResult := reactivity.CreateMemo(func() int {
     // Only recalculates when dependencies change
     return expensiveCalculation(count.Get())
 })
 
 // Effects: Handle side effects
-reactivity.NewEffect(func() {
+reactivity.CreateEffect(func() {
     // Runs when dependencies change
     logutil.Logf("Count changed to: %d", count.Get())
 })
@@ -67,7 +67,7 @@ func renderStats() g.Node {
 }
 
 // ✅ Good: Memoized expensive computation
-totalMemo := reactivity.NewMemo(func() int {
+totalMemo := reactivity.CreateMemo(func() int {
     total := 0
     for _, item := range items.Get() {
         total += complexCalculation(item) // Only runs when items change
@@ -97,7 +97,7 @@ func renderUserInfo() g.Node {
 }
 
 // ✅ Good: Combined memo for related data
-userData := reactivity.NewMemo(func() UserData {
+userData := reactivity.CreateMemo(func() UserData {
     return UserData{
         User:        currentUser.Get(),
         Settings:    userSettings.Get(),
@@ -145,7 +145,7 @@ func updateUserProfile(name, email, phone string) {
 
 ```go
 // ❌ Bad: Immediate updates on every keystroke
-searchInput := reactivity.NewSignal("")
+searchInput := reactivity.CreateSignal("")
 dom.OnInput(func(value string) {
     searchInput.Set(value) // Triggers search on every character
 })
@@ -158,7 +158,7 @@ type DebouncedSignal[T any] struct {
 
 func NewDebouncedSignal[T any](initial T, delay time.Duration) *DebouncedSignal[T] {
     return &DebouncedSignal[T]{
-        signal: reactivity.NewSignal(initial),
+        signal: reactivity.CreateSignal(initial),
     }
 }
 
@@ -222,15 +222,15 @@ type VirtualList struct {
 
 func NewVirtualList(items []Item, itemHeight, visibleCount int) *VirtualList {
     return &VirtualList{
-        items:        reactivity.NewSignal(items),
+        items:        reactivity.CreateSignal(items),
         itemHeight:   itemHeight,
         visibleCount: visibleCount,
-        scrollTop:    reactivity.NewSignal(0),
+        scrollTop:    reactivity.CreateSignal(0),
     }
 }
 
 func (vl *VirtualList) render() g.Node {
-    visibleItems := reactivity.NewMemo(func() []ItemWithIndex {
+    visibleItems := reactivity.CreateMemo(func() []ItemWithIndex {
         allItems := vl.items.Get()
         startIndex := vl.scrollTop.Get() / vl.itemHeight
         endIndex := startIndex + vl.visibleCount
@@ -301,9 +301,9 @@ type LazyItem struct {
 func NewLazyItem(id string) *LazyItem {
     return &LazyItem{
         id:      id,
-        loaded:  reactivity.NewSignal(false),
-        data:    reactivity.NewSignal[*ItemData](nil),
-        loading: reactivity.NewSignal(false),
+        loaded:  reactivity.CreateSignal(false),
+        data:    reactivity.CreateSignal[*ItemData](nil),
+        loading: reactivity.CreateSignal(false),
     }
 }
 
@@ -323,7 +323,7 @@ func (li *LazyItem) load() {
 
 func (li *LazyItem) render() g.Node {
     return comps.Switch(comps.SwitchProps{
-        When: reactivity.NewMemo(func() string {
+        When: reactivity.CreateMemo(func() string {
             if li.loading.Get() {
                 return "loading"
             }
@@ -555,8 +555,8 @@ type LazyComponent struct {
 func NewLazyComponent(loader func() Component) *LazyComponent {
     return &LazyComponent{
         loader:    loader,
-        loaded:    reactivity.NewSignal(false),
-        component: reactivity.NewSignal[Component](nil),
+        loaded:    reactivity.CreateSignal(false),
+        component: reactivity.CreateSignal[Component](nil),
     }
 }
 
@@ -643,8 +643,8 @@ type Animator struct {
 
 func NewAnimator(duration time.Duration) *Animator {
     return &Animator{
-        running:  reactivity.NewSignal(false),
-        progress: reactivity.NewSignal(0.0),
+        running:  reactivity.CreateSignal(false),
+        progress: reactivity.CreateSignal(0.0),
         duration: duration,
     }
 }

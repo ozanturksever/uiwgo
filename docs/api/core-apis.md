@@ -33,8 +33,8 @@ import (
 // MyComponent is a function that returns a gomponents Node.
 func MyComponent() g.Node {
     // 1. Define reactive state using signals.
-    title := reactivity.NewSignal("Hello, UIwGo!")
-    visible := reactivity.NewSignal(true)
+    title := reactivity.CreateSignal("Hello, UIwGo!")
+    visible := reactivity.CreateSignal(true)
 
     // 2. Use OnMount to perform actions after the component's DOM is rendered.
     comps.OnMount(func() {
@@ -77,13 +77,13 @@ Signals are the foundation of UIwGo's reactivity system.
 
 ```go
 // Create a signal with an initial value
-func NewSignal[T any](initial T) *Signal[T]
+func CreateSignal[T any](initial T) *Signal[T]
 
 // Examples
-name := reactivity.NewSignal("John")
-count := reactivity.NewSignal(0)
-user := reactivity.NewSignal(User{ID: 1, Name: "Alice"})
-visible := reactivity.NewSignal(true)
+name := reactivity.CreateSignal("John")
+count := reactivity.CreateSignal(0)
+user := reactivity.CreateSignal(User{ID: 1, Name: "Alice"})
+visible := reactivity.CreateSignal(true)
 ```
 
 #### Signal Methods
@@ -107,13 +107,13 @@ Memos are computed values that automatically update when their dependencies chan
 
 ```go
 // Create a memo from a function
-func NewMemo[T any](fn func() T) *Memo[T]
+func CreateMemo[T any](fn func() T) *Memo[T]
 
 // Example
-firstName := reactivity.NewSignal("John")
-lastName := reactivity.NewSignal("Doe")
+firstName := reactivity.CreateSignal("John")
+lastName := reactivity.CreateSignal("Doe")
 
-fullName := reactivity.NewMemo(func() string {
+fullName := reactivity.CreateMemo(func() string {
     return firstName.Get() + " " + lastName.Get()
 })
 ```
@@ -138,12 +138,12 @@ Effects run side effects in response to reactive changes.
 
 ```go
 // Create an effect that runs immediately and on dependency changes
-func NewEffect(fn func()) Effect
+func CreateEffect(fn func()) Effect
 
 // Example
-name := reactivity.NewSignal("World")
+name := reactivity.CreateSignal("World")
 
-effect := reactivity.NewEffect(func() {
+effect := reactivity.CreateEffect(func() {
     logutil.Logf("Hello, %s!", name.Get())
 })
 // Immediately logs: "Hello, World!"
@@ -195,8 +195,8 @@ func Show(condition bool, children ...g.Node) g.Node
 #### Example
 ```go
 func Component() g.Node {
-    name := reactivity.NewSignal("World")
-    isVisible := reactivity.NewSignal(true)
+    name := reactivity.CreateSignal("World")
+    isVisible := reactivity.CreateSignal(true)
 
     return Div(
         H1(
@@ -228,7 +228,7 @@ dom.OnKeyDownInline(func(el dom.Element) { /* handler */ }, "key") // Custom key
 #### Inline Events Example (Recommended)
 ```go
 func Component() g.Node {
-    count := reactivity.NewSignal(0)
+    count := reactivity.CreateSignal(0)
 
     return Div(
         Button(
@@ -270,7 +270,7 @@ func BindEvent(element dom.Element, eventType string, handler func(event dom.Eve
 #### Traditional Example (Not Recommended)
 ```go
 func Component() g.Node {
-    count := reactivity.NewSignal(0)
+    count := reactivity.CreateSignal(0)
 
     comps.OnMount(func() {
         incrementBtn := dom.GetElementByID("increment-btn")
@@ -305,8 +305,8 @@ func BindChecked(element dom.Element, signal reactivity.Signal[bool]) *EventBind
 #### Example
 ```go
 func FormComponent() g.Node {
-    name := reactivity.NewSignal("")
-    agreed := reactivity.NewSignal(false)
+    name := reactivity.CreateSignal("")
+    agreed := reactivity.CreateSignal(false)
 
     comps.OnMount(func() {
         nameInput := dom.GetElementByID("name-input")
@@ -438,7 +438,7 @@ type ShowProps struct {
 **Example:**
 ```go
 func ConditionalContent() g.Node {
-    visible := reactivity.NewSignal(true)
+    visible := reactivity.CreateSignal(true)
     
     return Div(
         Button(
@@ -478,7 +478,7 @@ type Todo struct {
 }
 
 func TodoList() g.Node {
-    todos := reactivity.NewSignal([]Todo{
+    todos := reactivity.CreateSignal([]Todo{
         {ID: "1", Text: "Learn UIwGo", Done: false},
         {ID: "2", Text: "Build an app", Done: true},
     })
@@ -517,7 +517,7 @@ type IndexProps[T any] struct {
 **Example:**
 ```go
 func NumberList() g.Node {
-    numbers := reactivity.NewSignal([]int{1, 2, 3, 4, 5})
+    numbers := reactivity.CreateSignal([]int{1, 2, 3, 4, 5})
     
     return Ul(
         Index(IndexProps[int]{
@@ -555,7 +555,7 @@ type MatchProps struct {
 **Example:**
 ```go
 func StatusDisplay() g.Node {
-    status := reactivity.NewSignal("loading")
+    status := reactivity.CreateSignal("loading")
     
     return Div(
         Switch(SwitchProps{
@@ -595,7 +595,7 @@ type DynamicProps struct {
 **Example:**
 ```go
 func DynamicView() g.Node {
-    currentView := reactivity.NewSignal(func() g.Node {
+    currentView := reactivity.CreateSignal(func() g.Node {
         return P(Text("Home View"))
     })
     
@@ -647,7 +647,7 @@ func Portal(target string, children g.Node) g.Node
 **Example:**
 ```go
 func ModalExample() g.Node {
-    showModal := reactivity.NewSignal(false)
+    showModal := reactivity.CreateSignal(false)
     
     return Div(
         Button(
@@ -775,7 +775,7 @@ UIwGo provides powerful helper functions that work seamlessly with the core APIs
 ```go
 // Basic conditional rendering
 func LoginStatus() g.Node {
-    isLoggedIn := reactivity.NewSignal(false)
+    isLoggedIn := reactivity.CreateSignal(false)
     
     return comps.Show(comps.ShowProps{
         When: isLoggedIn,
@@ -802,7 +802,7 @@ func LoginStatus() g.Node {
 ```go
 // Dynamic list with reactive data
 func TodoList() g.Node {
-    todos := reactivity.NewSignal([]Todo{
+    todos := reactivity.CreateSignal([]Todo{
         {ID: "1", Text: "Learn UIwGo", Done: false},
         {ID: "2", Text: "Build an app", Done: false},
     })
@@ -839,8 +839,8 @@ func TodoList() g.Node {
 ```go
 // Complex state management with Switch/Match
 func DataView() g.Node {
-    loadingState := reactivity.NewSignal("idle") // idle, loading, success, error
-    data := reactivity.NewSignal([]string{})
+    loadingState := reactivity.CreateSignal("idle") // idle, loading, success, error
+    data := reactivity.CreateSignal([]string{})
     
     return h.Div(
         h.Button(
@@ -896,18 +896,18 @@ func DataView() g.Node {
 ```go
 // Dynamic text content with BindText
 func UserProfile() g.Node {
-    user := reactivity.NewSignal(User{Name: "John", Email: "john@example.com"})
+    user := reactivity.CreateSignal(User{Name: "John", Email: "john@example.com"})
     
     return h.Div(
         h.H1(
             h.Text("Welcome, "),
-            comps.BindText(reactivity.NewMemo(func() string {
+            comps.BindText(reactivity.CreateMemo(func() string {
                 return user.Get().Name
             })),
         ),
         h.P(
             h.Text("Email: "),
-            comps.BindText(reactivity.NewMemo(func() string {
+            comps.BindText(reactivity.CreateMemo(func() string {
                 return user.Get().Email
             })),
         ),
@@ -935,7 +935,7 @@ For comprehensive helper function documentation, see:
 ```go
 // Functional component with state
 func Counter() g.Node {
-    count := reactivity.NewSignal(0)
+    count := reactivity.CreateSignal(0)
     return Div(
         P(Text("Count: "), BindText(func() string { return strconv.Itoa(count.Get()) })),
         Button(Text("Increment"), OnClickInline(func(el dom.Element) {
@@ -945,12 +945,12 @@ func Counter() g.Node {
 }
 
 // Computed state
-fullName := reactivity.NewMemo(func() string {
+fullName := reactivity.CreateMemo(func() string {
     return firstName.Get() + " " + lastName.Get()
 })
 
 // Side effects
-reactivity.NewEffect(func() {
+reactivity.CreateEffect(func() {
     logutil.Log("Count changed:", count.Get())
 })
 

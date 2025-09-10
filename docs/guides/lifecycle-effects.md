@@ -26,20 +26,20 @@ UIwGo components follow a predictable lifecycle from creation to cleanup:
    ↓             │ - Create child components
 3. Mount         │
    ↓             │ component.Render()
-4. Attach        │ - Generate HTML string
+4. Mount Effects │ - Generate HTML string
    ↓             │ - Insert into DOM
 5. Active        │
-   ↓             │ component.Attach()
-6. Cleanup       │ - Scan for data attributes
-                 │ - Bind reactive behavior
-                 │ - Set up event listeners
+   ↓             │ comps.OnMount() callbacks
+6. Cleanup       │ - Set up DOM interactions
+                 │ - Bind event listeners
+                 │ - Initialize effects
                  │
                  │ [Component is now live]
                  │ - Signals trigger updates
                  │ - User interactions work
                  │ - Effects run
                  │
-                 │ component.Cleanup() (optional)
+                 │ comps.OnCleanup() callbacks
                  │ - Clean up resources
                  │ - Cancel subscriptions
                  │ - Remove event listeners
@@ -66,13 +66,13 @@ type MyComponent struct {
 // Constructor - Phase 1
 func NewMyComponent() *MyComponent {
     c := &MyComponent{
-        data:    reactivity.NewSignal("initial"),
-        visible: reactivity.NewSignal(true),
+        data:    reactivity.CreateSignal("initial"),
+        visible: reactivity.CreateSignal(true),
         effects: make([]reactivity.Effect, 0),
     }
     
     // Set up computed state
-    c.displayText = reactivity.NewMemo(func() string {
+    c.displayText = reactivity.CreateMemo(func() string {
         if !c.visible.Get() {
             return ""
         }
@@ -105,40 +105,65 @@ func (c *MyComponent) Render() g.Node {
     )
 }
 
-// Attach - Phase 4
-func (c *MyComponent) Attach() {
-    // Bind reactive behavior
-    c.BindText("displayText", c.displayText)
-    c.BindShow("visible", c.visible)
-    c.BindClick("toggle", c.toggle)
+// Mount Effects - Phase 4
+func MyComponent() g.Node {
+    displayText := reactivity.CreateSignal("Hello World")
+    visible := reactivity.CreateSignal(true)
     
-    // Attach child components
-    c.child.Attach()
+    // Set up mount effects
+    comps.OnMount(func() {
+        // Set up DOM interactions after mount
+        if toggleBtn := dom.GetElementByID("toggle-btn"); toggleBtn != nil {
+            dom.BindClickToCallback(toggleBtn, func() {
+                visible.Set(!visible.Get())
+            })
+        }
+        
+        // Set up other effects
+        setupEffects()
+    })
     
-    // Set up effects
-    c.setupEffects()
+    return Div(
+        comps.BindText(func() string {
+            return displayText.Get()
+        }),
+        comps.BindShow(func() bool {
+            return visible.Get()
+        }),
+        Button(
+            ID("toggle-btn"),
+            Text("Toggle"),
+            // Or use inline handlers directly
+            dom.OnClickInline(func(el dom.Element) {
+                visible.Set(!visible.Get())
+            }),
+        ),
+    )
 }
 
 // Cleanup - Phase 6
-func (c *MyComponent) Cleanup() {
-    // Clean up effects
-    for _, effect := range c.effects {
-        effect.Dispose()
-    }
+func MyComponentWithCleanup() g.Node {
+    displayText := reactivity.CreateSignal("Hello World")
     
-    // Clean up child components
-    if c.child != nil {
-        c.child.Cleanup()
-    }
-}
-
-func (c *MyComponent) toggle() {
-    c.visible.Set(!c.visible.Get())
-}
+    // Set up cleanup
+    comps.OnCleanup(func() {
+        // Clean up resources
+        logutil.Log("Component cleanup")
+        
+        // Cancel any ongoing operations
+        // Close channels, stop timers, etc.
+    })
+    
+    return Div(
+        comps.BindText(func() string {
+             return displayText.Get()
+         }),
+     )
+ }
 
 func (c *MyComponent) setupEffects() {
     // Effect: Log visibility changes
-    effect1 := reactivity.NewEffect(func() {
+    effect1 := reactivity.CreateEffect(func() {
         visible := c.visible.Get()
         logutil.Logf("Component visibility: %t", visible)
     })
@@ -157,13 +182,13 @@ func (c *MyComponent) setupEffects() {
 func NewUserProfile(userID int) *UserProfile {
     up := &UserProfile{
         userID:  userID,
-        user:    reactivity.NewSignal(User{}),
-        loading: reactivity.NewSignal(false),
-        error:   reactivity.NewSignal(error(nil)),
+        user:    reactivity.CreateSignal(User{}),
+        loading: reactivity.CreateSignal(false),
+        error:   reactivity.CreateSignal(error(nil)),
     }
     
     // Set up computed state
-    up.displayName = reactivity.NewMemo(func() string {
+    up.displayName = reactivity.CreateMemo(func() string {
         user := up.user.Get()
         if user.Name != "" {
             return user.Name
@@ -171,7 +196,7 @@ func NewUserProfile(userID int) *UserProfile {
         return "Anonymous User"
     })
     
-    up.isValid = reactivity.NewMemo(func() bool {
+    up.isValid = reactivity.CreateMemo(func() bool {
         user := up.user.Get()
         return user.ID != 0 && user.Email != ""
     })
@@ -247,7 +272,7 @@ func (up *UserProfile) Render() g.Node {
 func main() {
     userProfile := NewUserProfile(123)
     
-    // This triggers: Render → Mount → Attach
+    // This triggers: Render → Mount → Mount Effects
     comps.Mount("user-profile-container", userProfile)
 }
 ```
@@ -255,52 +280,85 @@ func main() {
 **What happens**:
 1. `Render()` is called to generate HTML
 2. HTML is inserted into the target DOM element
-3. `Attach()` is called to make it reactive
+3. `comps.OnMount()` callbacks are executed to set up reactivity
 
-### Phase 4: Attach
+### Phase 4: Mount Effects
 
-**Purpose**: Bind reactive behavior to the rendered HTML
+**Purpose**: Set up reactive behavior and DOM interactions after mounting
 
 ```go
-func (up *UserProfile) Attach() {
-    // Bind text content
-    up.BindText("displayName", up.displayName)
-    up.BindText("email", up.user.Map(func(u User) string { return u.Email }))
-    up.BindText("errorMessage", up.error.Map(func(e error) string {
-        if e != nil {
-            return e.Error()
+func UserProfile(userID int) g.Node {
+    user := reactivity.CreateSignal(User{})
+    loading := reactivity.CreateSignal(true)
+    error := reactivity.CreateSignal[error](nil)
+    
+    // Set up mount effects
+    comps.OnMount(func() {
+        // Set up DOM interactions if needed
+        if editBtn := dom.GetElementByID("edit-btn"); editBtn != nil {
+            dom.BindClickToCallback(editBtn, func() {
+                // Handle edit action
+            })
         }
-        return ""
-    }))
+        
+        // Load user data
+        go loadUserData(userID, user, loading, error)
+    })
     
-    // Bind attributes
-    up.BindAttr("avatarURL", "src", up.user.Map(func(u User) string {
-        return u.AvatarURL
-    }))
-    
-    // Bind visibility
-    up.BindShow("loading", up.loading)
-    up.BindShow("hasError", up.error.Map(func(e error) bool { return e != nil }))
-    up.BindShow("isLoaded", up.isValid)
-    up.BindShow("canEdit", up.user.Map(func(u User) bool { return u.CanEdit }))
-    
-    // Bind events
-    up.BindClick("edit", up.startEditing)
-    
-    // Set up effects
-    up.setupEffects()
-    
-    // Load initial data
-    up.loadUser()
+    return Div(
+        // Reactive text binding
+        comps.BindText(func() string {
+            return user.Get().DisplayName
+        }),
+        comps.BindText(func() string {
+            return user.Get().Email
+        }),
+        comps.BindText(func() string {
+            if err := error.Get(); err != nil {
+                return err.Error()
+            }
+            return ""
+        }),
+        
+        // Reactive attribute binding
+        Img(
+            comps.BindAttr("src", func() string {
+                return user.Get().AvatarURL
+            }),
+        ),
+        
+        // Reactive visibility
+        comps.BindShow(func() bool {
+            return loading.Get()
+        }),
+        comps.BindShow(func() bool {
+            return error.Get() != nil
+        }),
+        comps.BindShow(func() bool {
+            return user.Get().ID != 0
+        }),
+        comps.BindShow(func() bool {
+            return user.Get().CanEdit
+        }),
+        
+        // Inline event handlers
+        Button(
+            ID("edit-btn"),
+            Text("Edit Profile"),
+            dom.OnClickInline(func(el dom.Element) {
+                // Handle edit action
+            }),
+        ),
+    )
 }
 ```
 
 **Best Practices**:
-- Bind all data attributes to signals or memos
-- Set up event handlers
-- Initialize effects
-- Trigger initial data loading
-- Attach child components
+- Use reactive bindings (comps.BindText, comps.BindShow, etc.) for dynamic content
+- Set up DOM interactions in comps.OnMount() callbacks
+- Use inline event handlers (dom.OnClickInline, etc.) for user interactions
+- Initialize effects and data loading in mount callbacks
+- Keep component functions pure and declarative
 
 ### Phase 5: Active
 
@@ -339,24 +397,8 @@ func (up *UserProfile) saveProfile(newData User) {
 
 ```go
 func (up *UserProfile) Cleanup() {
-    // Dispose of effects
-    for _, effect := range up.effects {
-        effect.Dispose()
-    }
-    
-    // Cancel ongoing operations
-    if up.cancelFunc != nil {
-        up.cancelFunc()
-    }
-    
-    // Clean up child components
-    if up.editForm != nil {
-        up.editForm.Cleanup()
-    }
-    
-    // Clear references
-    up.effects = nil
-    up.editForm = nil
+    // This cleanup is now handled automatically by comps.OnCleanup()
+    // when the component is unmounted
 }
 ```
 
@@ -365,50 +407,45 @@ func (up *UserProfile) Cleanup() {
 ### Creating and Managing Effects
 
 ```go
-type EffectManager struct {
-    effects []reactivity.Effect
-}
-
-func (em *EffectManager) AddEffect(effectFunc func()) {
-    effect := reactivity.NewEffect(effectFunc)
-    em.effects = append(em.effects, effect)
-}
-
-func (em *EffectManager) Cleanup() {
-    for _, effect := range em.effects {
-        effect.Dispose()
-    }
-    em.effects = nil
-}
-
-// Usage in component
-type Component struct {
-    effectManager *EffectManager
-    data         *reactivity.Signal[string]
-}
-
-func (c *Component) setupEffects() {
-    c.effectManager = &EffectManager{}
+func ComponentWithEffects() g.Node {
+    data := reactivity.CreateSignal("initial")
+    status := reactivity.CreateSignal("idle")
     
-    // Effect 1: Log data changes
-    c.effectManager.AddEffect(func() {
-        data := c.data.Get()
-        logutil.Logf("Data changed: %s", data)
+    // Set up effects with automatic cleanup
+    comps.OnMount(func() {
+        // Create effect that will be automatically disposed on cleanup
+        effect := reactivity.CreateEffect(func() {
+            value := data.Get()
+            logutil.Logf("Data changed: %s", value)
+        })
+        
+        // Register cleanup for the effect
+        comps.OnCleanup(func() {
+            effect.Dispose()
+        })
+        
+        // Set up periodic updates
+        ticker := time.NewTicker(5 * time.Second)
+        go func() {
+            for range ticker.C {
+                data.Set(fmt.Sprintf("updated-%d", time.Now().Unix()))
+            }
+        }()
+        
+        // Register cleanup for the ticker
+        comps.OnCleanup(func() {
+            ticker.Stop()
+        })
     })
     
-    // Effect 2: Update document title
-    c.effectManager.AddEffect(func() {
-        data := c.data.Get()
-        if data != "" {
-            dom.GetWindow().Document().SetTitle("App - " + data)
-        }
-    })
-}
-
-func (c *Component) Cleanup() {
-    if c.effectManager != nil {
-        c.effectManager.Cleanup()
-    }
+    return Div(
+        comps.BindText(func() string {
+            return fmt.Sprintf("Current data: %s", data.Get())
+        }),
+        comps.BindText(func() string {
+            return fmt.Sprintf("Status: %s", status.Get())
+        }),
+    )
 }
 ```
 
@@ -417,96 +454,169 @@ func (c *Component) Cleanup() {
 #### Data Fetching Effect
 
 ```go
-type DataLoader struct {
-    url     *reactivity.Signal[string]
-    data    *reactivity.Signal[interface{}]
-    loading *reactivity.Signal[bool]
-    error   *reactivity.Signal[error]
+func DataLoader(initialURL string) g.Node {
+    url := reactivity.CreateSignal(initialURL)
+    data := reactivity.CreateSignal[interface{}](nil)
+    loading := reactivity.CreateSignal(false)
+    error := reactivity.CreateSignal[error](nil)
     
-    cancelFunc context.CancelFunc
-}
-
-func (dl *DataLoader) setupDataFetchingEffect() {
-    reactivity.NewEffect(func() {
-        url := dl.url.Get()
-        if url == "" {
-            return
-        }
-        
-        // Cancel previous request
-        if dl.cancelFunc != nil {
-            dl.cancelFunc()
-        }
-        
-        // Create new context
-        ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-        dl.cancelFunc = cancel
-        
-        dl.loading.Set(true)
-        dl.error.Set(nil)
-        
-        go func() {
-            defer dl.loading.Set(false)
-            
-            data, err := fetchDataWithContext(ctx, url)
-            if err != nil {
-                if !errors.Is(err, context.Canceled) {
-                    dl.error.Set(err)
-                }
-            } else {
-                dl.data.Set(data)
+    comps.OnMount(func() {
+        // Effect to fetch data when URL changes
+        effect := reactivity.CreateEffect(func() {
+            currentURL := url.Get()
+            if currentURL == "" {
+                return
             }
-        }()
-    })
-}
-
-func (dl *DataLoader) Cleanup() {
-    if dl.cancelFunc != nil {
-        dl.cancelFunc()
-    }
-}
-```
-
-#### Persistence Effect
-
-```go
-type PersistentSettings struct {
-    theme    *reactivity.Signal[string]
-    language *reactivity.Signal[string]
-    
-    debounceTimer *time.Timer
-}
-
-func (ps *PersistentSettings) setupPersistenceEffects() {
-    // Debounced save to localStorage
-    reactivity.NewEffect(func() {
-        theme := ps.theme.Get()
+            
+            loading.Set(true)
+            error.Set(nil)
+            
+            go func() {
+                defer loading.Set(false)
+                
+                resp, err := http.Get(currentURL)
+                if err != nil {
+                    error.Set(err)
+                    return
+                }
+                defer resp.Body.Close()
+                
+                var result interface{}
+                if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+                    error.Set(err)
+                    return
+                }
+                
+                data.Set(result)
+            }()
+        })
         
-        if ps.debounceTimer != nil {
-            ps.debounceTimer.Stop()
-        }
-        
-        ps.debounceTimer = time.AfterFunc(500*time.Millisecond, func() {
-            localStorage := dom.GetWindow().LocalStorage()
-            localStorage.SetItem("theme", theme)
-            logutil.Logf("Theme saved: %s", theme)
+        comps.OnCleanup(func() {
+            effect.Dispose()
         })
     })
     
-    reactivity.NewEffect(func() {
-        language := ps.language.Get()
-        
-        // Immediate save for language (less frequent changes)
-        localStorage := dom.GetWindow().LocalStorage()
-        localStorage.SetItem("language", language)
-        logutil.Logf("Language saved: %s", language)
-    })
+    return Div(
+        Input(
+            Type("text"),
+            Value(url.Get()),
+            dom.OnInputInline(func(el dom.Element) {
+                url.Set(el.Get("value").String())
+            }),
+        ),
+        comps.BindShow(func() bool {
+            return loading.Get()
+        }, Text("Loading...")),
+        comps.BindShow(func() bool {
+            return error.Get() != nil
+        }, comps.BindText(func() string {
+            if err := error.Get(); err != nil {
+                return "Error: " + err.Error()
+            }
+            return ""
+        })),
+        comps.BindText(func() string {
+            if d := data.Get(); d != nil {
+                return fmt.Sprintf("Data: %+v", d)
+            }
+            return "No data"
+        }),
+    )
 }
+#### Persistence Effect
 
-func (ps *PersistentSettings) Cleanup() {
-    if ps.debounceTimer != nil {
-        ps.debounceTimer.Stop()
-    }
+```go
+func PersistentSettings() g.Node {
+    theme := reactivity.CreateSignal("light")
+    language := reactivity.CreateSignal("en")
+    
+    comps.OnMount(func() {
+        // Load initial values from localStorage
+        if stored := dom.GetWindow().LocalStorage().GetItem("theme"); stored != "" {
+            theme.Set(stored)
+        }
+        if stored := dom.GetWindow().LocalStorage().GetItem("language"); stored != "" {
+            language.Set(stored)
+        }
+        
+        // Debounced save effect for theme
+        var themeTimer *time.Timer
+        themeEffect := reactivity.CreateEffect(func() {
+            currentTheme := theme.Get()
+            
+            if themeTimer != nil {
+                themeTimer.Stop()
+            }
+            
+            themeTimer = time.AfterFunc(500*time.Millisecond, func() {
+                dom.GetWindow().LocalStorage().SetItem("theme", currentTheme)
+                logutil.Logf("Theme saved: %s", currentTheme)
+            })
+        })
+        
+        // Debounced save effect for language
+        var langTimer *time.Timer
+        langEffect := reactivity.CreateEffect(func() {
+            currentLang := language.Get()
+            
+            if langTimer != nil {
+                langTimer.Stop()
+            }
+            
+            langTimer = time.AfterFunc(500*time.Millisecond, func() {
+                dom.GetWindow().LocalStorage().SetItem("language", currentLang)
+                logutil.Logf("Language saved: %s", currentLang)
+            })
+        })
+        
+        comps.OnCleanup(func() {
+            themeEffect.Dispose()
+            langEffect.Dispose()
+            if themeTimer != nil {
+                themeTimer.Stop()
+            }
+            if langTimer != nil {
+                langTimer.Stop()
+            }
+        })
+    })
+    
+    return Div(
+        H3(Text("Settings")),
+        Div(
+            Label(Text("Theme: ")),
+            Select(
+                Option(Value("light"), Text("Light")),
+                Option(Value("dark"), Text("Dark")),
+                dom.OnChangeInline(func(el dom.Element) {
+                    theme.Set(el.Get("value").String())
+                }),
+            ),
+        ),
+        Div(
+            Label(Text("Language: ")),
+            Select(
+                Option(Value("en"), Text("English")),
+                Option(Value("es"), Text("Spanish")),
+                Option(Value("fr"), Text("French")),
+                dom.OnChangeInline(func(el dom.Element) {
+                    language.Set(el.Get("value").String())
+                }),
+            ),
+        ),
+        Div(
+            Text("Current theme: "),
+            comps.BindText(func() string {
+                return theme.Get()
+            }),
+        ),
+        Div(
+            Text("Current language: "),
+            comps.BindText(func() string {
+                return language.Get()
+            }),
+        ),
+    )
 }
 ```
 
@@ -524,7 +634,7 @@ type WebSocketManager struct {
 }
 
 func (wsm *WebSocketManager) setupWebSocketEffect() {
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         url := wsm.url.Get()
         shouldConnect := wsm.connected.Get()
         
@@ -657,13 +767,13 @@ func NewContextualComponent() *ContextualComponent {
     return &ContextualComponent{
         ctx:    ctx,
         cancel: cancel,
-        data:   reactivity.NewSignal(""),
+        data:   reactivity.CreateSignal(""),
     }
 }
 
 func (cc *ContextualComponent) setupEffects() {
     // Effect with context-aware cleanup
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         data := cc.data.Get()
         
         go func() {
@@ -767,7 +877,7 @@ type FileProcessor struct {
 }
 
 func (fp *FileProcessor) setupFileEffect() {
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         filename := fp.filename.Get()
         
         // Close previous file
@@ -821,7 +931,7 @@ type NetworkManager struct {
 
 func NewNetworkManager() *NetworkManager {
     return &NetworkManager{
-        endpoint:       reactivity.NewSignal(""),
+        endpoint:       reactivity.CreateSignal(""),
         client:         &http.Client{Timeout: 30 * time.Second},
         activeRequests: make(map[string]context.CancelFunc),
     }
@@ -894,7 +1004,7 @@ func (lc *LazyComponent) Attach() {
     lc.BindShow("container", lc.visible)
     
     // Effect: Initialize expensive child only when visible
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         visible := lc.visible.Get()
         
         if visible && !lc.initialized {
@@ -924,7 +1034,7 @@ type ConditionalComponent struct {
 }
 
 func (cc *ConditionalComponent) setupModeEffect() {
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         mode := cc.mode.Get()
         
         // Cleanup previous active component
@@ -988,7 +1098,7 @@ type DebouncedComponent struct {
 }
 
 func (dc *DebouncedComponent) setupDebouncedSearch() {
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         term := dc.searchTerm.Get()
         
         // Cancel previous timer
@@ -1069,7 +1179,7 @@ func (c *Component) Cleanup() {
 func (c *Component) setupEffect() {
     localVar := "static"
     
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         data := c.data.Get() // Tracked dependency
         
         // This won't trigger effect re-run when otherSignal changes
@@ -1082,7 +1192,7 @@ func (c *Component) setupEffect() {
 
 // GOOD: All dependencies are tracked
 func (c *Component) setupEffect() {
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         data := c.data.Get()  // Tracked
         other := c.otherSignal.Get() // Tracked
         
@@ -1098,7 +1208,7 @@ func (c *Component) setupEffect() {
 ```go
 // BAD: Infinite loop
 func (c *Component) setupBadEffect() {
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         count := c.count.Get()
         c.count.Set(count + 1) // This triggers the effect again!
     })
@@ -1106,7 +1216,7 @@ func (c *Component) setupBadEffect() {
 
 // GOOD: Use different signals or conditions
 func (c *Component) setupGoodEffect() {
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         count := c.count.Get()
         
         // Update different signal

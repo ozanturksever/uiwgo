@@ -31,17 +31,15 @@ UIwGo handles control flow through reactive patterns rather than traditional tem
 // <li v-for="item in items">{{ item.name }}</li>
 
 // UIwGo approach
-showMessage := reactivity.NewSignal(true)
-message := reactivity.NewSignal("Hello")
-items := reactivity.NewSignal([]Item{})
+showMessage := reactivity.CreateSignal(true)
+message := reactivity.CreateSignal("Hello")
+items := reactivity.CreateSignal([]Item{})
 
-// Reactive HTML generation
-content := reactivity.NewMemo(func() string {
-    if showMessage.Get() {
-        return fmt.Sprintf(`<div>%s</div>`, message.Get())
-    }
-    return ""
-})
+// Reactive HTML generation using g.If
+return g.If(showMessage.Get(),
+    g.Div(comps.BindText(message)),
+    g.Empty(),
+)
 ```
 
 ## Conditional Rendering
@@ -51,51 +49,29 @@ content := reactivity.NewMemo(func() string {
 Show or hide elements based on state:
 
 ```go
-type ConditionalComponent struct {
-    isVisible *reactivity.Signal[bool]
-    message   *reactivity.Signal[string]
+func ConditionalComponent() g.Node {
+    isVisible := reactivity.CreateSignal(false)
+    message := reactivity.CreateSignal("Hello, World!")
     
-    content *reactivity.Memo[string]
-}
-
-func NewConditionalComponent() *ConditionalComponent {
-    c := &ConditionalComponent{
-        isVisible: reactivity.NewSignal(false),
-        message:   reactivity.NewSignal("Hello, World!"),
-    }
-    
-    c.content = reactivity.NewMemo(func() string {
-        if c.isVisible.Get() {
-            return fmt.Sprintf(`<p class="message">%s</p>`, c.message.Get())
-        }
-        return `<p class="placeholder">Nothing to show</p>`
-    })
-    
-    return c
-}
-
-func (c *ConditionalComponent) Render() g.Node {
-    return h.Div(g.Class("conditional-container"),
-        h.Button(
-            g.Attr("data-click", "toggle"),
+    return g.Div(
+        g.Class("conditional-container"),
+        g.Button(
             g.Text("Toggle Message"),
+            dom.OnClickInline(func(el dom.Element) {
+                isVisible.Set(!isVisible.Get())
+            }),
         ),
-        h.Div(
-            g.Attr("data-html", "content"),
-            g.Text(c.content.Get()),
+        g.If(isVisible.Get(),
+            g.P(
+                g.Class("message"),
+                comps.BindText(message),
+            ),
+            g.P(
+                g.Class("placeholder"),
+                g.Text("Nothing to show"),
+            ),
         ),
     )
-}
-
-func (c *ConditionalComponent) Attach() {
-    comps.BindClick("toggle", c.toggle)
-    comps.BindHTML("content", c.content)
-}
-
-func (c *ConditionalComponent) toggle() {
-    c.isVisible.Update(func(visible bool) bool {
-        return !visible
-    })
 }
 ```
 
@@ -113,106 +89,106 @@ const (
     StatusEmpty
 )
 
-type StatusComponent struct {
-    status *reactivity.Signal[Status]
-    data   *reactivity.Signal[[]string]
-    error  *reactivity.Signal[error]
+func StatusComponent() g.Node {
+    status := reactivity.CreateSignal(StatusLoading)
+    data := reactivity.CreateSignal([]string{})
+    error := reactivity.CreateSignal[error](nil)
     
-    content *reactivity.Memo[string]
-}
-
-func NewStatusComponent() *StatusComponent {
-    c := &StatusComponent{
-        status: reactivity.NewSignal(StatusLoading),
-        data:   reactivity.NewSignal([]string{}),
-        error:  reactivity.NewSignal(nil),
-    }
-    
-    c.content = reactivity.NewMemo(func() string {
-        switch c.status.Get() {
+    content := reactivity.CreateMemo(func() g.Node {
+        switch status.Get() {
         case StatusLoading:
-            return `<div class="loading">Loading...</div>`
+            return g.Div(
+                g.Class("loading"),
+                g.Text("Loading..."),
+            )
             
         case StatusError:
-            err := c.error.Get()
+            err := error.Get()
             if err != nil {
-                return fmt.Sprintf(`<div class="error">Error: %s</div>`, err.Error())
+                return g.Div(
+                    g.Class("error"),
+                    g.Text(fmt.Sprintf("Error: %s", err.Error())),
+                )
             }
-            return `<div class="error">Unknown error occurred</div>`
+            return g.Div(
+                g.Class("error"),
+                g.Text("Unknown error occurred"),
+            )
             
         case StatusEmpty:
-            return `<div class="empty">No data available</div>`
+            return g.Div(
+                g.Class("empty"),
+                g.Text("No data available"),
+            )
             
         case StatusSuccess:
-            data := c.data.Get()
-            if len(data) == 0 {
-                return `<div class="empty">No items found</div>`
+            items := data.Get()
+            if len(items) == 0 {
+                return g.Div(
+                    g.Class("empty"),
+                    g.Text("No items found"),
+                )
             }
             
-            var items strings.Builder
-            for _, item := range data {
-                items.WriteString(fmt.Sprintf(`<li>%s</li>`, item))
+            listItems := make([]g.Node, len(items))
+            for i, item := range items {
+                listItems[i] = g.Li(g.Text(item))
             }
-            return fmt.Sprintf(`<ul class="data-list">%s</ul>`, items.String())
+            return g.Ul(
+                g.Class("data-list"),
+                listItems...,
+            )
             
         default:
-            return `<div class="unknown">Unknown status</div>`
+            return g.Div(
+                g.Class("unknown"),
+                g.Text("Unknown status"),
+            )
         }
     })
     
-    return c
-}
-
-func (c *StatusComponent) Render() g.Node {
-    return h.Div(g.Class("status-container"),
-        h.Div(g.Class("controls"),
-            h.Button(
-                g.Attr("data-click", "load"),
+    loadData := func() {
+        status.Set(StatusLoading)
+        // Simulate async data loading
+        go func() {
+            time.Sleep(1 * time.Second)
+            data.Set([]string{"Item 1", "Item 2", "Item 3"})
+            status.Set(StatusSuccess)
+        }()
+    }
+    
+    clearData := func() {
+        data.Set([]string{})
+        status.Set(StatusEmpty)
+    }
+    
+    triggerError := func() {
+        error.Set(fmt.Errorf("simulated error"))
+        status.Set(StatusError)
+    }
+    
+    return g.Div(
+        g.Class("status-container"),
+        g.Div(
+            g.Class("controls"),
+            g.Button(
                 g.Text("Load Data"),
+                dom.OnClickInline(func(el dom.Element) { loadData() }),
             ),
-            h.Button(
-                g.Attr("data-click", "clear"),
+            g.Button(
                 g.Text("Clear"),
+                dom.OnClickInline(func(el dom.Element) { clearData() }),
             ),
-            h.Button(
-                g.Attr("data-click", "error"),
+            g.Button(
                 g.Text("Trigger Error"),
+                dom.OnClickInline(func(el dom.Element) { triggerError() }),
             ),
         ),
-        h.Div(
-            g.Attr("data-html", "content"),
-            g.Text(c.content.Get()),
-        ),
+        comps.BindNode(content),
     )
 }
 
-func (c *StatusComponent) Attach() {
-    comps.BindClick("load", c.loadData)
-    comps.BindClick("clear", c.clearData)
-    comps.BindClick("error", c.triggerError)
-    comps.BindHTML("content", c.content)
-}
 
-func (c *StatusComponent) loadData() {
-    c.status.Set(StatusLoading)
-    
-    // Simulate async data loading
-    go func() {
-        time.Sleep(1 * time.Second)
-        c.data.Set([]string{"Item 1", "Item 2", "Item 3"})
-        c.status.Set(StatusSuccess)
-    }()
-}
-
-func (c *StatusComponent) clearData() {
-    c.data.Set([]string{})
-    c.status.Set(StatusEmpty)
-}
-
-func (c *StatusComponent) triggerError() {
-    c.error.Set(fmt.Errorf("simulated error"))
-    c.status.Set(StatusError)
-}
 ```
 
 ### Conditional Classes and Attributes
@@ -220,108 +196,58 @@ func (c *StatusComponent) triggerError() {
 Dynamically apply CSS classes and attributes:
 
 ```go
-type ButtonComponent struct {
-    isActive  *reactivity.Signal[bool]
-    isLoading *reactivity.Signal[bool]
-    text      *reactivity.Signal[string]
+func ButtonComponent() g.Node {
+    isActive := reactivity.CreateSignal(false)
+    isLoading := reactivity.CreateSignal(false)
+    text := reactivity.CreateSignal("Click me")
     
-    buttonClass *reactivity.Memo[string]
-    buttonAttrs *reactivity.Memo[string]
-}
-
-func NewButtonComponent() *ButtonComponent {
-    c := &ButtonComponent{
-        isActive:  reactivity.NewSignal(false),
-        isLoading: reactivity.NewSignal(false),
-        text:      reactivity.NewSignal("Click me"),
-    }
-    
-    c.buttonClass = reactivity.NewMemo(func() string {
+    buttonClass := reactivity.CreateMemo(func() string {
         classes := []string{"btn"}
         
-        if c.isActive.Get() {
+        if isActive.Get() {
             classes = append(classes, "btn-active")
         }
         
-        if c.isLoading.Get() {
+        if isLoading.Get() {
             classes = append(classes, "btn-loading")
         }
         
         return strings.Join(classes, " ")
     })
     
-    c.buttonAttrs = reactivity.NewMemo(func() string {
-        attrs := []string{}
-        
-        if c.isLoading.Get() {
-            attrs = append(attrs, `disabled="disabled"`)
+    handleClick := func() {
+        if isLoading.Get() {
+            return // Don't handle clicks when loading
         }
         
-        return strings.Join(attrs, " ")
-    })
+        isActive.Set(!isActive.Get())
+        
+        // Simulate async operation
+        if isActive.Get() {
+            isLoading.Set(true)
+            text.Set("Loading...")
+            
+            go func() {
+                time.Sleep(2 * time.Second)
+                isLoading.Set(false)
+                text.Set("Completed!")
+            }()
+        } else {
+            text.Set("Click me")
+        }
+    }
     
-    return c
-}
-
-func (c *ButtonComponent) Render() g.Node {
-    return h.Button(
-        g.Class(c.buttonClass.Get()),
-        g.Attr("data-click", "handleClick"),
-        g.If(c.isLoading.Get(), g.Attr("disabled", "disabled")),
-        g.Text(c.text.Get()),
+    return g.Button(
+        comps.BindClass(buttonClass),
+        g.If(isLoading.Get(), g.Attr("disabled", "disabled")),
+        comps.BindText(text),
+        dom.OnClickInline(func(el dom.Element) {
+            handleClick()
+        }),
     )
 }
 
-func (c *ButtonComponent) Attach() {
-    comps.BindClick("handleClick", c.handleClick)
-    
-    // Update button when state changes
-    reactivity.NewEffect(func() {
-        // Re-render button when class or attributes change
-        _ = c.buttonClass.Get()
-        _ = c.buttonAttrs.Get()
-        _ = c.text.Get()
-        
-        // Update the button element
-        c.updateButton()
-    })
-}
 
-func (c *ButtonComponent) updateButton() {
-    button := dom.QuerySelector(`[data-click="handleClick"]`)
-    if button != nil {
-        button.SetClassName(c.buttonClass.Get())
-        button.SetTextContent(c.text.Get())
-        
-        if c.isLoading.Get() {
-            button.SetAttribute("disabled", "disabled")
-        } else {
-            button.RemoveAttribute("disabled")
-        }
-    }
-}
-
-func (c *ButtonComponent) handleClick() {
-    if c.isLoading.Get() {
-        return // Ignore clicks while loading
-    }
-    
-    c.isLoading.Set(true)
-    c.text.Set("Loading...")
-    
-    // Simulate async operation
-    go func() {
-        time.Sleep(2 * time.Second)
-        c.isLoading.Set(false)
-        c.isActive.Update(func(active bool) bool { return !active })
-        
-        if c.isActive.Get() {
-            c.text.Set("Active")
-        } else {
-            c.text.Set("Inactive")
-        }
-    }()
-}
 ```
 
 ## Lists and Loops
@@ -337,141 +263,117 @@ type Item struct {
     Done bool   `json:"done"`
 }
 
-type TodoList struct {
-    items    *reactivity.Signal[[]Item]
-    newItem  *reactivity.Signal[string]
+func TodoList() g.Node {
+    items := reactivity.CreateSignal([]Item{})
+    newItem := reactivity.CreateSignal("")
+    nextID := reactivity.CreateSignal(1)
     
-    listHTML *reactivity.Memo[string]
-}
-
-func NewTodoList() *TodoList {
-    tl := &TodoList{
-        items:   reactivity.NewSignal([]Item{}),
-        newItem: reactivity.NewSignal(""),
-    }
-    
-    tl.listHTML = reactivity.NewMemo(func() string {
-        items := tl.items.Get()
+    listContent := reactivity.CreateMemo(func() g.Node {
+        itemList := items.Get()
         
-        if len(items) == 0 {
-            return `<p class="empty">No items yet. Add one above!</p>`
+        if len(itemList) == 0 {
+            return g.P(
+                g.Class("empty"),
+                g.Text("No items yet. Add one above!"),
+            )
         }
         
-        var html strings.Builder
-        html.WriteString(`<ul class="todo-list">`)
-        
-        for _, item := range items {
-            checkedAttr := ""
-            if item.Done {
-                checkedAttr = "checked"
-            }
-            
-            html.WriteString(fmt.Sprintf(`
-                <li class="todo-item" data-id="%d">
-                    <input type="checkbox" %s data-change="toggle-%d">
-                    <span class="%s">%s</span>
-                    <button data-click="delete-%d">Delete</button>
-                </li>
-            `, item.ID, checkedAttr, item.ID, 
-               map[bool]string{true: "done", false: "pending"}[item.Done],
-               item.Name, item.ID))
+        listItems := make([]g.Node, len(itemList))
+        for i, item := range itemList {
+            listItems[i] = g.Li(
+                g.Class("todo-item"),
+                g.Attr("data-id", fmt.Sprintf("%d", item.ID)),
+                g.Input(
+                    g.Attr("type", "checkbox"),
+                    g.If(item.Done, g.Attr("checked", "checked")),
+                    dom.OnChangeInline(func(el dom.Element) {
+                        toggleItem(item.ID)
+                    }),
+                ),
+                g.Span(
+                    g.Class(map[bool]string{true: "done", false: "pending"}[item.Done]),
+                    g.Text(item.Name),
+                ),
+                g.Button(
+                    g.Text("Delete"),
+                    dom.OnClickInline(func(el dom.Element) {
+                        deleteItem(item.ID)
+                    }),
+                ),
+            )
         }
         
-        html.WriteString(`</ul>`)
-        return html.String()
+        return g.Ul(
+            g.Class("todo-list"),
+            listItems...,
+        )
     })
     
-    return tl
-}
-
-func (tl *TodoList) Render() string {
-    return fmt.Sprintf(`
-        <div class="todo-container">
-            <div class="add-item">
-                <input type="text" data-input="newItem" 
-                       placeholder="Add new item..." value="%s">
-                <button data-click="add">Add</button>
-            </div>
-            <div data-html="list">%s</div>
-        </div>
-    `, tl.newItem.Get(), tl.listHTML.Get())
-}
-
-func (tl *TodoList) Attach() {
-    tl.BindInput("newItem", tl.newItem)
-    tl.BindClick("add", tl.addItem)
-    tl.BindHTML("list", tl.listHTML)
-    
-    // Bind dynamic handlers for each item
-    reactivity.NewEffect(func() {
-        items := tl.items.Get()
-        
-        // Re-bind handlers when list changes
-        for _, item := range items {
-            tl.bindItemHandlers(item)
+    addItem := func() {
+        text := strings.TrimSpace(newItem.Get())
+        if text == "" {
+            return
         }
-    })
-}
-
-func (tl *TodoList) bindItemHandlers(item Item) {
-    // Bind toggle handler
-    toggleSelector := fmt.Sprintf(`[data-change="toggle-%d"]`, item.ID)
-    if element := dom.QuerySelector(toggleSelector); element != nil {
-        element.AddEventListener("change", false, func(event dom.Event) {
-            tl.toggleItem(item.ID)
-        })
-    }
-    
-    // Bind delete handler
-    deleteSelector := fmt.Sprintf(`[data-click="delete-%d"]`, item.ID)
-    if element := dom.QuerySelector(deleteSelector); element != nil {
-        element.AddEventListener("click", false, func(event dom.Event) {
-            tl.deleteItem(item.ID)
-        })
-    }
-}
-
-func (tl *TodoList) addItem() {
-    text := strings.TrimSpace(tl.newItem.Get())
-    if text == "" {
-        return
-    }
-    
-    tl.items.Update(func(items []Item) []Item {
-        newID := len(items) + 1
-        return append(items, Item{
-            ID:   newID,
+        
+        currentItems := items.Get()
+        newItemObj := Item{
+            ID:   nextID.Get(),
             Name: text,
             Done: false,
-        })
-    })
+        }
+        
+        items.Set(append(currentItems, newItemObj))
+        nextID.Set(nextID.Get() + 1)
+        newItem.Set("")
+    }
     
-    tl.newItem.Set("")
-}
-
-func (tl *TodoList) toggleItem(id int) {
-    tl.items.Update(func(items []Item) []Item {
-        for i, item := range items {
+    toggleItem := func(id int) {
+        currentItems := items.Get()
+        for i, item := range currentItems {
             if item.ID == id {
-                items[i].Done = !items[i].Done
+                currentItems[i].Done = !currentItems[i].Done
                 break
             }
         }
-        return items
-    })
-}
-
-func (tl *TodoList) deleteItem(id int) {
-    tl.items.Update(func(items []Item) []Item {
-        filtered := make([]Item, 0, len(items))
-        for _, item := range items {
+        items.Set(currentItems)
+    }
+    
+    deleteItem := func(id int) {
+        currentItems := items.Get()
+        newItems := make([]Item, 0, len(currentItems))
+        for _, item := range currentItems {
             if item.ID != id {
-                filtered = append(filtered, item)
+                newItems = append(newItems, item)
             }
         }
-        return filtered
-    })
+        items.Set(newItems)
+    }
+    
+    return g.Div(
+        g.Class("todo-container"),
+        g.Div(
+            g.Class("add-item"),
+            g.Input(
+                g.Attr("type", "text"),
+                g.Attr("placeholder", "Add new item..."),
+                comps.BindValue(newItem),
+                dom.OnKeyDownInline(func(el dom.Element, event dom.Event) {
+                    if event.(*dom.KeyboardEvent).Key == "Enter" {
+                        addItem()
+                    }
+                }),
+            ),
+            g.Button(
+                g.Text("Add"),
+                dom.OnClickInline(func(el dom.Element) {
+                    addItem()
+                }),
+            ),
+        ),
+        comps.BindNode(listContent),
+    )
 }
+
 ```
 
 ### Filtered and Sorted Lists
@@ -479,40 +381,28 @@ func (tl *TodoList) deleteItem(id int) {
 Implement filtering and sorting:
 
 ```go
-type FilteredList struct {
-    allItems     *reactivity.Signal[[]Item]
-    filter       *reactivity.Signal[string]
-    sortBy       *reactivity.Signal[string]
-    showDoneOnly *reactivity.Signal[bool]
+func FilteredList() g.Node {
+    allItems := reactivity.CreateSignal([]Item{})
+    filter := reactivity.CreateSignal("")
+    sortBy := reactivity.CreateSignal("name")
+    showDoneOnly := reactivity.CreateSignal(false)
     
-    filteredItems *reactivity.Memo[[]Item]
-    listHTML      *reactivity.Memo[string]
-}
-
-func NewFilteredList() *FilteredList {
-    fl := &FilteredList{
-        allItems:     reactivity.NewSignal([]Item{}),
-        filter:       reactivity.NewSignal(""),
-        sortBy:       reactivity.NewSignal("name"),
-        showDoneOnly: reactivity.NewSignal(false),
-    }
-    
-    fl.filteredItems = reactivity.NewMemo(func() []Item {
-        items := fl.allItems.Get()
-        filter := strings.ToLower(fl.filter.Get())
-        sortBy := fl.sortBy.Get()
-        showDoneOnly := fl.showDoneOnly.Get()
+    filteredItems := reactivity.CreateMemo(func() []Item {
+        items := allItems.Get()
+        filterText := strings.ToLower(filter.Get())
+        sortByValue := sortBy.Get()
+        showDoneOnlyValue := showDoneOnly.Get()
         
         // Filter items
         var filtered []Item
         for _, item := range items {
             // Text filter
-            if filter != "" && !strings.Contains(strings.ToLower(item.Name), filter) {
+            if filterText != "" && !strings.Contains(strings.ToLower(item.Name), filterText) {
                 continue
             }
             
             // Done filter
-            if showDoneOnly && !item.Done {
+            if showDoneOnlyValue && !item.Done {
                 continue
             }
             
@@ -520,7 +410,7 @@ func NewFilteredList() *FilteredList {
         }
         
         // Sort items
-        switch sortBy {
+        switch sortByValue {
         case "name":
             sort.Slice(filtered, func(i, j int) bool {
                 return filtered[i].Name < filtered[j].Name
@@ -537,81 +427,75 @@ func NewFilteredList() *FilteredList {
         return filtered
     })
     
-    fl.listHTML = reactivity.NewMemo(func() string {
-        items := fl.filteredItems.Get()
+    listContent := reactivity.CreateMemo(func() g.Node {
+        items := filteredItems.Get()
         
         if len(items) == 0 {
-            return `<p class="empty">No items match the current filter.</p>`
+            return g.P(
+                g.Class("empty"),
+                g.Text("No items match the current filter."),
+            )
         }
         
-        var html strings.Builder
-        html.WriteString(`<ul class="filtered-list">`)
-        
-        for _, item := range items {
+        listItems := make([]g.Node, len(items))
+        for i, item := range items {
             status := "pending"
             if item.Done {
                 status = "done"
             }
             
-            html.WriteString(fmt.Sprintf(`
-                <li class="item %s">
-                    <span class="name">%s</span>
-                    <span class="status">%s</span>
-                </li>
-            `, status, item.Name, status))
+            listItems[i] = g.Li(
+                g.Class("item "+status),
+                g.Span(
+                    g.Class("name"),
+                    g.Text(item.Name),
+                ),
+                g.Span(
+                    g.Class("status"),
+                    g.Text(status),
+                ),
+            )
         }
         
-        html.WriteString(`</ul>`)
-        return html.String()
+        return g.Ul(
+            g.Class("filtered-list"),
+            listItems...,
+        )
     })
     
-    return fl
+    return g.Div(
+        g.Class("filtered-list-container"),
+        g.Div(
+            g.Class("filters"),
+            g.Input(
+                g.Attr("type", "text"),
+                g.Attr("placeholder", "Filter items..."),
+                comps.BindValue(filter),
+            ),
+            g.Select(
+                comps.BindValue(sortBy),
+                g.Option(
+                    g.Attr("value", "name"),
+                    g.Text("Sort by Name"),
+                ),
+                g.Option(
+                    g.Attr("value", "status"),
+                    g.Text("Sort by Status"),
+                ),
+            ),
+            g.Label(
+                g.Input(
+                    g.Attr("type", "checkbox"),
+                    comps.BindChecked(showDoneOnly),
+                ),
+                g.Text(" Show completed only"),
+            ),
+        ),
+        comps.BindNode(listContent),
+    )
 }
 
-func (fl *FilteredList) Render() string {
-    return fmt.Sprintf(`
-        <div class="filtered-container">
-            <div class="controls">
-                <input type="text" data-input="filter" 
-                       placeholder="Filter items..." value="%s">
-                
-                <select data-change="sortBy">
-                    <option value="name" %s>Sort by Name</option>
-                    <option value="status" %s>Sort by Status</option>
-                </select>
-                
-                <label>
-                    <input type="checkbox" data-change="showDoneOnly" %s>
-                    Show completed only
-                </label>
-            </div>
-            
-            <div class="stats">
-                Showing %d of %d items
-            </div>
-            
-            <div data-html="list">%s</div>
-        </div>
-    `, 
-        fl.filter.Get(),
-        map[bool]string{true: "selected", false: ""}[fl.sortBy.Get() == "name"],
-        map[bool]string{true: "selected", false: ""}[fl.sortBy.Get() == "status"],
-        map[bool]string{true: "checked", false: ""}[fl.showDoneOnly.Get()],
-        len(fl.filteredItems.Get()),
-        len(fl.allItems.Get()),
-        fl.listHTML.Get())
-}
 
-func (fl *FilteredList) Attach() {
-    fl.BindInput("filter", fl.filter)
-    fl.BindChange("sortBy", func(value string) {
-        fl.sortBy.Set(value)
-    })
-    fl.BindChange("showDoneOnly", func(checked bool) {
-        fl.showDoneOnly.Set(checked)
-    })
-    fl.BindHTML("list", fl.listHTML)
-}
 ```
 
 ## Dynamic Content
@@ -630,190 +514,171 @@ const (
     ContentList  ContentType = "list"
 )
 
-type DynamicContent struct {
-    contentType *reactivity.Signal[ContentType]
-    textData    *reactivity.Signal[string]
-    imageURL    *reactivity.Signal[string]
-    videoURL    *reactivity.Signal[string]
-    listData    *reactivity.Signal[[]string]
+func DynamicContent() g.Node {
+    contentType := reactivity.CreateSignal(ContentText)
+    textData := reactivity.CreateSignal("Sample text content")
+    imageURL := reactivity.CreateSignal("https://via.placeholder.com/300x200")
+    videoURL := reactivity.CreateSignal("https://www.w3schools.com/html/mov_bbb.mp4")
+    listData := reactivity.CreateSignal([]string{"Item 1", "Item 2", "Item 3"})
     
-    content *reactivity.Memo[string]
-}
-
-func NewDynamicContent() *DynamicContent {
-    dc := &DynamicContent{
-        contentType: reactivity.NewSignal(ContentText),
-        textData:    reactivity.NewSignal("Sample text content"),
-        imageURL:    reactivity.NewSignal("https://via.placeholder.com/300x200"),
-        videoURL:    reactivity.NewSignal("https://www.w3schools.com/html/mov_bbb.mp4"),
-        listData:    reactivity.NewSignal([]string{"Item 1", "Item 2", "Item 3"}),
-    }
-    
-    dc.content = reactivity.NewMemo(func() string {
-        switch dc.contentType.Get() {
+    content := reactivity.CreateMemo(func() g.Node {
+        switch contentType.Get() {
         case ContentText:
-            return fmt.Sprintf(`
-                <div class="text-content">
-                    <h3>Text Content</h3>
-                    <p>%s</p>
-                    <textarea data-input="textData" rows="4" cols="50">%s</textarea>
-                </div>
-            `, dc.textData.Get(), dc.textData.Get())
+            return g.Div(
+                g.Class("text-content"),
+                g.H3(g.Text("Text Content")),
+                g.P(comps.BindText(textData)),
+                g.Textarea(
+                    g.Attr("rows", "4"),
+                    g.Attr("cols", "50"),
+                    comps.BindValue(textData),
+                ),
+            )
             
         case ContentImage:
-            return fmt.Sprintf(`
-                <div class="image-content">
-                    <h3>Image Content</h3>
-                    <img src="%s" alt="Dynamic image" style="max-width: 100%%;">
-                    <input type="url" data-input="imageURL" 
-                           placeholder="Image URL" value="%s">
-                </div>
-            `, dc.imageURL.Get(), dc.imageURL.Get())
+            return g.Div(
+                g.Class("image-content"),
+                g.H3(g.Text("Image Content")),
+                g.Img(
+                    comps.BindAttr("src", imageURL),
+                    g.Attr("alt", "Dynamic image"),
+                    g.Attr("style", "max-width: 100%;"),
+                ),
+                g.Input(
+                    g.Attr("type", "url"),
+                    g.Attr("placeholder", "Image URL"),
+                    comps.BindValue(imageURL),
+                ),
+            )
             
         case ContentVideo:
-            return fmt.Sprintf(`
-                <div class="video-content">
-                    <h3>Video Content</h3>
-                    <video controls style="max-width: 100%%;">
-                        <source src="%s" type="video/mp4">
-                        Your browser does not support the video tag.
-                    </video>
-                    <input type="url" data-input="videoURL" 
-                           placeholder="Video URL" value="%s">
-                </div>
-            `, dc.videoURL.Get(), dc.videoURL.Get())
+            return g.Div(
+                g.Class("video-content"),
+                g.H3(g.Text("Video Content")),
+                g.El("video",
+                    g.Attr("controls", "controls"),
+                    g.Attr("style", "max-width: 100%;"),
+                    g.El("source",
+                        comps.BindAttr("src", videoURL),
+                        g.Attr("type", "video/mp4"),
+                    ),
+                    g.Text("Your browser does not support the video tag."),
+                ),
+                g.Input(
+                    g.Attr("type", "url"),
+                    g.Attr("placeholder", "Video URL"),
+                    comps.BindValue(videoURL),
+                ),
+            )
             
         case ContentList:
-            listItems := dc.listData.Get()
-            var items strings.Builder
+            listItems := listData.Get()
+            items := make([]g.Node, len(listItems))
             for i, item := range listItems {
-                items.WriteString(fmt.Sprintf(`
-                    <li>
-                        <input type="text" data-input="listItem-%d" value="%s">
-                        <button data-click="removeItem-%d">Remove</button>
-                    </li>
-                `, i, item, i))
+                itemSignal := reactivity.CreateSignal(item)
+                items[i] = g.Li(
+                    g.Input(
+                        g.Attr("type", "text"),
+                        comps.BindValue(itemSignal),
+                    ),
+                    g.Button(
+                        g.Text("Remove"),
+                        dom.OnClickInline(func(el dom.Element) {
+                            removeListItem(i)
+                        }),
+                    ),
+                )
             }
             
-            return fmt.Sprintf(`
-                <div class="list-content">
-                    <h3>List Content</h3>
-                    <ul>%s</ul>
-                    <button data-click="addListItem">Add Item</button>
-                </div>
-            `, items.String())
+            return g.Div(
+                g.Class("list-content"),
+                g.H3(g.Text("List Content")),
+                g.Ul(items...),
+                g.Button(
+                    g.Text("Add Item"),
+                    dom.OnClickInline(func(el dom.Element) {
+                        addListItem()
+                    }),
+                ),
+            )
             
         default:
-            return `<div class="unknown-content">Unknown content type</div>`
+            return g.Div(
+                g.Class("unknown-content"),
+                g.Text("Unknown content type"),
+            )
         }
     })
     
-    return dc
-}
-
-func (dc *DynamicContent) Render() string {
-    return fmt.Sprintf(`
-        <div class="dynamic-container">
-            <div class="content-selector">
-                <h2>Dynamic Content Demo</h2>
-                <div class="tabs">
-                    <button class="%s" data-click="selectText">Text</button>
-                    <button class="%s" data-click="selectImage">Image</button>
-                    <button class="%s" data-click="selectVideo">Video</button>
-                    <button class="%s" data-click="selectList">List</button>
-                </div>
-            </div>
-            
-            <div class="content-area" data-html="content">
-                %s
-            </div>
-        </div>
-    `,
-        map[bool]string{true: "active", false: ""}[dc.contentType.Get() == ContentText],
-        map[bool]string{true: "active", false: ""}[dc.contentType.Get() == ContentImage],
-        map[bool]string{true: "active", false: ""}[dc.contentType.Get() == ContentVideo],
-        map[bool]string{true: "active", false: ""}[dc.contentType.Get() == ContentList],
-        dc.content.Get())
-}
-
-func (dc *DynamicContent) Attach() {
-    dc.BindClick("selectText", func() { dc.contentType.Set(ContentText) })
-    dc.BindClick("selectImage", func() { dc.contentType.Set(ContentImage) })
-    dc.BindClick("selectVideo", func() { dc.contentType.Set(ContentVideo) })
-    dc.BindClick("selectList", func() { dc.contentType.Set(ContentList) })
-    
-    dc.BindHTML("content", dc.content)
-    
-    // Bind dynamic inputs based on content type
-    reactivity.NewEffect(func() {
-        contentType := dc.contentType.Get()
-        
-        switch contentType {
-        case ContentText:
-            dc.BindInput("textData", dc.textData)
-            
-        case ContentImage:
-            dc.BindInput("imageURL", dc.imageURL)
-            
-        case ContentVideo:
-            dc.BindInput("videoURL", dc.videoURL)
-            
-        case ContentList:
-            dc.bindListHandlers()
-        }
-    })
-}
-
-func (dc *DynamicContent) bindListHandlers() {
-    dc.BindClick("addListItem", dc.addListItem)
-    
-    // Bind handlers for existing list items
-    listData := dc.listData.Get()
-    for i := range listData {
-        dc.bindListItemHandlers(i)
-    }
-}
-
-func (dc *DynamicContent) bindListItemHandlers(index int) {
-    // Bind input for list item
-    inputSelector := fmt.Sprintf("listItem-%d", index)
-    if element := dom.QuerySelector(fmt.Sprintf(`[data-input="%s"]`, inputSelector)); element != nil {
-        element.AddEventListener("input", false, func(event dom.Event) {
-            value := element.(*dom.HTMLInputElement).Value
-            dc.updateListItem(index, value)
-        })
+    // Helper functions
+    addListItem := func() {
+        current := listData.Get()
+        listData.Set(append(current, "New item"))
     }
     
-    // Bind remove button
-    removeSelector := fmt.Sprintf("removeItem-%d", index)
-    dc.BindClick(removeSelector, func() {
-        dc.removeListItem(index)
-    })
-}
-
-func (dc *DynamicContent) addListItem() {
-    dc.listData.Update(func(items []string) []string {
-        return append(items, "New item")
-    })
-}
-
-func (dc *DynamicContent) updateListItem(index int, value string) {
-    dc.listData.Update(func(items []string) []string {
-        if index >= 0 && index < len(items) {
-            items[index] = value
+    removeListItem := func(index int) {
+        current := listData.Get()
+        if index >= 0 && index < len(current) {
+            newList := make([]string, 0, len(current)-1)
+            newList = append(newList, current[:index]...)
+            newList = append(newList, current[index+1:]...)
+            listData.Set(newList)
         }
-        return items
-    })
+    }
+    
+    return g.Div(
+        g.Class("dynamic-container"),
+        g.Div(
+            g.Class("content-selector"),
+            g.H2(g.Text("Dynamic Content Demo")),
+            g.Div(
+                g.Class("tabs"),
+                g.Button(
+                    g.Text("Text"),
+                    comps.BindClass("active", reactivity.CreateMemo(func() bool {
+                        return contentType.Get() == ContentText
+                    })),
+                    dom.OnClickInline(func(el dom.Element) {
+                        contentType.Set(ContentText)
+                    }),
+                ),
+                g.Button(
+                    g.Text("Image"),
+                    comps.BindClass("active", reactivity.CreateMemo(func() bool {
+                        return contentType.Get() == ContentImage
+                    })),
+                    dom.OnClickInline(func(el dom.Element) {
+                        contentType.Set(ContentImage)
+                    }),
+                ),
+                g.Button(
+                    g.Text("Video"),
+                    comps.BindClass("active", reactivity.CreateMemo(func() bool {
+                        return contentType.Get() == ContentVideo
+                    })),
+                    dom.OnClickInline(func(el dom.Element) {
+                        contentType.Set(ContentVideo)
+                    }),
+                ),
+                g.Button(
+                    g.Text("List"),
+                    comps.BindClass("active", reactivity.CreateMemo(func() bool {
+                        return contentType.Get() == ContentList
+                    })),
+                    dom.OnClickInline(func(el dom.Element) {
+                        contentType.Set(ContentList)
+                    }),
+                ),
+            ),
+        ),
+        g.Div(
+            g.Class("content-area"),
+            comps.BindNode(content),
+        ),
+    )
 }
 
-func (dc *DynamicContent) removeListItem(index int) {
-    dc.listData.Update(func(items []string) []string {
-        if index >= 0 && index < len(items) {
-            return append(items[:index], items[index+1:]...)
-        }
-        return items
-    })
-}
+
 ```
 
 ## Nested Components
@@ -824,148 +689,140 @@ Build complex UIs by composing smaller components:
 
 ```go
 // Child component
-type Card struct {
-    title   *reactivity.Signal[string]
-    content *reactivity.Signal[string]
-    visible *reactivity.Signal[bool]
-}
-
-func NewCard(title, content string) *Card {
-    return &Card{
-        title:   reactivity.NewSignal(title),
-        content: reactivity.NewSignal(content),
-        visible: reactivity.NewSignal(true),
-    }
-}
-
-func (c *Card) Render() string {
-    if !c.visible.Get() {
-        return ""
-    }
+func Card(initialTitle, initialContent string) g.Node {
+    title := reactivity.CreateSignal(initialTitle)
+    content := reactivity.CreateSignal(initialContent)
+    visible := reactivity.CreateSignal(true)
     
-    return fmt.Sprintf(`
-        <div class="card">
-            <div class="card-header">
-                <h3 data-text="title">%s</h3>
-                <button data-click="close">×</button>
-            </div>
-            <div class="card-body" data-text="content">
-                %s
-            </div>
-        </div>
-    `, c.title.Get(), c.content.Get())
-}
-
-func (c *Card) Attach() {
-    c.BindText("title", c.title)
-    c.BindText("content", c.content)
-    c.BindClick("close", func() {
-        c.visible.Set(false)
+    return reactivity.CreateMemo(func() g.Node {
+        if !visible.Get() {
+            return g.Text("")
+        }
+        
+        return g.Div(
+            g.Class("card"),
+            g.Div(
+                g.Class("card-header"),
+                g.H3(comps.BindText(title)),
+                g.Button(
+                    g.Text("×"),
+                    dom.OnClickInline(func(el dom.Element) {
+                        visible.Set(false)
+                    }),
+                ),
+            ),
+            g.Div(
+                g.Class("card-body"),
+                comps.BindText(content),
+            ),
+        )
     })
 }
 
 // Parent component that manages multiple cards
-type Dashboard struct {
-    cards    []*Card
-    newTitle *reactivity.Signal[string]
-    newContent *reactivity.Signal[string]
+func Dashboard() g.Node {
+    newTitle := reactivity.CreateSignal("")
+    newContent := reactivity.CreateSignal("")
     
-    cardsHTML *reactivity.Memo[string]
-}
-
-func NewDashboard() *Dashboard {
-    d := &Dashboard{
-        cards: []*Card{
-            NewCard("Welcome", "Welcome to the dashboard!"),
-            NewCard("Stats", "Your statistics will appear here."),
-            NewCard("News", "Latest news and updates."),
-        },
-        newTitle:   reactivity.NewSignal(""),
-        newContent: reactivity.NewSignal(""),
+    // Initialize with some default cards
+    cards := reactivity.CreateSignal([]struct{
+        title   string
+        content string
+        id      int
+    }{
+        {"Welcome", "Welcome to the dashboard!", 0},
+        {"Stats", "Your statistics will appear here.", 1},
+        {"News", "Latest news and updates.", 2},
+    })
+    
+    nextID := reactivity.CreateSignal(3)
+    
+    addCard := func() {
+        title := strings.TrimSpace(newTitle.Get())
+        content := strings.TrimSpace(newContent.Get())
+        
+        if title == "" || content == "" {
+            return
+        }
+        
+        currentCards := cards.Get()
+        id := nextID.Get()
+        
+        newCard := struct{
+            title   string
+            content string
+            id      int
+        }{title, content, id}
+        
+        cards.Set(append(currentCards, newCard))
+        nextID.Set(id + 1)
+        
+        // Clear form
+        newTitle.Set("")
+        newContent.Set("")
     }
     
-    d.cardsHTML = reactivity.NewMemo(func() string {
-        var html strings.Builder
+    removeCard := func(id int) {
+        currentCards := cards.Get()
+        newCards := make([]struct{
+            title   string
+            content string
+            id      int
+        }, 0, len(currentCards))
         
-        for i, card := range d.cards {
-            if card.visible.Get() {
-                html.WriteString(fmt.Sprintf(`
-                    <div class="card-wrapper" data-card="%d">
-                        %s
-                    </div>
-                `, i, card.Render()))
+        for _, card := range currentCards {
+            if card.id != id {
+                newCards = append(newCards, card)
             }
         }
         
-        return html.String()
-    })
-    
-    return d
-}
-
-func (d *Dashboard) Render() string {
-    return fmt.Sprintf(`
-        <div class="dashboard">
-            <div class="dashboard-header">
-                <h1>Dashboard</h1>
-                <div class="add-card-form">
-                    <input type="text" data-input="newTitle" 
-                           placeholder="Card title" value="%s">
-                    <input type="text" data-input="newContent" 
-                           placeholder="Card content" value="%s">
-                    <button data-click="addCard">Add Card</button>
-                </div>
-            </div>
-            
-            <div class="cards-grid" data-html="cards">
-                %s
-            </div>
-        </div>
-    `, d.newTitle.Get(), d.newContent.Get(), d.cardsHTML.Get())
-}
-
-func (d *Dashboard) Attach() {
-    d.BindInput("newTitle", d.newTitle)
-    d.BindInput("newContent", d.newContent)
-    d.BindClick("addCard", d.addCard)
-    d.BindHTML("cards", d.cardsHTML)
-    
-    // Attach all card components
-    for _, card := range d.cards {
-        card.Attach()
+        cards.Set(newCards)
     }
     
-    // Re-attach cards when HTML changes
-    reactivity.NewEffect(func() {
-        _ = d.cardsHTML.Get() // Track changes
+    cardsGrid := reactivity.CreateMemo(func() g.Node {
+        currentCards := cards.Get()
+        cardNodes := make([]g.Node, len(currentCards))
         
-        // Re-attach all visible cards
-        for _, card := range d.cards {
-            if card.visible.Get() {
-                card.Attach()
-            }
+        for i, cardData := range currentCards {
+            cardNodes[i] = g.Div(
+                g.Class("card-wrapper"),
+                Card(cardData.title, cardData.content),
+            )
         }
+        
+        return g.Div(
+            g.Class("cards-grid"),
+            cardNodes...,
+        )
     })
-}
-
-func (d *Dashboard) addCard() {
-    title := strings.TrimSpace(d.newTitle.Get())
-    content := strings.TrimSpace(d.newContent.Get())
     
-    if title == "" || content == "" {
-        return
-    }
-    
-    newCard := NewCard(title, content)
-    d.cards = append(d.cards, newCard)
-    
-    // Clear form
-    d.newTitle.Set("")
-    d.newContent.Set("")
-    
-    // Trigger re-render
-    d.cardsHTML.Invalidate()
-}
+    return g.Div(
+        g.Class("dashboard"),
+        g.Div(
+            g.Class("dashboard-header"),
+            g.H1(g.Text("Dashboard")),
+            g.Div(
+                g.Class("add-card-form"),
+                g.Input(
+                    g.Attr("type", "text"),
+                    g.Attr("placeholder", "Card title"),
+                    comps.BindValue(newTitle),
+                ),
+                g.Input(
+                    g.Attr("type", "text"),
+                    g.Attr("placeholder", "Card content"),
+                    comps.BindValue(newContent),
+                ),
+                g.Button(
+                    g.Text("Add Card"),
+                    dom.OnClickInline(func(el dom.Element) {
+                        addCard()
+                    }),
+                ),
+            ),
+        ),
+        comps.BindNode(cardsGrid),
+    )
 ```
 
 ## Advanced Patterns
@@ -975,87 +832,67 @@ func (d *Dashboard) addCard() {
 Load content only when needed:
 
 ```go
-type LazySection struct {
-    isExpanded *reactivity.Signal[bool]
-    isLoaded   *reactivity.Signal[bool]
-    data       *reactivity.Signal[string]
-    loading    *reactivity.Signal[bool]
+func LazySection() g.Node {
+    isExpanded := reactivity.CreateSignal(false)
+    isLoaded := reactivity.CreateSignal(false)
+    data := reactivity.CreateSignal("")
+    loading := reactivity.CreateSignal(false)
     
-    content *reactivity.Memo[string]
-}
-
-func NewLazySection() *LazySection {
-    ls := &LazySection{
-        isExpanded: reactivity.NewSignal(false),
-        isLoaded:   reactivity.NewSignal(false),
-        data:       reactivity.NewSignal(""),
-        loading:    reactivity.NewSignal(false),
+    loadContent := func() {
+        if isLoaded.Get() || loading.Get() {
+            return
+        }
+        
+        loading.Set(true)
+        
+        // Simulate async loading
+        go func() {
+            time.Sleep(2 * time.Second)
+            data.Set("This is the lazily loaded content! It contains important information that was fetched asynchronously.")
+            loading.Set(false)
+            isLoaded.Set(true)
+        }()
     }
     
-    ls.content = reactivity.NewMemo(func() string {
-        if !ls.isExpanded.Get() {
-            return `<p>Click to expand...</p>`
+    toggleExpanded := func() {
+        expanded := !isExpanded.Get()
+        isExpanded.Set(expanded)
+        
+        if expanded && !isLoaded.Get() {
+            loadContent()
+        }
+    }
+    
+    content := reactivity.CreateMemo(func() g.Node {
+        if !isExpanded.Get() {
+            return g.P(g.Text("Click to expand..."))
         }
         
-        if ls.loading.Get() {
-            return `<p>Loading content...</p>`
+        if loading.Get() {
+            return g.P(g.Text("Loading content..."))
         }
         
-        if !ls.isLoaded.Get() {
-            return `<p>Content not loaded yet.</p>`
+        if !isLoaded.Get() {
+            return g.P(g.Text("Content not loaded yet."))
         }
         
-        return fmt.Sprintf(`<div class="loaded-content">%s</div>`, ls.data.Get())
+        return g.Div(
+            g.Class("loaded-content"),
+            g.Text(data.Get()),
+        )
     })
     
-    return ls
-}
+    return g.Div(
+        g.Class("lazy-section"),
+        g.Button(
+            g.Text("Toggle Section"),
+            dom.OnClickInline(func(el dom.Element) {
+                toggleExpanded()
+            }),
+        ),
+        comps.BindNode(content),
+    )
 
-func (ls *LazySection) Render() string {
-    return fmt.Sprintf(`
-        <div class="lazy-section">
-            <button data-click="toggle">
-                %s
-            </button>
-            <div class="section-content" data-html="content">
-                %s
-            </div>
-        </div>
-    `, 
-        map[bool]string{true: "Collapse", false: "Expand"}[ls.isExpanded.Get()],
-        ls.content.Get())
-}
-
-func (ls *LazySection) Attach() {
-    ls.BindClick("toggle", ls.toggle)
-    ls.BindHTML("content", ls.content)
-}
-
-func (ls *LazySection) toggle() {
-    ls.isExpanded.Update(func(expanded bool) bool {
-        newExpanded := !expanded
-        
-        // Load data when expanding for the first time
-        if newExpanded && !ls.isLoaded.Get() {
-            ls.loadData()
-        }
-        
-        return newExpanded
-    })
-}
-
-func (ls *LazySection) loadData() {
-    ls.loading.Set(true)
-    
-    go func() {
-        // Simulate API call
-        time.Sleep(2 * time.Second)
-        
-        ls.data.Set("This is the lazily loaded content! It contains important information that was fetched from the server.")
-        ls.isLoaded.Set(true)
-        ls.loading.Set(false)
-    }()
-}
 ```
 
 ### Virtual Scrolling (Concept)
@@ -1063,61 +900,70 @@ func (ls *LazySection) loadData() {
 For very large lists, implement virtual scrolling:
 
 ```go
-type VirtualList struct {
-    allItems     *reactivity.Signal[[]string]
-    scrollTop    *reactivity.Signal[int]
-    itemHeight   int
-    visibleCount int
+func VirtualList(itemHeight, visibleCount int, items []string) g.Node {
+    allItems := reactivity.CreateSignal(items)
+    scrollTop := reactivity.CreateSignal(0)
     
-    visibleItems *reactivity.Memo[[]string]
-    startIndex   *reactivity.Memo[int]
-    endIndex     *reactivity.Memo[int]
-}
-
-func NewVirtualList(itemHeight, visibleCount int) *VirtualList {
-    vl := &VirtualList{
-        allItems:     reactivity.NewSignal([]string{}),
-        scrollTop:    reactivity.NewSignal(0),
-        itemHeight:   itemHeight,
-        visibleCount: visibleCount,
-    }
-    
-    vl.startIndex = reactivity.NewMemo(func() int {
-        scrollTop := vl.scrollTop.Get()
-        index := scrollTop / vl.itemHeight
+    startIndex := reactivity.CreateMemo(func() int {
+        scrollTop := scrollTop.Get()
+        index := scrollTop / itemHeight
         if index < 0 {
             return 0
         }
         return index
     })
     
-    vl.endIndex = reactivity.NewMemo(func() int {
-        start := vl.startIndex.Get()
-        end := start + vl.visibleCount
-        allItems := vl.allItems.Get()
+    endIndex := reactivity.CreateMemo(func() int {
+        start := startIndex.Get()
+        end := start + visibleCount
+        allItems := allItems.Get()
         if end > len(allItems) {
             return len(allItems)
         }
         return end
     })
     
-    vl.visibleItems = reactivity.NewMemo(func() []string {
-        allItems := vl.allItems.Get()
-        start := vl.startIndex.Get()
-        end := vl.endIndex.Get()
+    visibleItems := reactivity.CreateMemo(func() []g.Node {
+        allItems := allItems.Get()
+        start := startIndex.Get()
+        end := endIndex.Get()
         
         if start >= len(allItems) {
-            return []string{}
+            return []g.Node{}
         }
         
-        return allItems[start:end]
+        items := allItems[start:end]
+        nodes := make([]g.Node, len(items))
+        for i, item := range items {
+            nodes[i] = g.Div(
+                g.Class("virtual-item"),
+                g.Style(fmt.Sprintf("height: %dpx;", itemHeight)),
+                g.Text(item),
+            )
+        }
+        return nodes
     })
     
-    return vl
+    handleScroll := func(el dom.Element) {
+        scrollTop.Set(el.ScrollTop())
+    }
+    
+    return g.Div(
+        g.Class("virtual-list"),
+        g.Style(fmt.Sprintf("height: %dpx; overflow-y: auto;", visibleCount*itemHeight)),
+        dom.OnScrollInline(handleScroll),
+        g.Div(
+            g.Style(fmt.Sprintf("height: %dpx; position: relative;", len(allItems.Get())*itemHeight)),
+            g.Div(
+                g.Style(fmt.Sprintf("position: absolute; top: %dpx;", startIndex.Get()*itemHeight)),
+                comps.BindNodes(visibleItems),
+            ),
+        ),
+    )
 }
 
-// Implementation would include scroll handling and DOM manipulation
-// This is a simplified concept - full implementation would be more complex
+// This provides a basic virtual scrolling implementation
+// Full production implementation would include additional optimizations
 ```
 
 ## Performance Considerations
@@ -1126,18 +972,18 @@ func NewVirtualList(itemHeight, visibleCount int) *VirtualList {
 
 ```go
 // BAD: Memo depends on entire large object
-expensiveMemo := reactivity.NewMemo(func() string {
+expensiveMemo := reactivity.CreateMemo(func() string {
     user := largeUserObject.Get() // Entire object dependency
     return user.Name // Only need name
 })
 
 // GOOD: Extract specific fields
-userName := reactivity.NewMemo(func() string {
+userName := reactivity.CreateMemo(func() string {
     user := largeUserObject.Get()
     return user.Name
 })
 
-displayName := reactivity.NewMemo(func() string {
+displayName := reactivity.CreateMemo(func() string {
     name := userName.Get() // Depends only on name
     return fmt.Sprintf("Hello, %s!", name)
 })
@@ -1168,23 +1014,14 @@ func updateMultipleFields() {
 ### Debounce Expensive Operations
 
 ```go
-type SearchComponent struct {
-    query   *reactivity.Signal[string]
-    results *reactivity.Signal[[]string]
-    
-    debouncedSearch *reactivity.Effect
-}
-
-func NewSearchComponent() *SearchComponent {
-    sc := &SearchComponent{
-        query:   reactivity.NewSignal(""),
-        results: reactivity.NewSignal([]string{}),
-    }
+func SearchComponent() g.Node {
+    query := reactivity.CreateSignal("")
+    results := reactivity.CreateSignal([]string{})
     
     // Debounced search effect
     var searchTimer *time.Timer
-    sc.debouncedSearch = reactivity.NewEffect(func() {
-        query := sc.query.Get()
+    reactivity.CreateEffect(func() {
+        queryValue := query.Get()
         
         // Cancel previous timer
         if searchTimer != nil {
@@ -1193,32 +1030,56 @@ func NewSearchComponent() *SearchComponent {
         
         // Set new timer
         searchTimer = time.AfterFunc(300*time.Millisecond, func() {
-            sc.performSearch(query)
+            performSearch(queryValue)
         })
     })
     
-    return sc
-}
-
-func (sc *SearchComponent) performSearch(query string) {
-    if query == "" {
-        sc.results.Set([]string{})
-        return
-    }
-    
-    // Simulate API call
-    go func() {
-        time.Sleep(100 * time.Millisecond)
-        
-        // Mock search results
-        results := []string{
-            fmt.Sprintf("Result 1 for '%s'", query),
-            fmt.Sprintf("Result 2 for '%s'", query),
-            fmt.Sprintf("Result 3 for '%s'", query),
+    performSearch := func(query string) {
+        if query == "" {
+            results.Set([]string{})
+            return
         }
         
-        sc.results.Set(results)
-    }()
+        // Simulate API call
+        go func() {
+            time.Sleep(100 * time.Millisecond)
+            
+            // Mock search results
+            searchResults := []string{
+                fmt.Sprintf("Result 1 for '%s'", query),
+                fmt.Sprintf("Result 2 for '%s'", query),
+                fmt.Sprintf("Result 3 for '%s'", query),
+            }
+            
+            results.Set(searchResults)
+        }()
+    }
+    
+    resultsList := reactivity.CreateMemo(func() g.Node {
+        items := results.Get()
+        if len(items) == 0 {
+            return g.P(g.Text("No results"))
+        }
+        
+        nodes := make([]g.Node, len(items))
+        for i, item := range items {
+            nodes[i] = g.Li(g.Text(item))
+        }
+        return g.Ul(nodes...)
+    })
+    
+    return g.Div(
+        g.Class("search-component"),
+        g.Input(
+            g.Type("text"),
+            g.Placeholder("Search..."),
+            comps.BindValue(query),
+            dom.OnInputInline(func(el dom.Element) {
+                query.Set(el.Value())
+            }),
+        ),
+        comps.BindNode(resultsList),
+    )
 }
 ```
 
@@ -1227,91 +1088,81 @@ func (sc *SearchComponent) performSearch(query string) {
 ### Toggle Pattern
 
 ```go
-type Toggle struct {
-    isOn *reactivity.Signal[bool]
-}
-
-func NewToggle(initial bool) *Toggle {
-    return &Toggle{
-        isOn: reactivity.NewSignal(initial),
-    }
-}
-
-func (t *Toggle) Render() string {
-    state := "off"
-    if t.isOn.Get() {
-        state = "on"
+func Toggle(initial bool) g.Node {
+    isOn := reactivity.CreateSignal(initial)
+    
+    toggleState := func() {
+        isOn.Set(!isOn.Get())
     }
     
-    return fmt.Sprintf(`
-        <button class="toggle %s" data-click="toggle">
-            %s
-        </button>
-    `, state, strings.ToUpper(state))
-}
+    return g.Button(
+        g.Class("toggle"),
+        comps.BindClass("on", reactivity.CreateMemo(func() bool {
+            return isOn.Get()
+        })),
+        comps.BindText(reactivity.CreateMemo(func() string {
+            if isOn.Get() {
+                return "ON"
+            }
+            return "OFF"
+        })),
+        dom.OnClickInline(func(el dom.Element) {
+            toggleState()
+        }),
+    )
+    }
+    
 
-func (t *Toggle) Attach() {
-    t.BindClick("toggle", func() {
-        t.isOn.Update(func(on bool) bool { return !on })
-    })
-}
 ```
 
 ### Counter Pattern
 
 ```go
-type Counter struct {
-    count *reactivity.Signal[int]
-    min   int
-    max   int
-}
-
-func NewCounter(initial, min, max int) *Counter {
-    return &Counter{
-        count: reactivity.NewSignal(initial),
-        min:   min,
-        max:   max,
-    }
-}
-
-func (c *Counter) Render() string {
-    count := c.count.Get()
+func Counter(initial, min, max int) g.Node {
+    count := reactivity.CreateSignal(initial)
     
-    return fmt.Sprintf(`
-        <div class="counter">
-            <button data-click="decrement" %s>-</button>
-            <span class="count" data-text="count">%d</span>
-            <button data-click="increment" %s>+</button>
-        </div>
-    `,
-        map[bool]string{true: "disabled", false: ""}[count <= c.min],
-        count,
-        map[bool]string{true: "disabled", false: ""}[count >= c.max])
-}
-
-func (c *Counter) Attach() {
-    c.BindText("count", c.count)
-    c.BindClick("increment", c.increment)
-    c.BindClick("decrement", c.decrement)
-}
-
-func (c *Counter) increment() {
-    c.count.Update(func(n int) int {
-        if n < c.max {
-            return n + 1
+    increment := func() {
+        if count.Get() < max {
+            count.Set(count.Get() + 1)
         }
-        return n
-    })
+    }
+    
+    decrement := func() {
+        if count.Get() > min {
+            count.Set(count.Get() - 1)
+        }
+    }
+    
+    return g.Div(
+        g.Class("counter"),
+        g.Button(
+            g.Text("-"),
+            comps.BindDisabled(reactivity.CreateMemo(func() bool {
+                return count.Get() <= min
+            })),
+            dom.OnClickInline(func(el dom.Element) {
+                decrement()
+            }),
+        ),
+        g.Span(
+            g.Class("count"),
+            comps.BindText(reactivity.CreateMemo(func() string {
+                return fmt.Sprintf("%d", count.Get())
+            })),
+        ),
+        g.Button(
+            g.Text("+"),
+            comps.BindDisabled(reactivity.CreateMemo(func() bool {
+                return count.Get() >= max
+            })),
+            dom.OnClickInline(func(el dom.Element) {
+                increment()
+            }),
+        ),
+    )
 }
 
-func (c *Counter) decrement() {
-    c.count.Update(func(n int) int {
-        if n > c.min {
-            return n - 1
-        }
-        return n
-    })
-}
+
 ```
 
 ### Form Validation Pattern
@@ -1319,23 +1170,14 @@ func (c *Counter) decrement() {
 ```go
 type ValidationRule func(string) string
 
-type ValidatedField struct {
-    value *reactivity.Signal[string]
-    error *reactivity.Memo[string]
-    rules []ValidationRule
-}
-
-func NewValidatedField(initial string, rules ...ValidationRule) *ValidatedField {
-    vf := &ValidatedField{
-        value: reactivity.NewSignal(initial),
-        rules: rules,
-    }
+func ValidatedField(initial string, placeholder string, rules ...ValidationRule) g.Node {
+    value := reactivity.CreateSignal(initial)
     
-    vf.error = reactivity.NewMemo(func() string {
-        value := vf.value.Get()
+    error := reactivity.CreateMemo(func() string {
+        currentValue := value.Get()
         
-        for _, rule := range vf.rules {
-            if err := rule(value); err != "" {
+        for _, rule := range rules {
+            if err := rule(currentValue); err != "" {
                 return err
             }
         }
@@ -1343,7 +1185,28 @@ func NewValidatedField(initial string, rules ...ValidationRule) *ValidatedField 
         return ""
     })
     
-    return vf
+    hasError := reactivity.CreateMemo(func() bool {
+        return error.Get() != ""
+    })
+    
+    return g.Div(
+        g.Class("validated-field"),
+        g.Input(
+            g.Type("text"),
+            g.Placeholder(placeholder),
+            comps.BindValue(value),
+            comps.BindClass("error", hasError),
+            dom.OnInputInline(func(el dom.Element) {
+                value.Set(el.Value())
+            }),
+        ),
+        g.If(hasError.Get(),
+            g.Div(
+                g.Class("error-message"),
+                comps.BindText(error),
+            ),
+        ),
+    )
 }
 
 // Validation rules
@@ -1371,11 +1234,16 @@ func Email(value string) string {
 }
 
 // Usage
-func NewContactForm() *ContactForm {
-    return &ContactForm{
-        name:  NewValidatedField("", Required, MinLength(2)),
-        email: NewValidatedField("", Required, Email),
-    }
+func ContactForm() g.Node {
+    return g.Form(
+        g.Class("contact-form"),
+        ValidatedField("", "Enter your name", Required, MinLength(2)),
+        ValidatedField("", "Enter your email", Required, Email),
+        g.Button(
+            g.Type("submit"),
+            g.Text("Submit"),
+        ),
+    )
 }
 ```
 
@@ -1385,21 +1253,33 @@ func NewContactForm() *ContactForm {
 
 ```go
 // GOOD: Single responsibility
-type UserProfile struct {
-    user *reactivity.Signal[User]
+func UserProfile(user *reactivity.Signal[User]) g.Node {
+    return g.Div(
+        g.Class("user-profile"),
+        comps.BindText(reactivity.CreateMemo(func() string {
+            return user.Get().Name
+        })),
+    )
 }
 
-type UserSettings struct {
-    settings *reactivity.Signal[Settings]
+func UserSettings(settings *reactivity.Signal[Settings]) g.Node {
+    return g.Div(
+        g.Class("user-settings"),
+        // Settings UI
+    )
 }
 
 // BAD: Too many responsibilities
-type UserEverything struct {
-    user     *reactivity.Signal[User]
-    settings *reactivity.Signal[Settings]
-    posts    *reactivity.Signal[[]Post]
-    friends  *reactivity.Signal[[]User]
-    // ... too much
+func UserEverything() g.Node {
+    user := reactivity.CreateSignal(User{})
+    settings := reactivity.CreateSignal(Settings{})
+    posts := reactivity.CreateSignal([]Post{})
+    friends := reactivity.CreateSignal([]User{})
+    // ... too much state in one component
+    
+    return g.Div(
+        // Complex UI handling everything
+    )
 }
 ```
 
@@ -1407,13 +1287,13 @@ type UserEverything struct {
 
 ```go
 // GOOD: Expensive computation cached
-expensiveResult := reactivity.NewMemo(func() Result {
+expensiveResult := reactivity.CreateMemo(func() Result {
     data := largeDataSet.Get()
     return performExpensiveCalculation(data)
 })
 
 // BAD: Recomputes every time
-reactivity.NewEffect(func() {
+reactivity.CreateEffect(func() {
     data := largeDataSet.Get()
     result := performExpensiveCalculation(data) // Runs every time
     display.Set(result.String())
@@ -1423,21 +1303,36 @@ reactivity.NewEffect(func() {
 ### 3. Implement Proper Cleanup
 
 ```go
-type Component struct {
-    effects []reactivity.Effect
-    timers  []*time.Timer
-}
-
-func (c *Component) Cleanup() {
-    // Dispose effects
-    for _, effect := range c.effects {
-        effect.Dispose()
-    }
+func ComponentWithCleanup() g.Node {
+    var effects []reactivity.Effect
+    var timers []*time.Timer
     
-    // Stop timers
-    for _, timer := range c.timers {
-        timer.Stop()
-    }
+    // Create effects and timers
+    effect := reactivity.CreateEffect(func() {
+        // Effect logic
+    })
+    effects = append(effects, effect)
+    
+    timer := time.AfterFunc(5*time.Second, func() {
+        // Timer logic
+    })
+    timers = append(timers, timer)
+    
+    // Register cleanup when component unmounts
+    reactivity.CreateEffect(func() {
+        return func() { // Cleanup function
+            for _, effect := range effects {
+                effect.Dispose()
+            }
+            for _, timer := range timers {
+                timer.Stop()
+            }
+        }
+    })
+    
+    return g.Div(
+        // Component UI
+    )
 }
 ```
 
@@ -1445,13 +1340,13 @@ func (c *Component) Cleanup() {
 
 ```go
 // GOOD: Clear intent
-userDisplayName := reactivity.NewMemo(func() string {
+userDisplayName := reactivity.CreateMemo(func() string {
     user := currentUser.Get()
     return fmt.Sprintf("%s %s", user.FirstName, user.LastName)
 })
 
 // BAD: Unclear purpose
-data := reactivity.NewMemo(func() string {
+data := reactivity.CreateMemo(func() string {
     u := user.Get()
     return fmt.Sprintf("%s %s", u.FirstName, u.LastName)
 })
@@ -1461,18 +1356,27 @@ data := reactivity.NewMemo(func() string {
 
 ```go
 // Always check for empty states, loading states, and errors
-content := reactivity.NewMemo(func() string {
+content := reactivity.CreateMemo(func() g.Node {
     if loading.Get() {
-        return `<div class="loading">Loading...</div>`
+        return g.Div(
+            g.Class("loading"),
+            g.Text("Loading..."),
+        )
     }
     
     if err := error.Get(); err != nil {
-        return fmt.Sprintf(`<div class="error">Error: %s</div>`, err.Error())
+        return g.Div(
+            g.Class("error"),
+            g.Text(fmt.Sprintf("Error: %s", err.Error())),
+        )
     }
     
     items := data.Get()
     if len(items) == 0 {
-        return `<div class="empty">No items found</div>`
+        return g.Div(
+            g.Class("empty"),
+            g.Text("No items found"),
+        )
     }
     
     // Render items...

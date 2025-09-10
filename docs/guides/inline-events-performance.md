@@ -60,8 +60,8 @@ Button(
 
 // Handlers are automatically cleaned up when:
 // 1. The component is unmounted
-// 2. dom.AttachInlineDelegates() is called again (full reset)
-// 3. The page is refreshed
+// 2. The page is refreshed
+// 3. Manual cleanup via comps.OnCleanup() callbacks
 ```
 
 ### Memory Optimization Strategies
@@ -94,7 +94,7 @@ Button(
 
 ```go
 // ✅ Good: Shared state via signals
-sharedCounter := reactivity.NewSignal(0)
+sharedCounter := reactivity.CreateSignal(0)
 
 // Multiple handlers can reference the same signal
 // without duplicating state
@@ -111,14 +111,27 @@ for i := 0; i < 100; i++ {
 #### 3. Handler Cleanup Patterns
 
 ```go
-// For long-running applications, consider periodic cleanup
-func PeriodicCleanup() {
-    // This clears all inline handlers and re-attaches delegates
-    // Use sparingly and only when necessary
-    dom.AttachInlineDelegates()
+// Use comps.OnCleanup for manual resource cleanup
+func ComponentWithCleanup() g.Node {
+    timer := time.NewTimer(5 * time.Second)
+    
+    comps.OnMount(func() {
+        // Set up cleanup when component unmounts
+        comps.OnCleanup(func() {
+            timer.Stop()
+            // Clean up any other resources
+        })
+    })
+    
+    return Button(
+        Text("Click Me"),
+        dom.OnClickInline(func(el dom.Element) {
+            // Handler automatically cleaned up on unmount
+        }),
+    )
 }
 
-// Better: Design components to be naturally cleaned up
+// Components are naturally cleaned up when unmounted
 func ShortLivedComponent() g.Node {
     // Handlers are automatically cleaned when component unmounts
     return Button(
@@ -250,7 +263,7 @@ dom.OnInputInline(func(el dom.Element) {
 
 ```go
 // ✅ Use computed values for derived state
-filteredItems := reactivity.NewComputed(func() []Item {
+filteredItems := reactivity.CreateMemo(func() []Item {
     search := searchTerm.Get()
     items := allItems.Get()
     
@@ -336,7 +349,7 @@ dom.OnClickInline(func(el dom.Element) {
 ```go
 // Problem: Handlers on dynamically added content
 func DynamicList() g.Node {
-    items := reactivity.NewSignal([]string{"item1", "item2"})
+    items := reactivity.CreateSignal([]string{"item1", "item2"})
     
     return Div(
         Button(
@@ -405,7 +418,7 @@ func ComponentWithStableHandlers() g.Node {
 
 // Better solution: Use signals for state
 func ComponentWithSignals() g.Node {
-    clickCount := reactivity.NewSignal(0)
+    clickCount := reactivity.CreateSignal(0)
     
     return Button(
         comps.BindText(func() string {

@@ -1,1 +1,0 @@
-This Go project is a web framework for building reactive front-end applications in Go, compiled to WebAssembly. It features a declarative component model, fine-grained reactivity using signals, client-side routing, and direct DOM manipulation. The architecture emphasizes modularity and testability.

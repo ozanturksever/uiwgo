@@ -33,13 +33,13 @@ UIwGo handles forms and events through reactive bindings and signal-based state 
 // </form>
 
 // UIwGo approach
-email := reactivity.NewSignal("")
-emailError := reactivity.NewMemo(func() string {
+email := reactivity.CreateSignal("")
+emailError := reactivity.CreateMemo(func() string {
     return validateEmail(email.Get())
 })
 
 // Reactive form rendering
-formHTML := reactivity.NewMemo(func() string {
+formHTML := reactivity.CreateMemo(func() string {
     return fmt.Sprintf(`
         <form data-submit="handleSubmit">
             <input data-input="email" value="%s">
@@ -69,14 +69,14 @@ type ContactForm struct {
 
 func NewContactForm() *ContactForm {
     cf := &ContactForm{
-        name:         reactivity.NewSignal(""),
-        email:        reactivity.NewSignal(""),
-        message:      reactivity.NewSignal(""),
-        isSubmitting: reactivity.NewSignal(false),
-        submitResult: reactivity.NewSignal(""),
+        name:         reactivity.CreateSignal(""),
+        email:        reactivity.CreateSignal(""),
+        message:      reactivity.CreateSignal(""),
+        isSubmitting: reactivity.CreateSignal(false),
+        submitResult: reactivity.CreateSignal(""),
     }
     
-    cf.formHTML = reactivity.NewMemo(func() string {
+    cf.formHTML = reactivity.CreateMemo(func() string {
         submitText := "Send Message"
         if cf.isSubmitting.Get() {
             submitText = "Sending..."
@@ -201,18 +201,18 @@ type InputDemo struct {
 
 func NewInputDemo() *InputDemo {
     id := &InputDemo{
-        textValue:     reactivity.NewSignal("Hello"),
-        numberValue:   reactivity.NewSignal(42),
-        dateValue:     reactivity.NewSignal("2024-01-01"),
-        timeValue:     reactivity.NewSignal("12:00"),
-        colorValue:    reactivity.NewSignal("#ff0000"),
-        rangeValue:    reactivity.NewSignal(50),
-        checkboxValue: reactivity.NewSignal(true),
-        radioValue:    reactivity.NewSignal("option1"),
-        selectValue:   reactivity.NewSignal("apple"),
+        textValue:     reactivity.CreateSignal("Hello"),
+        numberValue:   reactivity.CreateSignal(42),
+        dateValue:     reactivity.CreateSignal("2024-01-01"),
+        timeValue:     reactivity.CreateSignal("12:00"),
+        colorValue:    reactivity.CreateSignal("#ff0000"),
+        rangeValue:    reactivity.CreateSignal(50),
+        checkboxValue: reactivity.CreateSignal(true),
+        radioValue:    reactivity.CreateSignal("option1"),
+        selectValue:   reactivity.CreateSignal("apple"),
     }
     
-    id.summary = reactivity.NewMemo(func() string {
+    id.summary = reactivity.CreateMemo(func() string {
         return fmt.Sprintf(`
             <div class="summary">
                 <h3>Current Values:</h3>
@@ -370,12 +370,12 @@ type ValidatedField struct {
 
 func NewValidatedField(initial string, rules ...ValidationRule) *ValidatedField {
     vf := &ValidatedField{
-        value:   reactivity.NewSignal(initial),
+        value:   reactivity.CreateSignal(initial),
         rules:   rules,
-        touched: reactivity.NewSignal(false),
+        touched: reactivity.CreateSignal(false),
     }
     
-    vf.error = reactivity.NewMemo(func() string {
+    vf.error = reactivity.CreateMemo(func() string {
         // Only show errors after field has been touched
         if !vf.touched.Get() {
             return ""
@@ -390,7 +390,7 @@ func NewValidatedField(initial string, rules ...ValidationRule) *ValidatedField 
         return ""
     })
     
-    vf.isValid = reactivity.NewMemo(func() bool {
+    vf.isValid = reactivity.CreateMemo(func() bool {
         value := vf.value.Get()
         for _, rule := range vf.rules {
             if err := rule(value); err != "" {
@@ -479,8 +479,8 @@ func NewRegistrationForm() *RegistrationForm {
             Pattern(`^[a-zA-Z0-9_]+$`, "Username can only contain letters, numbers, and underscores")),
         email: NewValidatedField("", Required, Email),
         password: NewValidatedField("", Required, MinLength(8)),
-        isSubmitting: reactivity.NewSignal(false),
-        submitResult: reactivity.NewSignal(""),
+        isSubmitting: reactivity.CreateSignal(false),
+        submitResult: reactivity.CreateSignal(""),
     }
     
     // Confirm password validation depends on password field
@@ -491,14 +491,14 @@ func NewRegistrationForm() *RegistrationForm {
         return ""
     })
     
-    rf.isFormValid = reactivity.NewMemo(func() bool {
+    rf.isFormValid = reactivity.CreateMemo(func() bool {
         return rf.username.isValid.Get() &&
                rf.email.isValid.Get() &&
                rf.password.isValid.Get() &&
                rf.confirmPassword.isValid.Get()
     })
     
-    rf.formHTML = reactivity.NewMemo(func() string {
+    rf.formHTML = reactivity.CreateMemo(func() string {
         submitText := "Register"
         if rf.isSubmitting.Get() {
             submitText = "Registering..."
@@ -647,14 +647,14 @@ type EventDemo struct {
 
 func NewEventDemo() *EventDemo {
     ed := &EventDemo{
-        mousePosition:  reactivity.NewSignal("0, 0"),
-        keyPressed:     reactivity.NewSignal("None"),
-        scrollPosition: reactivity.NewSignal(0),
-        windowSize:     reactivity.NewSignal("Unknown"),
-        eventLog:       reactivity.NewSignal([]string{}),
+        mousePosition:  reactivity.CreateSignal("0, 0"),
+        keyPressed:     reactivity.CreateSignal("None"),
+        scrollPosition: reactivity.CreateSignal(0),
+        windowSize:     reactivity.CreateSignal("Unknown"),
+        eventLog:       reactivity.CreateSignal([]string{}),
     }
     
-    ed.displayHTML = reactivity.NewMemo(func() string {
+    ed.displayHTML = reactivity.CreateMemo(func() string {
         log := ed.eventLog.Get()
         logHTML := ""
         
@@ -866,17 +866,17 @@ func NewDynamicForm(config []FieldConfig) *DynamicForm {
         values:       make(map[string]*reactivity.Signal[string]),
         errors:       make(map[string]*reactivity.Memo[string]),
         touched:      make(map[string]*reactivity.Signal[bool]),
-        isSubmitting: reactivity.NewSignal(false),
-        submitResult: reactivity.NewSignal(""),
+        isSubmitting: reactivity.CreateSignal(false),
+        submitResult: reactivity.CreateSignal(""),
     }
     
     // Initialize fields
     for _, field := range config {
-        df.values[field.Name] = reactivity.NewSignal("")
-        df.touched[field.Name] = reactivity.NewSignal(false)
+        df.values[field.Name] = reactivity.CreateSignal("")
+        df.touched[field.Name] = reactivity.CreateSignal(false)
         
         // Create validation memo
-        df.errors[field.Name] = reactivity.NewMemo(func() string {
+        df.errors[field.Name] = reactivity.CreateMemo(func() string {
             if !df.touched[field.Name].Get() {
                 return ""
             }
@@ -899,7 +899,7 @@ func NewDynamicForm(config []FieldConfig) *DynamicForm {
         })
     }
     
-    df.formHTML = reactivity.NewMemo(func() string {
+    df.formHTML = reactivity.CreateMemo(func() string {
         var fields strings.Builder
         
         for _, field := range df.config {
@@ -1189,14 +1189,14 @@ type File struct {
 
 func NewFileUpload(maxFileSize int64, allowedTypes []string) *FileUpload {
     fu := &FileUpload{
-        selectedFiles:  reactivity.NewSignal([]File{}),
-        uploadProgress: reactivity.NewSignal(make(map[string]int)),
-        uploadStatus:   reactivity.NewSignal(make(map[string]string)),
+        selectedFiles:  reactivity.CreateSignal([]File{}),
+        uploadProgress: reactivity.CreateSignal(make(map[string]int)),
+        uploadStatus:   reactivity.CreateSignal(make(map[string]string)),
         maxFileSize:    maxFileSize,
         allowedTypes:   allowedTypes,
     }
     
-    fu.uploadHTML = reactivity.NewMemo(func() string {
+    fu.uploadHTML = reactivity.CreateMemo(func() string {
         files := fu.selectedFiles.Get()
         progress := fu.uploadProgress.Get()
         status := fu.uploadStatus.Get()
@@ -1286,7 +1286,7 @@ func (fu *FileUpload) Attach() {
     fu.BindClick("clearAll", fu.clearAll)
     
     // Bind remove handlers for each file
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         files := fu.selectedFiles.Get()
         for _, file := range files {
             fu.bindRemoveHandler(file.Name)
@@ -1535,7 +1535,7 @@ func (f *BadForm) handleSubmit() {
 func (f *Field) setupValidation() {
     var validationTimer *time.Timer
     
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         value := f.value.Get()
         
         if validationTimer != nil {
@@ -1550,7 +1550,7 @@ func (f *Field) setupValidation() {
 
 // BAD: Immediate validation on every keystroke
 func (f *BadField) setupValidation() {
-    reactivity.NewEffect(func() {
+    reactivity.CreateEffect(func() {
         value := f.value.Get()
         f.validateValue(value) // Runs on every keystroke
     })
