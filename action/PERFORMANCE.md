@@ -1,369 +1,100 @@
-# Action System Performance Optimizations (E9)
+# Action System Performance Guide
 
-This document describes the performance optimizations implemented in Epic 9 (E9) for the UIwGo Action System, including benchmarking, batching integration, and profiling capabilities.
+This document provides a realistic overview of the performance characteristics of the UIwGo Action System. It clarifies which features are available in different build environments (standard Go vs. WebAssembly) and offers guidance on writing efficient, responsive code.
 
-## Overview
+**Key Takeaway**: The advanced performance optimization system (including object pooling, reactive batching, and a microtask scheduler) is **only available in standard Go builds (`!js && !wasm`)**. For the primary target of WebAssembly (`js/wasm`), the system relies on a simpler, more lightweight dispatch mechanism.
 
-Epic 9 introduces comprehensive performance optimizations designed to minimize allocations, optimize dispatch hot paths, and provide efficient async scheduling while maintaining full backward compatibility with the existing E1-E8 implementation.
+---
 
-## Performance Targets
+## 1. Performance Model by Build Target
 
-The implementation meets the following performance targets:
+### WebAssembly (`js/wasm`) Performance
+- **Dispatch**: Uses a standard, synchronous dispatch mechanism (`bus.go`). Asynchronous dispatch (`WithAsync()`) is handled by spawning a new goroutine for each async action.
+- **No Advanced Optimizations**: The features described below are **NOT** available in WASM builds due to the `//go:build !js && !wasm` constraint on `action/performance.go`:
+    - **No Object Pooling**: `Action` and `Context` objects are allocated for each dispatch.
+    - **No Reactive Batching**: Signal updates are immediate and not batched.
+    - **No Microtask Scheduler**: Async dispatch uses `go dispatchSync(...)`, which lacks sophisticated queueing or concurrency management.
+- **Performance Focus**: In WASM, performance relies on the efficiency of the Go runtime's scheduler and garbage collector, along with careful application-level design (e.g., avoiding high-frequency dispatches on critical paths).
 
-- **DispatchSingleSubscriber**: < 1000 ns/op ✅ (Currently: ~309 ns/op)
-- **DispatchManySubscribers**: Linear scaling, < 100ns per additional subscriber ✅
-- **DebounceWithHighFrequency**: Handle 10K events efficiently ✅
-- **Memory**: Minimize allocations in hot paths ✅
+### Standard Go (`!js && !wasm`) Performance
+- **Optimized Dispatch**: Can use a highly optimized dispatch path (`OptimizedDispatch`) that leverages a full suite of performance features.
+- **All Features Available**:
+    - **Object Pooling**: Reuses `Action`, `Context`, and subscriber slice objects to reduce GC pressure. Enabled via `PerformanceConfig`.
+    - **Reactive Batching**: Batches reactive signal updates to coalesce UI re-renders, preventing layout thrashing.
+    - **Microtask Scheduler**: Manages async operations through a fixed-size worker pool, providing predictable concurrency and backpressure.
+    - **Profiling**: Includes detailed, built-in profiling hooks to measure dispatch time, allocation counts, and more.
 
-## Benchmark Results
+---
 
-### Baseline Performance (Current Implementation)
+## 2. Configuration and Usage Reality
 
-```
-BenchmarkDispatchSingleSubscriber-10    	 3830844	       309.1 ns/op	     360 B/op	       5 allocs/op
-BenchmarkDispatch_Single_1K-10           	     718	   1406298 ns/op	    8544 B/op	       5 allocs/op
-BenchmarkDispatch_1KSubscribers-10       	   73806	     16424 ns/op	    1248 B/op	       5 allocs/op
-BenchmarkDebounce_10KEvents-10           	     127	   8933858 ns/op	 6160052 B/op	   70000 allocs/op
-BenchmarkAsyncDispatch-10                	  562214	      1887 ns/op	     616 B/op	       7 allocs/op
-BenchmarkSignalBridge-10                 	 2560112	       444.7 ns/op	     408 B/op	       8 allocs/op
-BenchmarkSubscriptionLifecycle-10        	 4872883	       227.4 ns/op	     258 B/op	       4 allocs/op
-```
+The `PerformanceConfig` struct and related functions (`DefaultPerformanceConfig`, `EnablePerformanceOptimizations`) are defined in `action/performance.go` and are therefore **not accessible in WASM builds**. Any code attempting to use them will fail to compile under `GOOS=js GOARCH=wasm`.
 
-### Performance Scaling Analysis
-
-- **Single subscriber**: 309.1 ns/op (meets < 1000ns target)
-- **1K subscribers**: 1.4ms total = 1.4μs per subscriber (meets < 100ns target when optimized)
-- **Memory efficiency**: 5 allocs per dispatch in baseline (optimizable to 2-3 with pooling)
-
-## Core Optimizations
-
-### 1. Object Pooling
-
-**Files**: [`action/performance.go`](performance.go)
-
-Reuses frequently allocated objects to reduce garbage collection pressure:
-
-- **Action Pool**: Reuses `Action[string]` and `Action[any]` objects
-- **Context Pool**: Reuses `Context` objects 
-- **Subscriber Pool**: Reuses subscriber slices for dispatch iteration
+#### Incorrect Usage Example (Will Not Compile in WASM)
 
 ```go
-// Enable object pooling
-config := PerformanceConfig{
-    EnableObjectPooling: true,
-    ActionPoolSize:     1000,
-    ContextPoolSize:    500,
-    SubscriberPoolSize: 100,
-}
-EnablePerformanceOptimizations(config)
-```
-
-### 2. Reactive Batching Integration
-
-**Files**: [`action/bus.go`](bus.go), [`action/performance.go`](performance.go)
-
-Integrates with the reactive system to batch signal updates during dispatch bursts:
-
-```go
-config := PerformanceConfig{
-    EnableReactiveBatching: true,
-    BatchWindow:           time.Microsecond * 16, // ~60fps
-    BatchSize:            50,
-}
-```
-
-Benefits:
-- Coalesces multiple signal updates within a time window
-- Reduces reactive effect re-execution overhead
-- Improves performance during high-frequency action dispatching
-
-### 3. Microtask Scheduler
-
-**Files**: [`action/performance.go`](performance.go)
-
-Efficient async operation scheduling with worker pool:
-
-```go
-config := PerformanceConfig{
-    EnableMicrotaskScheduler: true,
-    MicrotaskQueueSize:      10000,
-    WorkerPoolSize:          4,
-}
-```
-
-Features:
-- Round-robin dispatch to worker pool
-- Graceful fallback to goroutines when queue is full
-- Panic recovery within workers
-
-### 4. Profiling Hooks
-
-**Files**: [`action/performance.go`](performance.go)
-
-Development-time profiling with configurable detail levels:
-
-```go
-config := PerformanceConfig{
-    EnableProfiling:     true,
-    ProfilingLevel:      ProfilingDetailed,
-    MemoryTrackingLevel: MemoryTrackingBasic,
-}
-```
-
-Profiling Levels:
-- `ProfilingOff`: No profiling overhead
-- `ProfilingBasic`: Basic timing metrics
-- `ProfilingDetailed`: Detailed per-action metrics
-- `ProfilingVerbose`: Full trace information
-
-Memory Tracking:
-- `MemoryTrackingOff`: No memory tracking
-- `MemoryTrackingBasic`: Allocation counts
-- `MemoryTrackingDetailed`: Detailed allocation tracking
-
-## Usage Examples
-
-### Basic Performance Configuration
-
-```go
+// DO NOT DO THIS in a WASM project. This code will only compile in a standard Go environment.
 import "github.com/ozanturksever/uiwgo/action"
 
-// Enable all optimizations for production
-config := DefaultPerformanceConfig()
-EnablePerformanceOptimizations(config)
+// This will cause a compile error: undefined: action.DefaultPerformanceConfig
+config := action.DefaultPerformanceConfig()
+config.EnableObjectPooling = true
 
-// Use normal action system - optimizations are transparent
-bus := action.New()
-bus.Dispatch(action.Action[string]{Type: "test", Payload: "data"})
+// This will also cause a compile error: undefined: action.EnablePerformanceOptimizations
+action.EnablePerformanceOptimizations(config)
 ```
 
-### Development Profiling
+---
 
-```go
-// Enable profiling for development
-config := PerformanceConfig{
-    EnableProfiling:     true,
-    ProfilingLevel:      ProfilingDetailed,
-    MemoryTrackingLevel: MemoryTrackingDetailed,
-}
-EnablePerformanceOptimizations(config)
+## 3. Practical Performance Considerations for WASM
 
-// Dispatch some actions
-for i := 0; i < 1000; i++ {
-    bus.Dispatch(action.Action[string]{Type: "test", Payload: "data"})
-}
+Since the advanced features are unavailable, developers targeting WebAssembly must focus on application-level patterns:
 
-// Check metrics
-metrics := GetDispatchMetrics("test")
-fmt.Printf("Avg duration: %v, Total allocs: %d\n", 
-    metrics.avgDuration, metrics.totalAllocCount)
-```
+- **Avoid High-Frequency Actions**: Be cautious with actions tied to frequent events like `onmousemove` or `onscroll`. If necessary, implement manual debouncing or throttling within your application logic.
+- **Use `distinctUntilChanged`**: For subscriptions that drive UI updates, use the `WithDistinctUntilChanged()` option to prevent handlers from running if the action payload has not changed. This is a crucial tool for preventing unnecessary re-renders.
 
-### High-Performance Scenarios
+    ```go
+    // This subscription handler will only run if the payload is different from the last one.
+    bus.Subscribe("ui.update", func(a action.Action[string]) error {
+        // ... update UI
+        return nil
+    }, action.WithDistinctUntilChanged())
+    ```
 
-```go
-// Configuration for high-throughput scenarios
-config := PerformanceConfig{
-    EnableObjectPooling:      true,
-    ActionPoolSize:          5000,  // Larger pools for high throughput
-    ContextPoolSize:         2500,
-    SubscriberPoolSize:      500,
-    EnableReactiveBatching:  true,
-    BatchWindow:            time.Microsecond * 8, // More aggressive batching
-    BatchSize:              100,
-    EnableMicrotaskScheduler: true,
-    MicrotaskQueueSize:      20000, // Larger queue
-    WorkerPoolSize:          runtime.NumCPU(),
-}
+- **Leverage Asynchronous Dispatch Wisely**: `WithAsync()` is available in WASM, but it simply runs the dispatch in a new goroutine. It is useful for offloading non-critical tasks from the main UI thread but does not provide queueing or cancellation.
 
-// For ultimate performance, use the optimized dispatch function
-OptimizedDispatch(bus, action, WithAsync())
-```
+- **Mind Your Allocations**: Since object pooling is not active, be mindful of creating large or complex payloads in performance-critical paths.
 
-## Configuration Reference
+---
 
-### PerformanceConfig Fields
+## 4. Benchmarks and Their Relevance
 
-```go
-type PerformanceConfig struct {
-    // Object Pooling
-    EnableObjectPooling   bool        // Enable object pools
-    ActionPoolSize        int         // Max pooled Action objects
-    ContextPoolSize       int         // Max pooled Context objects  
-    SubscriberPoolSize    int         // Max pooled subscriber slices
-    
-    // Reactive Batching
-    EnableReactiveBatching bool           // Enable signal update batching
-    BatchWindow            time.Duration  // Batching time window
-    BatchSize              int           // Max batch size
-    
-    // Async Scheduling  
-    EnableMicrotaskScheduler bool // Enable microtask scheduler
-    MicrotaskQueueSize       int  // Queue size for async tasks
-    WorkerPoolSize           int  // Number of worker goroutines
-    
-    // Profiling
-    EnableProfiling      bool                // Enable profiling
-    ProfilingLevel       ProfilingLevel      // Detail level
-    MemoryTrackingLevel  MemoryTrackingLevel // Memory tracking level
-}
-```
+The benchmark results previously cited in this document were generated in a standard Go environment and reflect the capabilities of the optimized, non-WASM system. **They are not representative of performance in a WebAssembly environment.**
 
-### Default Configuration
-
-```go
-func DefaultPerformanceConfig() PerformanceConfig {
-    return PerformanceConfig{
-        EnableObjectPooling:      true,
-        ActionPoolSize:           1000,
-        ContextPoolSize:          500,
-        SubscriberPoolSize:       100,
-        EnableReactiveBatching:   true,
-        BatchWindow:              time.Microsecond * 16, // ~60fps
-        BatchSize:                50,
-        EnableMicrotaskScheduler: true,
-        MicrotaskQueueSize:       10000,
-        WorkerPoolSize:           4,
-        EnableProfiling:          false,
-        ProfilingLevel:           ProfilingOff,
-        MemoryTrackingLevel:      MemoryTrackingOff,
-    }
-}
-```
-
-## Benchmarking
+New benchmarks specific to the `js/wasm` target are needed to accurately measure performance and identify bottlenecks relevant to browser execution.
 
 ### Running Benchmarks
+To run the existing benchmarks (in a non-WASM environment):
 
 ```bash
-# Run all benchmarks
+# Run all action system benchmarks
 go test -bench=. -benchmem ./action
 
-# Run specific benchmark
+# Run a specific benchmark
 go test -bench=BenchmarkDispatchSingleSubscriber -benchmem ./action
-
-# Run optimized benchmarks
-go test -bench=BenchmarkOptimized -benchmem ./action
-
-# Run with CPU profiling
-go test -bench=BenchmarkDispatch_Single_1K -cpuprofile=cpu.prof ./action
-
-# Run with memory profiling  
-go test -bench=BenchmarkDispatch_Single_1K -memprofile=mem.prof ./action
 ```
 
-### Benchmark Categories
+---
 
-1. **Core Performance Benchmarks**:
-   - `BenchmarkDispatchSingleSubscriber`: Single subscriber dispatch
-   - `BenchmarkDispatchManySubscribers`: Multiple subscriber scaling
-   - `BenchmarkAsyncDispatch`: Async dispatch performance
+## 5. Summary and Recommendations
 
-2. **High-Frequency Scenario Benchmarks**:
-   - `BenchmarkDebounce_10KEvents`: High-frequency event handling
-   - `BenchmarkDebounceWithHighFrequency`: Rapid-fire events
-   - `BenchmarkThrottleScrollingLikePattern`: UI scroll-like patterns
+| Feature                  | WASM (`js/wasm`) Status | Standard Go Status | Notes for WASM Developers                                       |
+|--------------------------|-------------------------|--------------------|-----------------------------------------------------------------|
+| **Object Pooling**       | 🔴 **Not Available**    | ✅ **Available**    | Be mindful of allocation hotspots in your own code.             |
+| **Reactive Batching**    | 🔴 **Not Available**    | ✅ **Available**    | Signal updates are immediate; use `distinctUntilChanged`.       |
+| **Microtask Scheduler**  | 🔴 **Not Available**    | ✅ **Available**    | `WithAsync()` uses a simple `go` call.                          |
+| **Profiling Hooks**      | 🔴 **Not Available**    | ✅ **Available**    | Use browser dev-tools for profiling.                            |
+| **OptimizedDispatch**    | 🔴 **Not Available**    | ✅ **Available**    | The standard `bus.Dispatch` is the only option.                 |
+| **Observability/Logging**| ✅ **Available**        | ✅ **Available**    | The core observability hooks (`instrumentDispatch`) are active. |
 
-3. **Optimized Performance Benchmarks**:
-   - `BenchmarkOptimized_DispatchSingleSubscriber`: With optimizations enabled
-   - `BenchmarkOptimized_DispatchManySubscribers`: Scaling with optimizations
-   - `BenchmarkOptimized_AsyncDispatch`: Async with microtask scheduler
-   - `BenchmarkOptimized_SignalBridgeWithBatching`: Signal updates with batching
-
-4. **Profiling Overhead Benchmarks**:
-   - `BenchmarkOptimized_WithProfiling`: Profiling overhead measurement
-
-### Benchmark Interpretation
-
-- **ns/op**: Lower is better (target < 1000ns for single subscriber)
-- **B/op**: Memory allocated per operation (minimize for hot paths)
-- **allocs/op**: Number of allocations per operation (target < 5 for hot paths)
-
-## Performance Best Practices
-
-### 1. Enable Optimizations Early
-
-```go
-// Enable during application initialization
-config := DefaultPerformanceConfig()
-EnablePerformanceOptimizations(config)
-```
-
-### 2. Size Pools Appropriately
-
-```go
-// Size based on expected concurrent usage
-config.ActionPoolSize = expectedConcurrentActions * 2
-config.ContextPoolSize = expectedConcurrentActions
-config.SubscriberPoolSize = maxSubscribersPerAction / 10
-```
-
-### 3. Tune Batching for Your Use Case
-
-```go
-// For UI applications (60fps)
-config.BatchWindow = time.Microsecond * 16
-
-// For high-frequency data processing  
-config.BatchWindow = time.Microsecond * 1
-config.BatchSize = 200
-```
-
-### 4. Monitor Performance in Development
-
-```go
-// Enable profiling in development builds only
-//go:build !production
-config.EnableProfiling = true
-config.ProfilingLevel = ProfilingDetailed
-```
-
-### 5. Use Optimized Dispatch for Critical Paths
-
-```go
-// For performance-critical dispatch operations
-err := OptimizedDispatch(bus, action, WithAsync())
-
-// Or with automatic fallback
-err := OptimizedDispatchWithPooling(bus, action)
-```
-
-## Architecture Notes
-
-- **Backward Compatibility**: All optimizations are transparent to existing code
-- **Build Tags**: Performance features use build tags for conditional compilation
-- **Concurrency Safety**: All optimizations maintain thread safety
-- **Memory Safety**: Object pooling includes proper cleanup and bounds checking
-- **Graceful Degradation**: Features fallback gracefully when resources are exhausted
-
-## Development Integration
-
-The performance system integrates seamlessly with existing development workflows:
-
-1. **Tests**: All existing tests pass without modification
-2. **Benchmarks**: Comprehensive benchmark suite validates performance targets
-3. **Profiling**: Built-in profiling hooks for development analysis
-4. **Configuration**: Runtime configuration allows tuning for different environments
-
-## Future Optimizations
-
-Potential areas for further optimization:
-
-1. **Zero-Copy Dispatching**: Eliminate allocations in dispatch hot path
-2. **SIMD Subscriber Iteration**: Vectorized subscriber lookup
-3. **Lock-Free Data Structures**: Reduce contention in high-concurrency scenarios
-4. **Memory Mapping**: Direct memory access for large subscriber lists
-5. **JIT Compilation**: Runtime optimization of dispatch paths
-
-## Conclusion
-
-Epic 9 successfully delivers comprehensive performance optimizations for the UIwGo Action System while maintaining full backward compatibility. The implementation provides:
-
-- ✅ **Object pooling** to minimize allocations
-- ✅ **Reactive batching** integration for signal updates  
-- ✅ **Microtask scheduler** for efficient async operations
-- ✅ **Profiling hooks** for development analysis
-- ✅ **Comprehensive benchmarks** validating performance targets
-- ✅ **Zero regression** - all existing tests pass
-
-The action system now meets all performance targets and provides a solid foundation for high-performance reactive applications.
+**Conclusion**: The Action System's documentation previously described a highly advanced performance system that is not available for the primary WebAssembly target. This guide corrects that by clarifying the feature gap. For WASM development, focus on standard Go performance practices and leverage subscription options like `WithDistinctUntilChanged` to build efficient applications.

@@ -1,4 +1,3 @@
-
 # Action System Testing Utilities
 
 This document describes the testing utilities provided for the UIwGo Action System, designed to make time-based functionality deterministic and provide better testing abstractions.
@@ -206,6 +205,50 @@ action2 := Action[string]{
 }
 
 // Compare actions (ignores timestamps)
+if !ActionsEqual(action1, action2) {
+    t.Error("Actions should be equal")
+}
+```
+
+### Action Order and Content Verification
+The following helpers can be used to verify the state of received actions:
+
+- `ActionsInOrder`: Checks if a slice of received actions matches an expected sequence.
+- `AssertActionReceived`: Confirms that a specific action is present in a slice of received actions.
+- `AssertActionCount`: Verifies that the number of received actions matches an expected count.
+
+```go
+var receivedActions []Action[string]
+// ... subscriber populates receivedActions ...
+
+// Verify action order
+expectedOrder := []Action[string]{action1, action2, action3}
+if !ActionsInOrder(receivedActions, expectedOrder) {
+    t.Error("Actions not received in expected order")
+}
+
+// Check if a specific action was received
+if !AssertActionReceived(receivedActions, expectedAction) {
+    t.Error("Expected action not received")
+}
+
+// Verify action count
+if !AssertActionCount(receivedActions, 3) {
+    t.Errorf("Expected 3 actions, got %d", len(receivedActions))
+}
+```
+
+## MockSubscriber
+
+For advanced testing scenarios:
+
+```go
+// Create mock subscriber
+mock := NewMockSubscriber[string]()
+
+// Subscribe with mock handler
+bus.Subscribe("test.action", mock.Handler())
+
 // Dispatch actions
 bus.Dispatch(Action[string]{Type: "test.action", Payload: "test1"})
 bus.Dispatch(Action[string]{Type: "test.action", Payload: "test2"})
