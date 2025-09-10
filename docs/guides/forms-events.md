@@ -134,13 +134,7 @@ func (cf *ContactForm) Render() g.Node {
     )
 }
 
-func (cf *ContactForm) Attach() {
-    comps.BindInput("name", cf.name)
-    comps.BindInput("email", cf.email)
-    comps.BindInput("message", cf.message)
-    comps.BindSubmit("handleSubmit", cf.handleSubmit)
-    comps.BindHTML("form", cf.formHTML)
-}
+
 
 func (cf *ContactForm) handleSubmit() {
     // Prevent submission if already submitting
@@ -324,31 +318,7 @@ func (id *InputDemo) Render() string {
         id.summary.Get())
 }
 
-func (id *InputDemo) Attach() {
-    id.BindInput("text", id.textValue)
-    
-    id.BindInput("number", func(value string) {
-        if num, err := strconv.Atoi(value); err == nil {
-            id.numberValue.Set(num)
-        }
-    })
-    
-    id.BindInput("date", id.dateValue)
-    id.BindInput("time", id.timeValue)
-    id.BindInput("color", id.colorValue)
-    
-    id.BindInput("range", func(value string) {
-        if num, err := strconv.Atoi(value); err == nil {
-            id.rangeValue.Set(num)
-        }
-    })
-    
-    id.BindChange("checkbox", id.checkboxValue)
-    id.BindChange("radio", id.radioValue)
-    id.BindChange("select", id.selectValue)
-    
-    id.BindHTML("summary", id.summary)
-}
+
 ```
 
 ## Form Validation
@@ -563,21 +533,7 @@ func (rf *RegistrationForm) Render() string {
     `, rf.formHTML.Get())
 }
 
-func (rf *RegistrationForm) Attach() {
-    rf.BindInput("username", rf.username.value)
-    rf.BindInput("email", rf.email.value)
-    rf.BindInput("password", rf.password.value)
-    rf.BindInput("confirmPassword", rf.confirmPassword.value)
-    
-    // Mark fields as touched on blur
-    rf.BindBlur("username-blur", rf.username.SetTouched)
-    rf.BindBlur("email-blur", rf.email.SetTouched)
-    rf.BindBlur("password-blur", rf.password.SetTouched)
-    rf.BindBlur("confirmPassword-blur", rf.confirmPassword.SetTouched)
-    
-    rf.BindSubmit("handleSubmit", rf.handleSubmit)
-    rf.BindHTML("form", rf.formHTML)
-}
+
 
 func (rf *RegistrationForm) handleSubmit() {
     // Mark all fields as touched to show any validation errors
@@ -741,13 +697,7 @@ func (ed *EventDemo) Render() string {
     `, ed.displayHTML.Get())
 }
 
-func (ed *EventDemo) Attach() {
-    ed.BindHTML("display", ed.displayHTML)
-    ed.BindClick("clearLog", ed.clearLog)
-    
-    // Custom event handlers
-    ed.bindCustomEvents()
-}
+
 
 func (ed *EventDemo) bindCustomEvents() {
     area := dom.QuerySelector(".interactive-area")
@@ -1033,29 +983,7 @@ func (df *DynamicForm) Render() string {
     `, df.formHTML.Get())
 }
 
-func (df *DynamicForm) Attach() {
-    // Bind all field handlers
-    for _, field := range df.config {
-        switch field.Type {
-        case FieldText, FieldEmail, FieldNumber, FieldTextarea:
-            df.BindInput(field.Name, df.values[field.Name])
-        case FieldSelect, FieldRadio:
-            df.BindChange(field.Name, df.values[field.Name])
-        case FieldCheckbox:
-            df.BindChange(field.Name, func(checked bool) {
-                df.values[field.Name].Set(fmt.Sprintf("%t", checked))
-            })
-        }
-        
-        // Bind blur handlers
-        df.BindBlur(field.Name+"-blur", func() {
-            df.touched[field.Name].Set(true)
-        })
-    }
-    
-    df.BindSubmit("handleSubmit", df.handleSubmit)
-    df.BindHTML("form", df.formHTML)
-}
+
 
 func (df *DynamicForm) handleSubmit() {
     // Mark all fields as touched
@@ -1279,20 +1207,7 @@ func (fu *FileUpload) Render() string {
     `, formatFileSize(fu.maxFileSize), strings.Join(fu.allowedTypes, ", "), fu.uploadHTML.Get())
 }
 
-func (fu *FileUpload) Attach() {
-    fu.BindHTML("upload", fu.uploadHTML)
-    fu.BindChange("fileSelect", fu.handleFileSelect)
-    fu.BindClick("uploadAll", fu.uploadAll)
-    fu.BindClick("clearAll", fu.clearAll)
-    
-    // Bind remove handlers for each file
-    reactivity.CreateEffect(func() {
-        files := fu.selectedFiles.Get()
-        for _, file := range files {
-            fu.bindRemoveHandler(file.Name)
-        }
-    })
-}
+
 
 func (fu *FileUpload) handleFileSelect(files []File) {
     validFiles := []File{}
@@ -1435,8 +1350,8 @@ type BadForm struct {
 
 ```go
 // GOOD: Organized event binding
-func (c *Component) Attach() {
-    // Group related bindings
+// Group related bindings in initialization
+func (c *Component) init() {
     c.bindInputs()
     c.bindButtons()
     c.bindCustomEvents()
@@ -1453,13 +1368,7 @@ func (c *Component) bindButtons() {
 }
 
 // BAD: All bindings mixed together
-func (c *BadComponent) Attach() {
-    c.BindInput("name", c.name)
-    c.BindClick("submit", c.handleSubmit)
-    c.BindInput("email", c.email)
-    c.BindClick("cancel", c.handleCancel)
-    // ... mixed and confusing
-}
+// Avoid mixing different types of bindings without organization
 ```
 
 ### 3. Validation Strategy

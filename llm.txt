@@ -103,10 +103,10 @@ type Component struct {
 
 func NewComponent() *Component {
     c := &Component{
-        count: reactivity.NewSignal(0),
+        count: reactivity.CreateSignal(0),
     }
     
-    c.displayText = reactivity.NewMemo(func() string {
+    c.displayText = reactivity.CreateMemo(func() string {
         return fmt.Sprintf("Count: %d", c.count.Get())
     })
     
@@ -121,11 +121,7 @@ func (c *Component) Render() g.Node {
     )
 }
 
-// Attach: Add reactive behavior
-func (c *Component) Attach() {
-    comps.BindText("display", c.displayText)
-    comps.BindClick("increment", c.increment)
-}
+
 
 func (c *Component) increment() {
     c.count.Set(c.count.Get() + 1)
@@ -139,9 +135,9 @@ Signals are reactive primitives that hold state and notify dependents of changes
 
 ```go
 // Create signals
-count := reactivity.NewSignal(0)
-name := reactivity.NewSignal("John")
-items := reactivity.NewSignal([]string{})
+count := reactivity.CreateSignal(0)
+name := reactivity.CreateSignal("John")
+items := reactivity.CreateSignal([]string{})
 
 // Read values
 value := count.Get()
@@ -162,10 +158,10 @@ count.Subscribe(func(newValue int) {
 Memos are derived state that automatically update when dependencies change.
 
 ```go
-firstName := reactivity.NewSignal("John")
-lastName := reactivity.NewSignal("Doe")
+firstName := reactivity.CreateSignal("John")
+lastName := reactivity.CreateSignal("Doe")
 
-fullName := reactivity.NewMemo(func() string {
+fullName := reactivity.CreateMemo(func() string {
     return fmt.Sprintf("%s %s", firstName.Get(), lastName.Get())
 })
 
@@ -179,7 +175,7 @@ fmt.Println(fullName.Get()) // "Jane Doe"
 Effects perform side effects in response to signal changes.
 
 ```go
-effect := reactivity.NewEffect(func() {
+effect := reactivity.CreateEffect(func() {
     logutil.Logf("Current count: %d", count.Get())
 })
 
@@ -551,7 +547,7 @@ Notes:
 ### Functional Components
 ```go
 func Counter() g.Node {
-    count := reactivity.NewSignal(0)
+    count := reactivity.CreateSignal(0)
     
     return h.Div(
         h.P(comps.BindText(func() string {
@@ -578,11 +574,11 @@ type TodoApp struct {
 
 func NewTodoApp() *TodoApp {
     app := &TodoApp{
-        todos:   reactivity.NewSignal([]Todo{}),
-        newTodo: reactivity.NewSignal(""),
+        todos:   reactivity.CreateSignal([]Todo{}),
+        newTodo: reactivity.CreateSignal(""),
     }
     
-    app.remaining = reactivity.NewMemo(func() int {
+    app.remaining = reactivity.CreateMemo(func() int {
         count := 0
         for _, todo := range app.todos.Get() {
             if !todo.Completed {
@@ -592,7 +588,7 @@ func NewTodoApp() *TodoApp {
         return count
     })
     
-    app.hasCompleted = reactivity.NewMemo(func() bool {
+    app.hasCompleted = reactivity.CreateMemo(func() bool {
         for _, todo := range app.todos.Get() {
             if todo.Completed {
                 return true
@@ -623,8 +619,8 @@ type ActionTodoApp struct {
 
 func NewActionTodoApp(bus action.Bus) *ActionTodoApp {
     app := &ActionTodoApp{
-        todos:   reactivity.NewSignal([]Todo{}),
-        newTodo: reactivity.NewSignal(""),
+        todos:   reactivity.CreateSignal([]Todo{}),
+        newTodo: reactivity.CreateSignal(""),
         bus:     bus,
     }
     
@@ -725,18 +721,7 @@ func (c *Component) Render() g.Node {
     return h.Div(/* ... */)
 }
 
-func (c *Component) Attach() {
-    // Setup reactive bindings
-    comps.OnMount(func() {
-        // Component mounted
-        c.setupEventListeners()
-    })
-    
-    comps.OnUnmount(func() {
-        // Component unmounted
-        c.cleanup()
-    })
-}
+
 ```
 
 ## Control Flow Patterns
@@ -1796,27 +1781,11 @@ func (app *App) Render() gomponents.Node {
     )
 }
 
-func (app *App) Attach() {
-    comps.OnMount(func() {
-        logutil.Log("App mounted")
-        
-        // Initialize app via action
-        action.Dispatch(app.bus, AppInitialized, AppConfig{
-            InitialView: "home",
-            Theme:       "light",
-        }, action.WithSource("app-mount"))
-    })
-    
-    comps.OnUnmount(func() {
-        logutil.Log("App unmounted")
-        app.bus.Dispose() // Clean up action system
-    })
-}
+
 
 func main() {
     app := NewApp()
     comps.Mount("app", app.Render())
-    app.Attach()
     
     // Keep the program running
     select {}

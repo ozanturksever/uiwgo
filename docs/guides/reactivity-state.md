@@ -585,17 +585,7 @@ func NewHeader(ctx *AppContext) *Header {
     }
 }
 
-func (h *Header) Attach() {
-    // Bind to context signals
-    h.BindText("username", h.context.User)
-    h.BindClass("theme", h.context.Theme)
-    
-    // Local interactions
-    h.BindClick("toggleUserMenu", func() {
-        current := h.userMenuVisible.Get()
-        h.userMenuVisible.Set(!current)
-    })
-}
+
 ```
 
 ### Store Pattern with Actions

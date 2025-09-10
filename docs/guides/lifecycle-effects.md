@@ -1000,22 +1000,7 @@ type LazyComponent struct {
     initialized    bool
 }
 
-func (lc *LazyComponent) Attach() {
-    lc.BindShow("container", lc.visible)
-    
-    // Effect: Initialize expensive child only when visible
-    reactivity.CreateEffect(func() {
-        visible := lc.visible.Get()
-        
-        if visible && !lc.initialized {
-            lc.expensiveChild = NewExpensiveChild()
-            lc.expensiveChild.Attach()
-            lc.initialized = true
-            
-            logutil.Log("Expensive child initialized")
-        }
-    })
-}
+
 
 func (lc *LazyComponent) Cleanup() {
     if lc.expensiveChild != nil {

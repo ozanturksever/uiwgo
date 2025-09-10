@@ -365,16 +365,7 @@ func (up *UserProfile) Render() g.Node {
     )
 }
 
-func (up *UserProfile) Attach() {
-    // Automatically updates when currentUser signal changes
-    up.BindText("username", reactivity.CreateMemo(func() string {
-        user := up.currentUser.Get()
-        if user.Name == "" {
-            return "Not logged in"
-        }
-        return user.Name
-    }))
-}
+
 ```
 
 ### Practical Example: Todo App with Actions
@@ -451,46 +442,7 @@ func (app *TodoApp) Render() g.Node {
     )
 }
 
-func (app *TodoApp) Attach() {
-    todoText := reactivity.CreateSignal("")
-    
-    app.BindInput("todoText", todoText)
-    
-    app.BindClick("addTodo", func() {
-        text := todoText.Get()
-        if text != "" {
-            // Dispatch action instead of direct manipulation
-            action.Dispatch(app.bus, AddTodoAction, text)
-            todoText.Set("")
-        }
-    })
-    
-    app.BindFor("todos", app.todos, func(todo Todo, index int) g.Node {
-        return h.Li(
-            h.Input(
-                g.Attr("type", "checkbox"),
-                g.Attr("data-click", fmt.Sprintf("toggle-%d", todo.ID)),
-                g.If(todo.Done, g.Attr("checked", "true")),
-            ),
-            h.Span(g.Text(todo.Text)),
-            h.Button(
-                g.Attr("data-click", fmt.Sprintf("delete-%d", todo.ID)),
-                g.Text("Delete"),
-            ),
-        )
-    })
-    
-    // Dynamic event binding for todo items
-    app.BindDynamic("toggle-", func(id string) {
-        todoID, _ := strconv.Atoi(id)
-        action.Dispatch(app.bus, ToggleTodoAction, todoID)
-    })
-    
-    app.BindDynamic("delete-", func(id string) {
-        todoID, _ := strconv.Atoi(id)
-        action.Dispatch(app.bus, DeleteTodoAction, todoID)
-    })
-}
+
 ```
 
 ### Action System Benefits
@@ -628,10 +580,7 @@ func (c *MyComponent) Render() g.Node {
     )
 }
 
-// 6. Attach method (required)
-func (c *MyComponent) Attach() {
-    c.BindText("computed", c.computed)
-}
+
 
 // 7. Cleanup method (optional)
 func (c *MyComponent) Cleanup() {
@@ -747,13 +696,7 @@ type UserList struct {
     bus action.Bus
 }
 
-func (ul *UserList) Attach() {
-    ul.BindClick("user-item", func(userID string) {
-        user := ul.findUser(userID)
-        // Dispatch action - any component can listen
-        action.Dispatch(ul.bus, UserSelectedAction, user)
-    })
-}
+
 
 type UserDetails struct {
     bus         action.Bus
@@ -784,13 +727,7 @@ type Child struct {
     onEvent func(data string) // Callback function
 }
 
-func (c *Child) Attach() {
-    c.BindClick("button", func() {
-        if c.onEvent != nil {
-            c.onEvent("button clicked")
-        }
-    })
-}
+
 
 // Parent provides callback
 child := NewChild()
@@ -819,10 +756,7 @@ var AppStore = struct {
     Settings: reactivity.CreateSignal(Settings{}),
 }
 
-// Components access shared state
-func (c *UserProfile) Attach() {
-    c.BindText("username", AppStore.User)
-}
+
 ```
 
 #### Context Pattern
@@ -892,12 +826,7 @@ func (c *Counter) Render() g.Node {
     )
 }
 
-func (c *Counter) Attach() {
-    c.BindText("count", c.count)
-    c.BindClick("increment", func() {
-        c.count.Set(c.count.Get() + 1)
-    })
-}
+
 ```
 
 ```go
@@ -909,18 +838,7 @@ type Counter struct {
     count *reactivity.Signal[int]
 }
 
-func (c *Counter) Attach() {
-    // Subscribe to increment actions
-    action.OnAction(c.bus, IncrementAction, func(ctx action.Context, amount int) {
-        c.count.Set(c.count.Get() + amount)
-    })
-    
-    c.BindText("count", c.count)
-    c.BindClick("increment", func() {
-        // Dispatch action instead of direct state change
-        action.Dispatch(c.bus, IncrementAction, 1)
-    })
-}
+
 ```
 
 ### vs. Vue
@@ -990,9 +908,7 @@ func (c *MyComponent) Render() g.Node {
     )
 }
 
-func (c *MyComponent) Attach() {
-    c.BindText("state", c.state)
-}
+
 ```
 
 ### From JSX to HTML-First
@@ -1079,13 +995,7 @@ func NewHeader(bus action.Bus) *Header {
     return h
 }
 
-// No props needed - components get what they need from the bus
-func (h *Header) Attach() {
-    h.BindText("username", h.user)
-    h.BindClick("logout", func() {
-        action.Dispatch(h.bus, UserLogoutAction, struct{}{})
-    })
-}
+
 ```
 
 ### From Event Callbacks to Typed Actions
@@ -1120,17 +1030,7 @@ func NewModal(bus action.Bus) *Modal {
     return &Modal{bus: bus}
 }
 
-func (m *Modal) Attach() {
-    m.BindClick("close", func() {
-        // Discoverable, traceable, testable
-        action.Dispatch(m.bus, ModalCloseAction, "user-clicked-x")
-    })
-    
-    m.BindClick("submit", func() {
-        data := m.collectFormData()
-        action.Dispatch(m.bus, ModalSubmitAction, data)
-    })
-}
+
 
 // Other components can listen without tight coupling
 action.OnAction(bus, ModalSubmitAction, func(ctx action.Context, data FormData) {
@@ -1199,12 +1099,7 @@ func NewCounter(bus action.Bus) *Counter {
     return c
 }
 
-func (c *Counter) Attach() {
-    c.BindText("count", c.count)
-    c.BindClick("increment", func() {
-        action.Dispatch(c.bus, IncrementAction, 1)
-    })
-}
+
 ```
 
 ## Key Takeaways

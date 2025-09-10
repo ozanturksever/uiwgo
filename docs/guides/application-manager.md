@@ -423,12 +423,7 @@ type AppComponent struct {
     user  *reactivity.Signal[*User]
 }
 
-// State is automatically managed by the Application Manager
-func (c *AppComponent) Attach() {
-    // Bindings are automatically cleaned up
-    comps.BindText("username", c.user)
-    comps.BindClass("theme", c.theme)
-}
+
 ```
 
 The Application Manager provides a robust foundation for building scalable UIwGo applications with proper lifecycle management, state persistence, and clean architecture patterns.
