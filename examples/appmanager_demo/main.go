@@ -24,7 +24,7 @@ func main() {
 		logutil.Logf("Failed to initialize WASM: %v", err)
 		return
 	}
-	
+
 	// Build AppManager config
 	cfg := &appmanager.AppConfig{
 		AppID:             "appmanager-demo",
@@ -82,9 +82,9 @@ func main() {
 func RootComponent() g.Node {
 	// Reactive counter state
 	count := reactivity.CreateSignal(0)
-	onInc := func() { count.Set(count.Get() + 1) }
-	onDec := func() { count.Set(count.Get() - 1) }
-	onReset := func() { count.Set(0) }
+	onInc := func(el dom.Element) { count.Set(count.Get() + 1) }
+	onDec := func(el dom.Element) { count.Set(count.Get() - 1) }
+	onReset := func(el dom.Element) { count.Set(0) }
 
 	return h.Div(
 		h.ID("demo-root"),
@@ -135,9 +135,9 @@ func RootComponent() g.Node {
 			),
 
 			// Delegate click handlers
-			dom.OnClick("inc-btn", onInc),
-			dom.OnClick("dec-btn", onDec),
-			dom.OnClick("reset-btn", onReset),
+			dom.OnClickInline(onInc),
+			dom.OnClickInline(onDec),
+			dom.OnClickInline(onReset),
 
 			// Router outlet (router renders here)
 			h.Main(h.ID("router-outlet"), h.Class("bg-white border rounded-xl shadow p-6 min-h-[200px]")),

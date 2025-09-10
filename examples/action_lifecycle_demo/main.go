@@ -147,7 +147,8 @@ func ObservabilityDemoComponent(bus action.Bus) g.Node {
 				html.ID("inc-btn"),
 				g.Text("Increment"),
 				g.Attr("style", "margin: 5px; padding: 8px 16px;"),
-				dom.OnClick("inc-btn", func() {
+				dom.OnClickInline(func(el dom.Element) {}),
+				dom.OnClickInline(func(el dom.Element) {
 					bus.Dispatch(action.Action[string]{
 						Type:    IncrementAction.Name,
 						Payload: "1",
@@ -161,7 +162,7 @@ func ObservabilityDemoComponent(bus action.Bus) g.Node {
 				html.ID("dec-btn"),
 				g.Text("Decrement"),
 				g.Attr("style", "margin: 5px; padding: 8px 16px;"),
-				dom.OnClick("dec-btn", func() {
+				dom.OnClickInline(func(el dom.Element) {
 					bus.Dispatch(action.Action[string]{
 						Type:    DecrementAction.Name,
 						Payload: "1",
@@ -181,7 +182,7 @@ func ObservabilityDemoComponent(bus action.Bus) g.Node {
 				html.Input(
 					html.Type("checkbox"),
 					html.ID("logger-toggle"),
-					dom.OnClick("logger-toggle", func() {
+					dom.OnClickInline(func(el dom.Element) {
 						enabled := !devLoggerEnabled.Get()
 						bus.Dispatch(action.Action[string]{
 							Type:    ToggleLoggerAction.Name,
@@ -198,7 +199,7 @@ func ObservabilityDemoComponent(bus action.Bus) g.Node {
 				html.ID("error-btn"),
 				g.Text("Trigger Error"),
 				g.Attr("style", "margin: 5px; padding: 8px 16px; background: #ff6b6b; color: white;"),
-				dom.OnClick("error-btn", func() {
+				dom.OnClickInline(func(el dom.Element) {
 					bus.Dispatch(action.Action[string]{
 						Type:    ErrorAction.Name,
 						Payload: "Demo panic for observability testing",
@@ -212,7 +213,7 @@ func ObservabilityDemoComponent(bus action.Bus) g.Node {
 				html.ID("analytics-btn"),
 				g.Text("Send Analytics Event"),
 				g.Attr("style", "margin: 5px; padding: 8px 16px; background: #4ecdc4; color: white;"),
-				dom.OnClick("analytics-btn", func() {
+				dom.OnClickInline(func(el dom.Element) {
 					bus.Dispatch(action.Action[string]{
 						Type:    AnalyticsAction.Name,
 						Payload: "user_interaction",
@@ -226,7 +227,7 @@ func ObservabilityDemoComponent(bus action.Bus) g.Node {
 				html.ID("debug-buffer-btn"),
 				g.Text("Show Debug Buffer"),
 				g.Attr("style", "margin: 5px; padding: 8px 16px; background: #9b59b6; color: white;"),
-				dom.OnClick("debug-buffer-btn", func() {
+				dom.OnClickInline(func(el dom.Element) {
 					// Show debug buffer contents in console
 					entries := action.GetDebugRingBufferEntries(bus, IncrementAction.Name)
 					logutil.Logf("🔍 Debug buffer for %s (%d entries):", IncrementAction.Name, len(entries))

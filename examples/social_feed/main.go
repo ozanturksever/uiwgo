@@ -214,7 +214,7 @@ func (sf *SocialFeed) render() g.Node {
 					h.Class("filter-tab"),
 					g.If(sf.selectedFilter.Get() == "", g.Attr("class", "filter-tab active")),
 					g.Text("All"),
-					dom.OnClick("filter-all", func() {
+					dom.OnClickInline(func(el dom.Element) {
 						sf.selectedFilter.Set("")
 					}),
 				),
@@ -232,7 +232,7 @@ func (sf *SocialFeed) render() g.Node {
 							h.Class("filter-tab"),
 							g.If(isActive.Get(), h.Class("active")),
 							g.Text(strings.Title(string(pType))),
-							dom.OnClick(fmt.Sprintf("filter-%s", pType), func() {
+							dom.OnClickInline(func(el dom.Element) {
 								sf.selectedFilter.Set(pType)
 							}),
 						)
@@ -269,7 +269,7 @@ func (sf *SocialFeed) render() g.Node {
 				Children: h.Button(
 					h.Class("load-more"),
 					g.Text("Load More"),
-					dom.OnClick("load-more", func() {
+					dom.OnClickInline(func(el dom.Element) {
 						sf.loadMorePosts()
 					}),
 				),
@@ -360,7 +360,7 @@ func (sf *SocialFeed) renderPost(post Post) g.Node {
 				h.Class("action-button like-button"),
 				g.If(post.IsLiked, h.Class("liked")),
 				g.Text(fmt.Sprintf("♥ %d", post.Likes)),
-				dom.OnClick(fmt.Sprintf("like-%s", post.ID), func() {
+				dom.OnClickInline(func(el dom.Element) {
 					sf.toggleLike(post.ID)
 				}),
 			),
@@ -368,7 +368,7 @@ func (sf *SocialFeed) renderPost(post Post) g.Node {
 			h.Button(
 				h.Class("action-button comment-button"),
 				g.Text(fmt.Sprintf("💬 %d", len(post.Comments))),
-				dom.OnClick(fmt.Sprintf("comment-%s", post.ID), func() {
+				dom.OnClickInline(func(el dom.Element) {
 					sf.toggleComments(post.ID)
 				}),
 			),
@@ -377,7 +377,7 @@ func (sf *SocialFeed) renderPost(post Post) g.Node {
 				h.Class("action-button share-button"),
 				g.If(post.IsShared, h.Class("shared")),
 				g.Text(fmt.Sprintf("🔄 %d", post.Shares)),
-				dom.OnClick(fmt.Sprintf("share-%s", post.ID), func() {
+				dom.OnClickInline(func(el dom.Element) {
 					sf.sharePost(post.ID)
 				}),
 			),
@@ -405,7 +405,7 @@ func (sf *SocialFeed) renderPost(post Post) g.Node {
 					),
 					h.Button(
 						g.Text("Post Comment"),
-						dom.OnClick("post-comment", func() {
+						dom.OnClickInline(func(el dom.Element) {
 							// Handle comment submission
 						}),
 					),
@@ -476,7 +476,7 @@ func (sf *SocialFeed) renderPostComposer() g.Node {
 					return "false"
 				}()),
 				g.Text("Post"),
-				dom.OnClick("create-post", func() {
+				dom.OnClickInline(func(el dom.Element) {
 					sf.createPost()
 				}),
 			),

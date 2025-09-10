@@ -229,7 +229,7 @@ func StatsFooter(remaining reactivity.Signal[int], hasCompleted reactivity.Signa
 		comps.Show(comps.ShowProps{When: hasCompleted, Children: Button(
 			ID("clear-completed-btn"),
 			Text("Clear completed"),
-			dom.OnClick("clear-completed-btn", func() {
+			dom.OnClickInline(func(el dom.Element) {
 				logutil.Log("[TodoApp] clear completed button")
 				clearCompleted()
 			}),

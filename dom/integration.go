@@ -519,34 +519,3 @@ func CreateJSFunctionForCallback(callback func()) string {
 		return nil
 	})
 }
-
-// OnClick creates a delegated click handler that works even if the element is added later
-func OnClick(elementID string, handler func()) g.Node {
-	// Create an effect that sets up event delegation immediately
-	reactivity.CreateEffect(func() {
-		// Use event delegation from <body> so the element can appear later (e.g., via Show/BindHTML)
-		if body := QuerySelector("body"); body != nil {
-			selector := fmt.Sprintf("#%s", elementID)
-			DelegateEvent(body, "click", selector, func(e dom.Event, target dom.Element) {
-				handler()
-			})
-		}
-	})
-	// Return a no-op node
-	return g.Group([]g.Node{})
-}
-
-// OnEvent creates a delegated handler for any event type using CSS selector matching on body
-func OnEvent(elementID string, eventType string, handler func()) g.Node {
-	// Create an effect that sets up event delegation immediately
-	reactivity.CreateEffect(func() {
-		if body := QuerySelector("body"); body != nil {
-			selector := fmt.Sprintf("#%s", elementID)
-			DelegateEvent(body, eventType, selector, func(e dom.Event, target dom.Element) {
-				handler()
-			})
-		}
-	})
-	// Return a no-op node
-	return g.Group([]g.Node{})
-}

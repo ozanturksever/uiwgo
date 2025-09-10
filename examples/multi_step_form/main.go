@@ -697,7 +697,7 @@ func (mfs *MultiStepFormState) renderSuccessMessage() g.Node {
 		h.Button(
 			h.Class("nav-button"),
 			g.Text("Start Over"),
-			dom.OnClick("start-over", func() {
+			dom.OnClickInline(func(el dom.Element) {
 				// Reset form
 				mfs.currentStep.Set(0)
 				mfs.personalInfo.Set(PersonalInfo{})
@@ -722,7 +722,7 @@ func (mfs *MultiStepFormState) renderNavigation() g.Node {
 			h.Class("nav-button prev"),
 			g.Attr("disabled", fmt.Sprintf("%t", isFirstStep)),
 			g.Text("Previous"),
-			dom.OnClick("prev-step", func() {
+			dom.OnClickInline(func(el dom.Element) {
 				if currentStep > 0 {
 					mfs.currentStep.Set(currentStep - 1)
 				}
@@ -742,7 +742,7 @@ func (mfs *MultiStepFormState) renderNavigation() g.Node {
 				}
 				return "Next"
 			}()),
-			dom.OnClick("next-step", func() {
+			dom.OnClickInline(func(el dom.Element) {
 				// Validate current step
 				if !mfs.steps[currentStep].IsValid() {
 					return

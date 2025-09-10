@@ -78,7 +78,7 @@ func (pc *ProductCatalog) loadSampleData() {
 		{ID: "7", Name: "Desk Lamp", Price: 49.99, Category: "Home", ImageURL: "https://via.placeholder.com/200x200?text=Lamp", Description: "Adjustable LED desk lamp", InStock: false, Rating: 4.1},
 		{ID: "8", Name: "Bluetooth Speaker", Price: 59.99, Category: "Electronics", ImageURL: "https://via.placeholder.com/200x200?text=Speaker", Description: "Portable Bluetooth speaker with great sound", InStock: true, Rating: 4.4},
 	}
-	
+
 	pc.products.Set(sampleProducts)
 }
 
@@ -237,7 +237,7 @@ func (pc *ProductCatalog) render() g.Node {
 						}
 						return "↓ Desc"
 					}()),
-					dom.OnClick(func() {
+					dom.OnClickInline(func(el dom.Element) {
 						pc.sortAsc.Set(!pc.sortAsc.Get())
 					}),
 				),
@@ -255,7 +255,7 @@ func (pc *ProductCatalog) render() g.Node {
 							return style
 						}()),
 						g.Text("Grid"),
-						dom.OnClick(func() {
+						dom.OnClickInline(func(el dom.Element) {
 							pc.viewMode.Set(ViewModeGrid)
 						}),
 					),
@@ -268,7 +268,7 @@ func (pc *ProductCatalog) render() g.Node {
 							return style
 						}()),
 						g.Text("List"),
-						dom.OnClick(func() {
+						dom.OnClickInline(func(el dom.Element) {
 							pc.viewMode.Set(ViewModeList)
 						}),
 					),
