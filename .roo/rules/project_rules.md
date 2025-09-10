@@ -12,6 +12,7 @@ JS/DOM Interop Preference
 
 Logging Guidelines
 - Always use the logutil package for logging instead of fmt.Println or console.log.
+- Package path: github.com/ozanturksever/logutil
 - Rationale: logutil provides cross-platform logging that works correctly in both standard Go builds and WebAssembly/browser environments.
 - Available functions:
     - logutil.Log(args ...any): Logs arguments to console (browser) or stdout (standard Go)
@@ -58,7 +59,10 @@ Quick Commands
 - shell is ZSH, so use single quote for arguments like following: go test -tags='!js !wasm' ./router -run TestRouterUpdatesViewOnRouteChange -v
 
 
-Dev Server Capabilities
+Dev Server Capabilities (Vite-based)
+- Vite-powered development server:
+  - Fast Hot Module Replacement (HMR) for instant updates
+  - Optimized for modern web development workflow
 - Embedded wasm_exec.js:
   - Served automatically; no manual inclusion required during development.
 - Auto-compile to WASM:
@@ -66,7 +70,10 @@ Dev Server Capabilities
 - Live reload:
   - Source changes trigger rebuilds and automatic browser reloads to reflect changes instantly.
 - One-command workflow:
-  - timeout 5s make run <example> launches the dev server for that example and prepares all assets.
+  - timeout 5s make run <example> launches the vite dev server for that example and prepares all assets.
+- Alternative vite commands:
+  - npm run dev: Start vite dev server for the default example
+  - npm run dev:<example>: Start vite dev server for a specific example (if configured)
 
 Testing Strategy
 - Unit tests (js/wasm):
@@ -119,8 +126,8 @@ Adding a New Example
 - Create a folder under examples/, for example examples/my_feature/.
 - Add your Go entry point (e.g., main.go) and required browser-driven tests.
 - **Browser Tests are Mandatory**: Every example MUST include comprehensive browser tests in main_test.go:
-  - Use the devserver pattern with `//go:build !js && !wasm` constraint
-  - Start a local server using `devserver.NewServer("example_name", "localhost:0")`
+  - Use the vite dev server pattern with `//go:build !js && !wasm` constraint
+  - Start a local vite server using the testhelpers.ViteServer
   - Use chromedp for real browser automation testing
   - Test all interactive functionality, component rendering, and user workflows
   - Follow the pattern from existing examples like counter, todo, resource, etc.
@@ -134,14 +141,13 @@ Adding a New Example
   import (
       "testing"
       "github.com/chromedp/chromedp"
-      "github.com/ozanturksever/uiwgo/internal/devserver"
       "github.com/ozanturksever/uiwgo/internal/testhelpers"
   )
   
   func TestMyFeature(t *testing.T) {
-      server := devserver.NewServer("my_feature", "localhost:0")
+      server := testhelpers.NewViteServer("my_feature", "localhost:0")
       if err := server.Start(); err != nil {
-          t.Fatalf("Failed to start dev server: %v", err)
+          t.Fatalf("Failed to start vite server: %v", err)
       }
       defer server.Stop()
       
