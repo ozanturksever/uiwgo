@@ -30,9 +30,10 @@ Prerequisites
 Quick Commands
 - After changing code in an example, run make build <example> (or make build EX=<example>) to quickly find compile-time errors.
 - Run dev server for an example:
-  - make run                 # defaults to 'counter'
-  - make run <example>       # e.g., make run todo
-  - make run EX=<example>    # e.g., make run EX=todo
+  - timeout 5s make run                 # defaults to 'counter'
+  - timeout 5s make run <example>       # e.g., timeout 5s make run todo
+  - timeout 5s make run EX=<example>    # e.g., timeout 5s make run EX=todo
+  - **Important**: Always prepend `timeout 5s` when executing `make run` commands to prevent blocking scenarios. This ensures all make run operations automatically terminate after 5 seconds if not completed.
 - Build a specific example to WebAssembly:
   - make build <example>
   - make build EX=<example>
@@ -65,7 +66,7 @@ Dev Server Capabilities
 - Live reload:
   - Source changes trigger rebuilds and automatic browser reloads to reflect changes instantly.
 - One-command workflow:
-  - make run <example> launches the dev server for that example and prepares all assets.
+  - timeout 5s make run <example> launches the dev server for that example and prepares all assets.
 
 Testing Strategy
 - Unit tests (js/wasm):
@@ -158,7 +159,7 @@ Adding a New Example
   }
   ```
 - You can then:
-  - Run it: make run my_feature
+  - Run it: timeout 5s make run my_feature
   - Build it: make build my_feature (outputs examples/my_feature/main.wasm)
   - Test it: make test-example my_feature
   - Include it in all-example runs automatically: make test-examples and make test-all (no edits required).
@@ -174,7 +175,7 @@ Operational Notes
 
 Recommended Automation Flows
 - Develop a single example:
-  - make run <example>
+  - timeout 5s make run <example>
 - Quick unit test pass:
   - make test
 - Validate one example’s browser tests:
@@ -183,7 +184,7 @@ Recommended Automation Flows
   - make test-all
 
 Examples (replace <example> with a folder under examples/)
-- Start dev server: make run <example>
+- Start dev server: timeout 5s make run <example>
 - Build just the WASM: make build <example>
 - Test only this example: make test-example <example>
 - Test everything: make test-all

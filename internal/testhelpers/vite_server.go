@@ -137,8 +137,14 @@ func (s *ViteServer) Start() error {
 		}
 	}
 
+	// Start goroutine to wait for command completion to detect early failures
+	cmdDone := make(chan error, 1)
+	go func() {
+		cmdDone <- s.cmd.Wait()
+	}()
+
 	// Wait for the server to be ready
-	err = s.waitForServer()
+	err = s.waitForServer(cmdDone)
 	if err != nil {
 		s.Stop()
 		return fmt.Errorf("server failed to start: %v", err)
@@ -222,7 +228,7 @@ func (s *ViteServer) URL() string {
 }
 
 // waitForServer waits for the Vite server to be ready
-func (s *ViteServer) waitForServer() error {
+func (s *ViteServer) waitForServer(cmdDone <-chan error) error {
 	// Increased timeout to account for WASM build time
 	timeout := time.After(60 * time.Second)
 	ticker := time.NewTicker(500 * time.Millisecond)
@@ -232,6 +238,11 @@ func (s *ViteServer) waitForServer() error {
 		select {
 		case <-timeout:
 			return fmt.Errorf("timeout waiting for server to start")
+		case cmdErr := <-cmdDone:
+			// If command failed, return error immediately instead of waiting full 60 seconds
+			if cmdErr != nil {
+				return fmt.Errorf("Vite server process failed: %v", cmdErr)
+			}
 		case <-ticker.C:
 			conn, err := net.DialTimeout("tcp", fmt.Sprintf("%s:%d", s.host, s.port), time.Second)
 			if err == nil {
