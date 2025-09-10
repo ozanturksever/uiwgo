@@ -100,11 +100,24 @@ func OnAction[T any](bus Bus, actionType ActionType[T], handler func(Context, T)
 		reactivity.CreateEffect(func() {
 			sub = bus.Subscribe(actionType.Name, func(action Action[string]) error {
 				var payload T
-				if err := json.Unmarshal([]byte(action.Payload), &payload); err != nil {
-					return fmt.Errorf("failed to unmarshal payload for action %s: %w", actionType.Name, err)
+				switch any(payload).(type) {
+				case string:
+					// Directly use the raw string payload when T is string (payload is not JSON)
+					payload = any(action.Payload).(T)
+				default:
+					// Fallback to JSON decoding for non-string payloads
+					if err := json.Unmarshal([]byte(action.Payload), &payload); err != nil {
+						return fmt.Errorf("failed to unmarshal payload for action %s: %w", actionType.Name, err)
+					}
 				}
 
-				handler(Context{}, payload)
+				ctx := Context{
+					Meta:    action.Meta,
+					Time:    action.Time,
+					TraceID: action.TraceID,
+					Source:  action.Source,
+				}
+				handler(ctx, payload)
 				return nil
 			}, opts...)
 			reactivity.OnCleanup(func() {
@@ -120,11 +133,24 @@ func OnAction[T any](bus Bus, actionType ActionType[T], handler func(Context, T)
 			reactivity.CreateEffect(func() {
 				sub = bus.Subscribe(actionType.Name, func(action Action[string]) error {
 					var payload T
-					if err := json.Unmarshal([]byte(action.Payload), &payload); err != nil {
-						return fmt.Errorf("failed to unmarshal payload for action %s: %w", actionType.Name, err)
+					switch any(payload).(type) {
+					case string:
+						// Directly use the raw string payload when T is string (payload is not JSON)
+						payload = any(action.Payload).(T)
+					default:
+						// Fallback to JSON decoding for non-string payloads
+						if err := json.Unmarshal([]byte(action.Payload), &payload); err != nil {
+							return fmt.Errorf("failed to unmarshal payload for action %s: %w", actionType.Name, err)
+						}
 					}
 
-					handler(Context{}, payload)
+					ctx := Context{
+						Meta:    action.Meta,
+						Time:    action.Time,
+						TraceID: action.TraceID,
+						Source:  action.Source,
+					}
+					handler(ctx, payload)
 					return nil
 				}, opts...)
 				reactivity.OnCleanup(func() {

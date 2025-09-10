@@ -1,560 +1,113 @@
 # UIwGo AI Code Generator Guide
 
-This comprehensive guide is designed for AI code generators to understand and utilize the UIwGo project effectively. UIwGo is a browser-first Go UI runtime for WebAssembly that enables building reactive web applications using Go.
+This guide provides a comprehensive overview of the UIwGo framework, designed for AI code generators to create accurate and idiomatic Go code for WebAssembly frontends.
 
-## Project Overview
+## 1. Project Overview & Philosophy
 
-UIwGo provides a type-safe, reactive framework for building web applications in Go that compile to WebAssembly. It combines the power of Go's type system with modern web development patterns.
+UIwGo is a browser-first Go framework for building reactive web applications that compile to WebAssembly. Its core philosophy emphasizes:
 
-### Key Features
-- **Browser-first**: Designed specifically for WebAssembly execution in browsers
-- **Type-safe HTML**: No template languages, pure Go with gomponents
-- **Fine-grained reactivity**: Signals-based reactive system
-- **Functional components**: Clean, composable component architecture
-- **Type-safe action system**: Event-driven architecture with compile-time safety
-- **Client-side routing**: Built-in router for SPAs
-- **React compatibility**: Familiar patterns for React developers
-- **Comprehensive testing**: Both unit and browser-driven tests
+- **Simplicity & Ergonomics**: A minimal API surface that is easy to learn and use.
+- **Type Safety**: Leveraging Go's type system to prevent common web development errors.
+- **Fine-Grained Reactivity**: Built on a simple but powerful signal-based reactivity system.
+- **Functional & Composable**: UI is built with pure Go functions and composable components.
+- **Modern Best Practices**: Inline event binding and automatic cleanup are the default, not the exception.
 
-### Target Use Cases
-- Single Page Applications (SPAs)
-- Interactive web components
-- Data-heavy interfaces
-- Progressive enhancement of existing sites
+### Key Features (Actual)
 
-## Prerequisites and Setup
+- **Reactivity System**: `Signals`, `Memos`, and `Effects` for state management.
+- **Functional Components**: UI is constructed using functions that return `gomponents.Node`.
+- **`gomponents` Integration**: Purely Go-based, type-safe HTML construction (no template language).
+- **Inline Event Handlers**: A rich set of handlers like `OnClickInline`, `OnInputInline`, `OnEnterInline` for declarative event binding.
+- **Application Manager**: Centralized application lifecycle management.
+- **Stores**: A pattern for nested, fine-grained reactive state management via `CreateStore`.
+- **Resources**: A reactive primitive for handling asynchronous operations, created with `CreateResource`.
+- **`shadcn/React` Compatibility**: A bridge to integrate modern React components into a Go application.
+- **Built-in Router**: For building Single Page Applications (SPAs).
+- **Action System**: A powerful, decoupled system for managing application-wide events, commands, and queries via an event bus.
 
-### Required Dependencies
-- Go 1.21+ with WebAssembly support (GOOS=js, GOARCH=wasm)
-- Modern web browser
-- HTTP server capability
-- Node.js and npm (for development server)
+## 2. Core Reactivity (`reactivity` package)
 
-### Recommended Tools
-- Make (for build automation)
-- Git
-- VS Code with Go extension
-- Chrome/Chromium (for browser testing)
+UIwGo's reactivity model is simple and synchronous.
 
-### Project Structure
-```
-uiwgo/
-├── examples/           # Example applications
-│   ├── counter/       # Basic counter example
-│   ├── todo/          # Todo list application
-│   ├── router_demo/   # Routing demonstration
-│   ├── resource/      # Data fetching patterns
-│   └── action_lifecycle_demo/ # Action system demonstration
-├── docs/              # Comprehensive documentation
-├── internal/          # Internal packages
-├── reactivity/        # Core reactivity system
-├── dom/              # DOM manipulation utilities
-├── comps/            # Component utilities
-├── router/           # Client-side routing
-├── action/           # Type-safe action system
-└── logutil/          # Cross-platform logging
-```
+### 2.1. Signals: The Source of Truth
 
-### Quick Start Commands
-```bash
-# Clone and setup
-git clone <repository>
-cd uiwgo
-npm install
+Signals are the fundamental reactive primitive. They hold a value and notify dependents when it changes.
 
-# Run development server (defaults to counter example)
-make run
-# Or specify example
-make run todo
-make run EX=router_demo
-
-# Build WebAssembly binary
-make build counter
-
-# Run tests
-make test                    # Unit tests
-make test-example counter    # Browser tests for specific example
-make test-examples          # All example browser tests
-make test-all              # Everything
-
-# Clean build artifacts
-make clean
-```
-
-## Core Architecture
-
-### Mental Model
-UIwGo follows a two-phase approach with an event-driven architecture:
-1. **Render Phase**: Generate static HTML using gomponents
-2. **Attach Phase**: Enhance with reactive behavior using signals
-3. **Action Phase**: Coordinate behavior through type-safe actions and queries
-
-The action system provides a central bus for decoupled communication between components, enabling complex application flows while maintaining type safety and testability.
-
-### Component Structure
-```go
-type Component struct {
-    // State (signals)
-    count *reactivity.Signal[int]
-    
-    // Computed state (memos)
-    displayText *reactivity.Memo[string]
-}
-
-func NewComponent() *Component {
-    c := &Component{
-        count: reactivity.CreateSignal(0),
-    }
-    
-    c.displayText = reactivity.CreateMemo(func() string {
-        return fmt.Sprintf("Count: %d", c.count.Get())
-    })
-    
-    return c
-}
-
-// Render: Generate static HTML structure
-func (c *Component) Render() g.Node {
-    return h.Div(
-        h.P(g.Attr("data-text", "display"), g.Text(c.displayText.Get())),
-        h.Button(g.Attr("data-click", "increment"), g.Text("Increment")),
-    )
-}
-
-
-
-func (c *Component) increment() {
-    c.count.Set(c.count.Get() + 1)
-}
-```
-
-## Reactivity System
-
-### Signals
-Signals are reactive primitives that hold state and notify dependents of changes.
+- **`reactivity.CreateSignal[T](initialValue T) Signal[T]`**: Creates a new signal.
+- **`signal.Get() T`**: Reads the signal's value and establishes a reactive dependency.
+- **`signal.Set(newValue T)`**: Updates the signal's value, triggering all dependents.
 
 ```go
-// Create signals
-count := reactivity.CreateSignal(0)
-name := reactivity.CreateSignal("John")
-items := reactivity.CreateSignal([]string{})
+// Create a signal
+count := reactivity.CreateSignal(0) // Returns a reactivity.Signal[int]
 
-// Read values
-value := count.Get()
+// Read the value
+currentValue := count.Get() // returns 0
 
-// Update values
-count.Set(42)
-count.Update(func(current int) int {
-    return current + 1
-})
-
-// Subscribe to changes
-count.Subscribe(func(newValue int) {
-    logutil.Logf("Count changed to: %d", newValue)
-})
+// Set the value (this is a reactive update)
+count.Set(10)
 ```
 
-### Memos (Computed Values)
-Memos are derived state that automatically update when dependencies change.
+### 2.2. Memos: Computed Reactive Values
+
+Memos are read-only signals that derive their value from other signals. They cache their result and only re-compute when a dependency changes.
+
+- **`reactivity.CreateMemo[T](computeFunc func() T) Signal[T]`**: Creates a computed, read-only signal.
 
 ```go
 firstName := reactivity.CreateSignal("John")
 lastName := reactivity.CreateSignal("Doe")
 
+// This memo automatically depends on firstName and lastName
 fullName := reactivity.CreateMemo(func() string {
-    return fmt.Sprintf("%s %s", firstName.Get(), lastName.Get())
+    return firstName.Get() + " " + lastName.Get()
 })
 
-// Automatically updates when firstName or lastName changes
-fmt.Println(fullName.Get()) // "John Doe"
+logutil.Log(fullName.Get()) // "John Doe"
 firstName.Set("Jane")
-fmt.Println(fullName.Get()) // "Jane Doe"
+logutil.Log(fullName.Get()) // "Jane Doe" (automatically updated)
 ```
 
-### Effects
-Effects perform side effects in response to signal changes.
+### 2.3. Effects: Running Side-Effects
+
+Effects are used to run code in response to signal changes. They are perfect for interacting with browser APIs, logging, or triggering network requests.
+
+- **`reactivity.CreateEffect(effectFunc func())`**: Creates an effect that runs immediately and whenever its dependencies change.
 
 ```go
-effect := reactivity.CreateEffect(func() {
-    logutil.Logf("Current count: %d", count.Get())
-})
+count := reactivity.CreateSignal(0)
 
-// Cleanup when done
-defer effect.Dispose()
-```
-
-### Batching
-Batch multiple updates for performance.
-
-```go
-reactivity.Batch(func() {
-    count.Set(10)
-    name.Set("Alice")
-    // Only one update cycle triggered
+// This effect runs whenever count changes
+reactivity.CreateEffect(func() {
+    // dom.GetWindow() is from honnef.co/go/js/dom/v2
+    dom.GetWindow().Document().SetTitle(fmt.Sprintf("Count is: %d", count.Get()))
 })
 ```
 
-## Action System
+## 3. UI Construction (`gomponents` & `dom` package)
 
-The action system provides type-safe, event-driven communication for complex application flows. It enables decoupled components to coordinate through typed actions and queries while maintaining observability and testability.
+UI is built with functions. There is no special component struct.
 
-### Core Concepts
+### 3.1. Functional Components
 
-#### Action Types
-Define type-safe action identifiers with their payload types:
+A component is simply a Go function that returns a `gomponents.Node`.
 
 ```go
-// Define action types
-var UserCreated = action.DefineAction[User]("user.created")
-var CounterIncrement = action.DefineAction[int]("counter.increment")
-var TaskCompleted = action.DefineAction[Task]("task.completed")
-
-// Define query types for request/response patterns
-var FetchUser = action.DefineQuery[string, User]("user.fetch")
-var ValidateForm = action.DefineQuery[FormData, ValidationResult]("form.validate")
-```
-
-#### Bus Creation and Usage
-```go
-// Create a bus instance
-bus := action.New()  // Local bus
-// or
-bus := action.Global()  // Global singleton
-
-// Dispatch actions
-action.Dispatch(bus, UserCreated, User{
-    ID:   "123",
-    Name: "John Doe",
-})
-
-// Subscribe to actions
-action.OnAction(bus, UserCreated, func(ctx action.Context, user User) {
-    logutil.Logf("User created: %s (TraceID: %s)", user.Name, ctx.TraceID)
-})
-```
-
-### Basic Action Patterns
-
-#### Simple Action Handling
-```go
-// Define actions for a counter component
-var (
-    IncrementAction = action.DefineAction[int]("counter.increment")
-    DecrementAction = action.DefineAction[int]("counter.decrement")
-    ResetAction     = action.DefineAction[struct{}]("counter.reset")
+import (
+    g "github.com/maragudk/gomponents"
+    h "github.com/maragudk/gomponents/html"
+    "github.com/ozanturksever/uiwgo/reactivity"
+    "github.com/ozanturksever/uiwgo/dom"
 )
 
-type CounterComponent struct {
-    count *reactivity.Signal[int]
-    bus   action.Bus
-}
-
-func NewCounterComponent(bus action.Bus) *CounterComponent {
-    c := &CounterComponent{
-        count: reactivity.NewSignal(0),
-        bus:   bus,
-    }
-    
-    // Register action handlers with automatic lifecycle management
-    action.OnAction(bus, IncrementAction, func(ctx action.Context, amount int) {
-        c.count.Set(c.count.Get() + amount)
-    })
-    
-    action.OnAction(bus, DecrementAction, func(ctx action.Context, amount int) {
-        c.count.Set(c.count.Get() - amount)
-    })
-    
-    action.OnAction(bus, ResetAction, func(ctx action.Context, _ struct{}) {
-        c.count.Set(0)
-    })
-    
-    return c
-}
-
-func (c *CounterComponent) Render() g.Node {
-    return h.Div(
-        h.P(comps.BindText(func() string {
-            return fmt.Sprintf("Count: %d", c.count.Get())
-        })),
-        h.Button(
-            g.Text("Increment"),
-            dom.OnClickInline(func(el dom.Element) {
-                action.Dispatch(c.bus, IncrementAction, 1)
-            }),
-        ),
-        h.Button(
-            g.Text("Decrement"),
-            dom.OnClickInline(func(el dom.Element) {
-                action.Dispatch(c.bus, DecrementAction, 1)
-            }),
-        ),
-        h.Button(
-            g.Text("Reset"),
-            dom.OnClickInline(func(el dom.Element) {
-                action.Dispatch(c.bus, ResetAction, struct{}{})
-            }),
-        ),
-    )
-}
-```
-
-#### Query Patterns
-```go
-// Define query types
-var FetchUserQuery = action.DefineQuery[string, User]("user.fetch")
-var SearchUsersQuery = action.DefineQuery[SearchCriteria, []User]("users.search")
-
-// Register query handlers
-bus.HandleQueryTyped(FetchUserQuery, func(ctx action.Context, userID string) (User, error) {
-    user, err := userService.GetByID(userID)
-    if err != nil {
-        return User{}, fmt.Errorf("failed to fetch user %s: %w", userID, err)
-    }
-    return user, nil
-})
-
-// Use queries in components
-func (c *UserProfileComponent) loadUser(userID string) {
-    c.loading.Set(true)
-    
-    future := bus.AskTyped(FetchUserQuery, userID)
-    future.Then(func(user User) {
-        c.user.Set(user)
-        c.loading.Set(false)
-    }).Catch(func(err error) {
-        c.error.Set(err)
-        c.loading.Set(false)
-    })
-}
-```
-
-### Advanced Action Patterns
-
-#### Subscription Options
-```go
-// Priority-based execution order
-action.OnAction(bus, DataUpdated, highPriorityHandler, action.SubWithPriority(100))
-action.OnAction(bus, DataUpdated, normalPriorityHandler, action.SubWithPriority(50))
-
-// One-time subscription
-action.OnAction(bus, AppInitialized, initHandler, action.SubOnce())
-
-// Conditional subscription based on reactive signal
-isFeatureEnabled := reactivity.NewSignal(false)
-action.OnAction(bus, FeatureAction, handler, action.SubWhen(isFeatureEnabled))
-
-// Filtered subscription
-action.OnAction(bus, UserAction, handler, action.SubFilter(func(user User) bool {
-    return user.Role == "admin"
-}))
-
-// Distinct until changed
-action.OnAction(bus, StatusChanged, handler, action.SubDistinctUntilChanged(nil))
-```
-
-#### Reactive Bridges
-```go
-// Bridge actions to signals
-userSignal := action.ToSignal[User](bus, UserUpdated.Name)
-statusSignal := action.ToSignal[string](bus, StatusChanged.Name,
-    action.BridgeWithInitialValue("idle"),
-    action.BridgeWithDistinctUntilChanged(nil),
-)
-
-// Bridge actions to streams
-userStream := action.ToStream[User](bus, UserCreated.Name, 10)
-go func() {
-    for user := range userStream {
-        logutil.Logf("New user: %s", user.Name)
-    }
-}()
-```
-
-#### Error Handling and Observability
-```go
-// Enhanced error handling with context
-bus.OnError(func(ctx action.Context, err error, recovered any) {
-    logutil.Logf("Action error in %s: %v (TraceID: %s)",
-        ctx.Source, err, ctx.TraceID)
-    
-    // Send error to monitoring system
-    if recovered != nil {
-        action.Dispatch(bus, ErrorRecovered, ErrorEvent{
-            Error:   err.Error(),
-            TraceID: ctx.TraceID,
-            Source:  ctx.Source,
-        })
-    }
-})
-
-// Enable development logging
-action.EnableDevLogger(bus, func(entry action.DevLogEntry) {
-    logutil.Logf("[%s] %s -> %d subscribers (%v)",
-        entry.Timestamp.Format("15:04:05"),
-        entry.ActionType,
-        entry.SubscriberCount,
-        entry.Duration)
-})
-
-// Debug ring buffer for action history
-action.EnableDebugRingBuffer(bus, 50)
-entries := action.GetDebugRingBufferEntries(bus, UserCreated.Name)
-```
-
-### Async and Future Patterns
-
-#### Dispatching with Options
-```go
-// Dispatch with metadata and tracing
-action.Dispatch(bus, UserAction, user,
-    action.WithTraceID("trace-123"),
-    action.WithSource("user-component"),
-    action.WithMeta(map[string]any{
-        "userAgent": "UIwGo/1.0",
-        "timestamp": time.Now(),
-    }),
-)
-
-// Async dispatch for non-blocking operations
-action.Dispatch(bus, AnalyticsEvent, event, action.WithAsync())
-```
-
-#### Future Handling
-```go
-// Query with timeout
-future := bus.AskTyped(ValidateFormQuery, formData, action.AskWithTimeout(5*time.Second))
-
-// Chain futures
-future.Then(func(result ValidationResult) {
-    if result.Valid {
-        return bus.AskTyped(SubmitFormQuery, formData)
-    } else {
-        c.errors.Set(result.Errors)
-    }
-}).Then(func(response SubmitResponse) {
-    c.success.Set(true)
-    action.Dispatch(bus, FormSubmitted, response)
-}).Catch(func(err error) {
-    c.error.Set(err)
-    logutil.Logf("Form processing failed: %v", err)
-})
-```
-
-## DOM Interaction and Data Binding
-
-### Data Attributes
-UIwGo uses data attributes to create binding contracts between HTML and Go code.
-
-| Attribute Pattern | Purpose | Go Binding |
-|------------------|---------|------------|
-| `data-text="key"` | Text content | `comps.BindText("key", signal)` |
-| `data-html="key"` | HTML content | `comps.BindHTML("key", memo)` |
-| `data-click="key"` | Click events | `comps.BindClick("key", handler)` |
-| `data-input="key"` | Input events | `comps.BindInput("key", signal)` |
-| `data-visible="key"` | Visibility | `comps.BindVisible("key", signal)` |
-| `data-class="key"` | CSS classes | `comps.BindClass("key", memo)` |
-
-### Reactive Content Helpers
-```go
-// Reactive text content
-h.P(comps.BindText(func() string {
-    return fmt.Sprintf("Count: %d", count.Get())
-}))
-
-// Reactive HTML content
-h.Div(comps.BindHTML(func() string {
-    if showMessage.Get() {
-        return "<strong>Important!</strong>"
-    }
-    return "<em>Nothing to show</em>"
-}))
-
-// Reactive visibility
-h.Div(
-    comps.BindVisible(func() bool {
-        return count.Get() > 0
-    }),
-    g.Text("Visible when count > 0"),
-)
-```
-
-### Inline Event Binding (Preferred)
-Inline event binding is the recommended approach for handling DOM events.
-
-```go
-// Preferred: Inline event binding
-h.Button(
-    g.Text("Click me"),
-    dom.OnClickInline(func(el dom.Element) {
-        count.Set(count.Get() + 1)
-    }),
-)
-
-// Input handling
-h.Input(
-    g.Attr("type", "text"),
-    dom.OnInputInline(func(el dom.Element) {
-        value := el.Underlying().Get("value").String()
-        name.Set(value)
-    }),
-)
-
-// Keyboard events
-h.Input(
-    g.Attr("type", "text"),
-    dom.OnEnterInline(func(el dom.Element) {
-        // Handle Enter key
-        submitForm()
-    }),
-)
-```
-
-#### Alpine-inspired inline helpers
-
-Alpine-inspired inline helpers return gomponents attributes for lifecycle and utility behaviors, and are auto-bound in the wasm runtime:
-
-- OnInitInline(fn): Run once shortly after element connects (microtask).
-- OnDestroyInline(fn): Run when element is removed from DOM (MutationObserver).
-- OnVisibleInline(fn): Fire once when element enters viewport (IntersectionObserver).
-- OnResizeInline(fn): React to element size changes (ResizeObserver).
-- OnClickOnceInline(fn): Click handler that runs only once and auto-unregisters.
-
-Examples:
-
-```go
-// Run once on connect (x-init style)
-g.Div(dom.OnInitInline(func(el dom.Element) { /* setup */ }))
-
-// Cleanup on removal
-g.Div(dom.OnDestroyInline(func(el dom.Element) { /* cleanup */ }))
-
-// Visibility-triggered init
-g.Div(dom.OnVisibleInline(func(el dom.Element) { /* lazy-load, animate */ }))
-
-// React to element resize
-g.Div(dom.OnResizeInline(func(el dom.Element) { /* size changed */ }))
-
-// Single-shot click
-g.Button(g.Text("Once"), dom.OnClickOnceInline(func(el dom.Element) { /* do once */ }))
-```
-
-Notes:
-- Prefer honnef.co/go/js/dom/v2 typed elements (re-exported as dom.Element).
-- Handlers are tied to cleanup scopes; the runtime cleans up observers/listeners.
-
-## Component Patterns
-
-### Functional Components
-```go
-func Counter() g.Node {
+func CounterComponent() g.Node {
     count := reactivity.CreateSignal(0)
-    
+
     return h.Div(
-        h.P(comps.BindText(func() string {
-            return fmt.Sprintf("Count: %d", count.Get())
-        })),
+        h.P(g.Textf("Count: %d", count.Get())), // Reading the signal directly
         h.Button(
             g.Text("Increment"),
+            // Use inline event handlers
             dom.OnClickInline(func(el dom.Element) {
                 count.Set(count.Get() + 1)
             }),
@@ -563,1272 +116,365 @@ func Counter() g.Node {
 }
 ```
 
-### Stateful Components
-```go
-type TodoApp struct {
-    todos       *reactivity.Signal[[]Todo]
-    newTodo     *reactivity.Signal[string]
-    remaining   *reactivity.Memo[int]
-    hasCompleted *reactivity.Memo[bool]
-}
+### 3.2. Inline Event Handlers (The Default Pattern)
 
-func NewTodoApp() *TodoApp {
-    app := &TodoApp{
-        todos:   reactivity.CreateSignal([]Todo{}),
-        newTodo: reactivity.CreateSignal(""),
-    }
-    
-    app.remaining = reactivity.CreateMemo(func() int {
-        count := 0
-        for _, todo := range app.todos.Get() {
-            if !todo.Completed {
-                count++
-            }
-        }
-        return count
-    })
-    
-    app.hasCompleted = reactivity.CreateMemo(func() bool {
-        for _, todo := range app.todos.Get() {
-            if todo.Completed {
-                return true
-            }
-        }
-        return false
-    })
-    
-    return app
-}
-```
-
-### Action-Driven Components
-```go
-// Define component actions
-var (
-    TodoAdded     = action.DefineAction[Todo]("todo.added")
-    TodoToggled   = action.DefineAction[string]("todo.toggled")
-    TodoDeleted   = action.DefineAction[string]("todo.deleted")
-    TodosCleared  = action.DefineAction[struct{}]("todos.cleared")
-)
-
-type ActionTodoApp struct {
-    todos    *reactivity.Signal[[]Todo]
-    newTodo  *reactivity.Signal[string]
-    bus      action.Bus
-}
-
-func NewActionTodoApp(bus action.Bus) *ActionTodoApp {
-    app := &ActionTodoApp{
-        todos:   reactivity.CreateSignal([]Todo{}),
-        newTodo: reactivity.CreateSignal(""),
-        bus:     bus,
-    }
-    
-    // Register action handlers with lifecycle management
-    action.OnAction(bus, TodoAdded, func(ctx action.Context, todo Todo) {
-        current := app.todos.Get()
-        app.todos.Set(append(current, todo))
-        logutil.Logf("Todo added: %s (TraceID: %s)", todo.Text, ctx.TraceID)
-    })
-    
-    action.OnAction(bus, TodoToggled, func(ctx action.Context, id string) {
-        current := app.todos.Get()
-        for i, todo := range current {
-            if todo.ID == id {
-                current[i].Completed = !current[i].Completed
-                break
-            }
-        }
-        app.todos.Set(current)
-    })
-    
-    action.OnAction(bus, TodoDeleted, func(ctx action.Context, id string) {
-        current := app.todos.Get()
-        filtered := make([]Todo, 0, len(current))
-        for _, todo := range current {
-            if todo.ID != id {
-                filtered = append(filtered, todo)
-            }
-        }
-        app.todos.Set(filtered)
-    })
-    
-    action.OnAction(bus, TodosCleared, func(ctx action.Context, _ struct{}) {
-        app.todos.Set([]Todo{})
-    })
-    
-    return app
-}
-
-func (app *ActionTodoApp) Render() g.Node {
-    return h.Div(
-        h.H1(g.Text("Action-Driven Todo App")),
-        app.renderAddTodo(),
-        app.renderTodoList(),
-        app.renderStats(),
-    )
-}
-
-func (app *ActionTodoApp) renderAddTodo() g.Node {
-    return h.Div(
-        h.Input(
-            g.Attr("type", "text"),
-            g.Attr("placeholder", "Add new todo..."),
-            g.Attr("value", app.newTodo.Get()),
-            dom.OnInputInline(func(el dom.Element) {
-                app.newTodo.Set(el.Underlying().Get("value").String())
-            }),
-            dom.OnEnterInline(func(el dom.Element) {
-                app.addTodo()
-            }),
-        ),
-        h.Button(
-            g.Text("Add"),
-            dom.OnClickInline(func(el dom.Element) {
-                app.addTodo()
-            }),
-        ),
-    )
-}
-
-func (app *ActionTodoApp) addTodo() {
-    text := strings.TrimSpace(app.newTodo.Get())
-    if text == "" {
-        return
-    }
-    
-    todo := Todo{
-        ID:        fmt.Sprintf("todo-%d", time.Now().UnixNano()),
-        Text:      text,
-        Completed: false,
-        CreatedAt: time.Now(),
-    }
-    
-    // Dispatch action instead of direct state mutation
-    action.Dispatch(app.bus, TodoAdded, todo,
-        action.WithTraceID(fmt.Sprintf("add-todo-%d", time.Now().UnixNano())),
-        action.WithSource("todo-component"),
-    )
-    
-    app.newTodo.Set("")
-}
-```
-
-### Component Lifecycle
-```go
-func (c *Component) Render() g.Node {
-    // Generate static HTML structure
-    return h.Div(/* ... */)
-}
-
-
-```
-
-## Control Flow Patterns
-
-### Conditional Rendering
-```go
-// Using memos for conditional content
-content := reactivity.NewMemo(func() string {
-    if showMessage.Get() {
-        return fmt.Sprintf(`<p>%s</p>`, message.Get())
-    }
-    return `<p>Nothing to show</p>`
-})
-
-// In render
-h.Div(
-    g.Attr("data-html", "content"),
-    g.Text(content.Get()),
-)
-
-// In attach
-comps.BindHTML("content", content)
-```
-
-### Lists and Loops
-```go
-// Dynamic list rendering
-listHTML := reactivity.NewMemo(func() string {
-    var html strings.Builder
-    for i, item := range items.Get() {
-        html.WriteString(fmt.Sprintf(
-            `<li data-click="item-%d">%s</li>`,
-            i, item.Name,
-        ))
-    }
-    return html.String()
-})
-
-// Bind list and individual item handlers
-comps.BindHTML("list", listHTML)
-for i := range items.Get() {
-    comps.BindClick(fmt.Sprintf("item-%d", i), func() {
-        handleItemClick(i)
-    })
-}
-```
-
-## Routing
-
-### Basic Router Setup
-```go
-var router = uiwgo_router.NewRouter()
-
-func init() {
-    router.Route("/", HomeComponent)
-    router.Route("/about", AboutComponent)
-    router.Route("/users/:id", UserProfileComponent)
-}
-
-func main() {
-    router.Start()
-    comps.Mount("app", AppComponent())
-    select {} // Keep alive
-}
-```
-
-### Navigation
-```go
-// Programmatic navigation
-router.Navigate("/users/123")
-
-// Link components
-h.A(
-    g.Attr("href", "/about"),
-    g.Attr("data-click", "navigate-about"),
-    g.Text("About"),
-)
-
-// Prevent default and use router
-comps.BindClick("navigate-about", func() {
-    router.Navigate("/about")
-})
-```
-
-### Route Parameters
-```go
-func UserProfileComponent() g.Node {
-    userID := router.GetParam("id")
-    
-    return h.Div(
-        h.H1(g.Text(fmt.Sprintf("User Profile: %s", userID))),
-        // ... rest of component
-    )
-}
-```
-
-## Form Handling
-
-### Basic Form with Actions
-```go
-// Define form actions
-var (
-    FormSubmitted = action.DefineAction[FormData]("form.submitted")
-    ValidationFailed = action.DefineAction[map[string]string]("form.validation_failed")
-)
-
-// Define form queries
-var ValidateForm = action.DefineQuery[FormData, ValidationResult]("form.validate")
-
-type ContactForm struct {
-    name    *reactivity.Signal[string]
-    email   *reactivity.Signal[string]
-    message *reactivity.Signal[string]
-    errors  *reactivity.Signal[map[string]string]
-    bus     action.Bus
-}
-
-func NewContactForm(bus action.Bus) *ContactForm {
-    f := &ContactForm{
-        name:    reactivity.NewSignal(""),
-        email:   reactivity.NewSignal(""),
-        message: reactivity.NewSignal(""),
-        errors:  reactivity.NewSignal(map[string]string{}),
-        bus:     bus,
-    }
-    
-    // Handle validation failures
-    action.OnAction(bus, ValidationFailed, func(ctx action.Context, errors map[string]string) {
-        f.errors.Set(errors)
-    })
-    
-    return f
-}
-
-func (f *ContactForm) Render() g.Node {
-    return h.Form(
-        h.Div(
-            h.Label(g.Text("Name:")),
-            h.Input(
-                g.Attr("type", "text"),
-                g.Attr("value", f.name.Get()),
-                dom.OnInputInline(func(el dom.Element) {
-                    f.name.Set(el.Underlying().Get("value").String())
-                }),
-            ),
-            f.renderFieldError("name"),
-        ),
-        h.Div(
-            h.Label(g.Text("Email:")),
-            h.Input(
-                g.Attr("type", "email"),
-                g.Attr("value", f.email.Get()),
-                dom.OnInputInline(func(el dom.Element) {
-                    f.email.Set(el.Underlying().Get("value").String())
-                }),
-            ),
-            f.renderFieldError("email"),
-        ),
-        h.Button(
-            g.Attr("type", "submit"),
-            g.Text("Submit"),
-            dom.OnClickInline(func(el dom.Element) {
-                f.handleSubmit()
-            }),
-        ),
-    )
-}
-
-func (f *ContactForm) handleSubmit() {
-    formData := FormData{
-        Name:    f.name.Get(),
-        Email:   f.email.Get(),
-        Message: f.message.Get(),
-    }
-    
-    // Query validation service
-    future := f.bus.AskTyped(ValidateForm, formData)
-    future.Then(func(result ValidationResult) {
-        if result.Valid {
-            action.Dispatch(f.bus, FormSubmitted, formData)
-        } else {
-            action.Dispatch(f.bus, ValidationFailed, result.Errors)
-        }
-    }).Catch(func(err error) {
-        logutil.Logf("Validation error: %v", err)
-        action.Dispatch(f.bus, ValidationFailed, map[string]string{
-            "general": "Validation service unavailable",
-        })
-    })
-}
-
-func (f *ContactForm) renderFieldError(field string) g.Node {
-    return comps.Show(comps.ShowProps{
-        When: reactivity.NewMemo(func() bool {
-            errors := f.errors.Get()
-            _, hasError := errors[field]
-            return hasError
-        }),
-        Children: h.Span(
-            g.Attr("style", "color: red; font-size: 12px;"),
-            comps.BindText(func() string {
-                errors := f.errors.Get()
-                return errors[field]
-            }),
-        ),
-    })
-}
-```
-
-### Form Validation with Actions
-```go
-// Register form validation handler
-bus.HandleQueryTyped(ValidateForm, func(ctx action.Context, data FormData) (ValidationResult, error) {
-    errors := make(map[string]string)
-    
-    if strings.TrimSpace(data.Name) == "" {
-        errors["name"] = "Name is required"
-    }
-    
-    if !strings.Contains(data.Email, "@") {
-        errors["email"] = "Valid email is required"
-    }
-    
-    if len(data.Message) < 10 {
-        errors["message"] = "Message must be at least 10 characters"
-    }
-    
-    return ValidationResult{
-        Valid:  len(errors) == 0,
-        Errors: errors,
-    }, nil
-})
-```
-
-## Testing Patterns
-
-### Unit Tests
-```go
-//go:build js && wasm
-
-package main
-
-import (
-    "testing"
-    "github.com/ozanturksever/uiwgo/reactivity"
-)
-
-func TestSignalBasics(t *testing.T) {
-    signal := reactivity.NewSignal(0)
-    
-    if signal.Get() != 0 {
-        t.Errorf("Expected 0, got %d", signal.Get())
-    }
-    
-    signal.Set(42)
-    if signal.Get() != 42 {
-        t.Errorf("Expected 42, got %d", signal.Get())
-    }
-}
-```
-
-### Action System Unit Tests
-```go
-//go:build js && wasm
-
-package main
-
-import (
-    "testing"
-    "github.com/ozanturksever/uiwgo/action"
-)
-
-func TestActionDispatchAndSubscribe(t *testing.T) {
-    testBus := action.NewTestBus()
-    bus := testBus.Bus()
-    
-    // Define test action
-    TestAction := action.DefineAction[string]("test.action")
-    
-    // Track received actions
-    var receivedPayloads []string
-    action.OnAction(bus, TestAction, func(ctx action.Context, payload string) {
-        receivedPayloads = append(receivedPayloads, payload)
-    })
-    
-    // Dispatch action
-    action.Dispatch(bus, TestAction, "test-payload")
-    
-    // Verify reception
-    if len(receivedPayloads) != 1 {
-        t.Errorf("Expected 1 received payload, got %d", len(receivedPayloads))
-    }
-    
-    if receivedPayloads[0] != "test-payload" {
-        t.Errorf("Expected 'test-payload', got '%s'", receivedPayloads[0])
-    }
-}
-
-func TestQueryPattern(t *testing.T) {
-    testBus := action.NewTestBus()
-    bus := testBus.Bus()
-    
-    // Define test query
-    TestQuery := action.DefineQuery[string, int]("test.query")
-    
-    // Register query handler
-    bus.HandleQueryTyped(TestQuery, func(ctx action.Context, input string) (int, error) {
-        return len(input), nil
-    })
-    
-    // Send query
-    future := bus.AskTyped(TestQuery, "hello")
-    result, err := future.Await()
-    
-    if err != nil {
-        t.Errorf("Query failed: %v", err)
-    }
-    
-    if result != 5 {
-        t.Errorf("Expected 5, got %d", result)
-    }
-}
-
-func TestActionSubscriptionOptions(t *testing.T) {
-    testBus := action.NewTestBus()
-    bus := testBus.Bus()
-    clock := testBus.Clock()
-    
-    TestAction := action.DefineAction[int]("test.action")
-    
-    // Test Once subscription
-    var onceCount int
-    action.OnAction(bus, TestAction, func(ctx action.Context, payload int) {
-        onceCount++
-    }, action.SubOnce())
-    
-    // Dispatch multiple times
-    action.Dispatch(bus, TestAction, 1)
-    action.Dispatch(bus, TestAction, 2)
-    
-    if onceCount != 1 {
-        t.Errorf("Expected once subscription to fire once, got %d", onceCount)
-    }
-    
-    // Test Filter subscription
-    var evenCount int
-    action.OnAction(bus, TestAction, func(ctx action.Context, payload int) {
-        evenCount++
-    }, action.SubFilter(func(payload int) bool {
-        return payload%2 == 0
-    }))
-    
-    action.Dispatch(bus, TestAction, 1) // Odd, filtered out
-    action.Dispatch(bus, TestAction, 2) // Even, passes
-    action.Dispatch(bus, TestAction, 4) // Even, passes
-    
-    if evenCount != 2 {
-        t.Errorf("Expected 2 even numbers, got %d", evenCount)
-    }
-    
-    // Test DistinctUntilChanged
-    var distinctCount int
-    action.OnAction(bus, TestAction, func(ctx action.Context, payload int) {
-        distinctCount++
-    }, action.SubDistinctUntilChanged(nil))
-    
-    action.Dispatch(bus, TestAction, 5)
-    action.Dispatch(bus, TestAction, 5) // Same value, filtered out
-    action.Dispatch(bus, TestAction, 6) // Different, passes
-    
-    if distinctCount != 2 {
-        t.Errorf("Expected 2 distinct values, got %d", distinctCount)
-    }
-}
-```
-
-### Browser Tests
-```go
-//go:build !js && !wasm
-
-package main
-
-import (
-    "testing"
-    "github.com/chromedp/chromedp"
-    "github.com/ozanturksever/uiwgo/internal/devserver"
-    "github.com/ozanturksever/uiwgo/internal/testhelpers"
-)
-
-func TestCounterIncrement(t *testing.T) {
-    server := devserver.NewServer("counter", "localhost:0")
-    if err := server.Start(); err != nil {
-        t.Fatalf("Failed to start dev server: %v", err)
-    }
-    defer server.Stop()
-    
-    chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
-    defer chromedpCtx.Cancel()
-    
-    var text string
-    err := chromedp.Run(chromedpCtx.Ctx,
-        testhelpers.Actions.NavigateAndWaitForLoad(server.URL(), "body"),
-        chromedp.Text("#count", &text),
-        chromedp.Click("#increment"),
-        chromedp.Text("#count", &text),
-    )
-    
-    if err != nil {
-        t.Fatalf("Test failed: %v", err)
-    }
-    
-    if text != "Count: 1" {
-        t.Errorf("Expected 'Count: 1', got '%s'", text)
-    }
-}
-
-func TestActionSystemIntegration(t *testing.T) {
-    server := devserver.NewServer("action_lifecycle_demo", "localhost:0")
-    if err := server.Start(); err != nil {
-        t.Fatalf("Failed to start dev server: %v", err)
-    }
-    defer server.Stop()
-    
-    chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
-    defer chromedpCtx.Cancel()
-    
-    err := chromedp.Run(chromedpCtx.Ctx,
-        testhelpers.Actions.NavigateAndWaitForLoad(server.URL(), "body"),
-        
-        // Test counter functionality with actions
-        chromedp.Click("#inc-btn"),
-        chromedp.Click("#inc-btn"),
-        
-        // Enable dev logger to test observability
-        chromedp.Click("#logger-toggle"),
-        
-        // Trigger error to test error handling
-        chromedp.Click("#error-btn"),
-        
-        // Send analytics event
-        chromedp.Click("#analytics-btn"),
-        
-        // Verify final state
-        chromedp.WaitVisible("body"),
-    )
-    
-    if err != nil {
-        t.Fatalf("Action system integration test failed: %v", err)
-    }
-}
-
-func TestActionDrivenTodoApp(t *testing.T) {
-    server := devserver.NewServer("todo", "localhost:0")
-    if err := server.Start(); err != nil {
-        t.Fatalf("Failed to start dev server: %v", err)
-    }
-    defer server.Stop()
-    
-    chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
-    defer chromedpCtx.Cancel()
-    
-    var todoCount string
-    err := chromedp.Run(chromedpCtx.Ctx,
-        testhelpers.Actions.NavigateAndWaitForLoad(server.URL(), "body"),
-        
-        // Add a new todo via action dispatch
-        chromedp.SendKeys("#new-todo", "Test todo item"),
-        chromedp.Click("#add-todo"),
-        
-        // Verify todo was added
-        chromedp.Text("#todo-count", &todoCount),
-        
-        // Toggle todo completion
-        chromedp.Click("[data-todo-id='todo-0'] .toggle"),
-        
-        // Delete todo
-        chromedp.Click("[data-todo-id='todo-0'] .delete"),
-        
-        // Verify final state
-        chromedp.Text("#todo-count", &todoCount),
-    )
-    
-    if err != nil {
-        t.Fatalf("Todo app test failed: %v", err)
-    }
-    
-    if todoCount != "0 items left" {
-        t.Errorf("Expected '0 items left', got '%s'", todoCount)
-    }
-}
-
-func TestFormValidationWithActions(t *testing.T) {
-    server := devserver.NewServer("form_demo", "localhost:0")
-    if err := server.Start(); err != nil {
-        t.Fatalf("Failed to start dev server: %v", err)
-    }
-    defer server.Stop()
-    
-    chromedpCtx := testhelpers.MustNewChromedpContext(testhelpers.DefaultConfig())
-    defer chromedpCtx.Cancel()
-    
-    err := chromedp.Run(chromedpCtx.Ctx,
-        testhelpers.Actions.NavigateAndWaitForLoad(server.URL(), "body"),
-        
-        // Test validation errors via action system
-        chromedp.Click("#submit-form"),
-        chromedp.WaitVisible(".error-message"),
-        
-        // Fill valid data
-        chromedp.SendKeys("#name-input", "John Doe"),
-        chromedp.SendKeys("#email-input", "john@example.com"),
-        chromedp.SendKeys("#message-input", "This is a test message that is long enough"),
-        
-        // Submit form
-        chromedp.Click("#submit-form"),
-        
-        // Verify success message
-        chromedp.WaitVisible(".success-message"),
-    )
-    
-    if err != nil {
-        t.Fatalf("Form validation test failed: %v", err)
-    }
-}
-```
-
-## Best Practices
-
-### Code Organization
-1. **Separate concerns**: Keep state, computed values, and UI separate
-2. **Use functional components** for simple cases
-3. **Use stateful components** for complex state management
-4. **Compose components** rather than creating monolithic structures
-
-### Performance
-1. **Use memos** for expensive computations
-2. **Batch updates** when making multiple state changes
-3. **Dispose effects** when components unmount
-4. **Avoid creating signals in render functions**
-
-### State Management
-1. **Keep state close to where it's used**
-2. **Use signals for primitive values**
-3. **Use memos for derived state**
-4. **Use effects for side effects only**
-5. **Consider action-driven state** for complex coordination
-
-### Event Handling
-1. **Prefer inline event binding** over manual DOM queries
-2. **Use data attributes** for declarative event binding
-3. **Handle cleanup** in component unmount
-4. **Use actions for complex event flows** that involve multiple components
-
-### Action System
-1. **Use type-safe action definitions** with `DefineAction` and `DefineQuery`
-2. **Prefer OnAction with lifecycle management** over manual subscriptions
-3. **Use queries for request/response patterns** instead of imperative calls
-4. **Enable observability features** in development (dev logger, debug buffer)
-5. **Handle errors gracefully** with enhanced error handlers
-6. **Use subscription options** (priority, filter, distinct) for precise control
-7. **Bridge actions to signals** for reactive state management
-8. **Use async dispatch** for non-blocking operations
-9. **Include tracing metadata** for debugging complex flows
-
-### Testing
-1. **Write unit tests** for core logic
-2. **Write browser tests** for user interactions
-3. **Use testhelpers** for consistent test setup
-4. **Test both success and error scenarios**
-5. **Use TestBus and FakeClock** for deterministic action system tests
-6. **Test subscription options** (once, filter, distinct) separately
-7. **Test query timeout and error scenarios**
-
-## Common Patterns
-
-### Loading States
-```go
-type AsyncComponent struct {
-    loading *reactivity.Signal[bool]
-    data    *reactivity.Signal[*Data]
-    error   *reactivity.Signal[error]
-}
-
-func (c *AsyncComponent) fetchData() {
-    c.loading.Set(true)
-    c.error.Set(nil)
-    
-    go func() {
-        data, err := api.FetchData()
-        c.loading.Set(false)
-        if err != nil {
-            c.error.Set(err)
-        } else {
-            c.data.Set(data)
-        }
-    }()
-}
-```
-
-### Modal Dialogs
-```go
-type Modal struct {
-    isOpen *reactivity.Signal[bool]
-    title  *reactivity.Signal[string]
-    content *reactivity.Signal[string]
-}
-
-func (m *Modal) Render() g.Node {
-    return h.Div(
-        comps.BindVisible(func() bool {
-            return m.isOpen.Get()
-        }),
-        g.Class("modal-overlay"),
-        h.Div(
-            g.Class("modal-content"),
-            h.H2(comps.BindText(func() string {
-                return m.title.Get()
-            })),
-            h.P(comps.BindText(func() string {
-                return m.content.Get()
-            })),
-            h.Button(
-                g.Text("Close"),
-                dom.OnClickInline(func(el dom.Element) {
-                    m.isOpen.Set(false)
-                }),
-            ),
-        ),
-    )
-}
-```
-
-### Data Tables with Actions
-```go
-// Define table actions
-var (
-    DataLoaded    = action.DefineAction[[]TableRow]("table.data_loaded")
-    SortChanged   = action.DefineAction[SortConfig]("table.sort_changed")
-    FilterChanged = action.DefineAction[FilterConfig]("table.filter_changed")
-    RowSelected   = action.DefineAction[string]("table.row_selected")
-)
-
-// Define table queries
-var LoadTableData = action.DefineQuery[DataRequest, []TableRow]("table.load_data")
-
-type DataTable struct {
-    data         *reactivity.Signal[[]TableRow]
-    sortColumn   *reactivity.Signal[string]
-    sortOrder    *reactivity.Signal[string]
-    filterText   *reactivity.Signal[string]
-    selectedRows *reactivity.Signal[[]string]
-    loading      *reactivity.Signal[bool]
-    bus          action.Bus
-}
-
-func NewDataTable(bus action.Bus) *DataTable {
-    dt := &DataTable{
-        data:         reactivity.NewSignal([]TableRow{}),
-        sortColumn:   reactivity.NewSignal(""),
-        sortOrder:    reactivity.NewSignal("asc"),
-        filterText:   reactivity.NewSignal(""),
-        selectedRows: reactivity.NewSignal([]string{}),
-        loading:      reactivity.NewSignal(false),
-        bus:          bus,
-    }
-    
-    // Register action handlers
-    action.OnAction(bus, DataLoaded, func(ctx action.Context, rows []TableRow) {
-        dt.data.Set(rows)
-        dt.loading.Set(false)
-    })
-    
-    action.OnAction(bus, SortChanged, func(ctx action.Context, config SortConfig) {
-        dt.sortColumn.Set(config.Column)
-        dt.sortOrder.Set(config.Order)
-        dt.reloadData()
-    })
-    
-    action.OnAction(bus, FilterChanged, func(ctx action.Context, config FilterConfig) {
-        dt.filterText.Set(config.Text)
-        dt.reloadData()
-    })
-    
-    action.OnAction(bus, RowSelected, func(ctx action.Context, rowID string) {
-        current := dt.selectedRows.Get()
-        // Toggle selection
-        for i, id := range current {
-            if id == rowID {
-                // Remove if already selected
-                current = append(current[:i], current[i+1:]...)
-                dt.selectedRows.Set(current)
-                return
-            }
-        }
-        // Add if not selected
-        dt.selectedRows.Set(append(current, rowID))
-    })
-    
-    return dt
-}
-
-func (dt *DataTable) reloadData() {
-    dt.loading.Set(true)
-    
-    request := DataRequest{
-        SortColumn: dt.sortColumn.Get(),
-        SortOrder:  dt.sortOrder.Get(),
-        Filter:     dt.filterText.Get(),
-    }
-    
-    future := dt.bus.AskTyped(LoadTableData, request)
-    future.Then(func(rows []TableRow) {
-        action.Dispatch(dt.bus, DataLoaded, rows)
-    }).Catch(func(err error) {
-        dt.loading.Set(false)
-        logutil.Logf("Failed to load table data: %v", err)
-    })
-}
-```
-
-### Real-Time Updates with Actions
-```go
-// Define real-time actions
-var (
-    SubscribeToUpdates   = action.DefineAction[string]("realtime.subscribe")
-    UnsubscribeFromUpdates = action.DefineAction[string]("realtime.unsubscribe")
-    LiveDataUpdate       = action.DefineAction[LiveUpdate]("realtime.data_update")
-    ConnectionStatusChanged = action.DefineAction[ConnectionStatus]("realtime.connection_status")
-)
-
-type RealtimeComponent struct {
-    data            *reactivity.Signal[map[string]any]
-    connectionStatus *reactivity.Signal[string]
-    subscriptions   *reactivity.Signal[[]string]
-    bus             action.Bus
-}
-
-func NewRealtimeComponent(bus action.Bus) *RealtimeComponent {
-    rt := &RealtimeComponent{
-        data:            reactivity.NewSignal(make(map[string]any)),
-        connectionStatus: reactivity.NewSignal("disconnected"),
-        subscriptions:   reactivity.NewSignal([]string{}),
-        bus:             bus,
-    }
-    
-    // Handle live data updates
-    action.OnAction(bus, LiveDataUpdate, func(ctx action.Context, update LiveUpdate) {
-        current := rt.data.Get()
-        current[update.Key] = update.Value
-        rt.data.Set(current)
-        logutil.Logf("Live update: %s = %v", update.Key, update.Value)
-    })
-    
-    // Handle connection status changes
-    action.OnAction(bus, ConnectionStatusChanged, func(ctx action.Context, status ConnectionStatus) {
-        rt.connectionStatus.Set(status.Status)
-        if status.Status == "connected" {
-            // Re-subscribe to previous subscriptions
-            for _, topic := range rt.subscriptions.Get() {
-                action.Dispatch(bus, SubscribeToUpdates, topic)
-            }
-        }
-    })
-    
-    return rt
-}
-
-func (rt *RealtimeComponent) subscribeTo(topic string) {
-    current := rt.subscriptions.Get()
-    current = append(current, topic)
-    rt.subscriptions.Set(current)
-    
-    action.Dispatch(rt.bus, SubscribeToUpdates, topic,
-        action.WithTraceID(fmt.Sprintf("subscribe-%s-%d", topic, time.Now().UnixNano())),
-        action.WithSource("realtime-component"),
-    )
-}
-```
-
-## Error Handling
-
-### Error Boundaries
-```go
-type ErrorBoundary struct {
-    hasError *reactivity.Signal[bool]
-    error    *reactivity.Signal[error]
-}
-
-func (eb *ErrorBoundary) Render() g.Node {
-    return h.Div(
-        comps.BindHTML(func() string {
-            if eb.hasError.Get() {
-                return fmt.Sprintf(
-                    `<div class="error">Error: %s</div>`,
-                    eb.error.Get().Error(),
-                )
-            }
-            return `<div id="content"></div>`
-        }),
-    )
-}
-
-func (eb *ErrorBoundary) CatchError(err error) {
-    eb.hasError.Set(true)
-    eb.error.Set(err)
-    logutil.Logf("Error caught: %v", err)
-}
-```
-
-### Async Error Handling
-```go
-func (c *Component) handleAsyncOperation() {
-    go func() {
-        defer func() {
-            if r := recover(); r != nil {
-                err := fmt.Errorf("panic: %v", r)
-                c.errorBoundary.CatchError(err)
-            }
-        }()
-        
-        result, err := someAsyncOperation()
-        if err != nil {
-            c.errorBoundary.CatchError(err)
-            return
-        }
-        
-        c.result.Set(result)
-    }()
-}
-```
-
-## Logging Guidelines
-
-Always use the logutil package for cross-platform logging:
+**Always prefer inline event handlers.** They are declarative, automatically cleaned up, and use efficient event delegation.
 
 ```go
-import "github.com/ozanturksever/uiwgo/logutil"
-
-// Basic logging
-logutil.Log("Application started")
-logutil.Log("User clicked button", userID)
-
-// Formatted logging
-logutil.Logf("Processing %d items", len(items))
-logutil.Logf("User %s logged in at %v", username, time.Now())
-
-// Error logging
-if err != nil {
-    logutil.Logf("Error occurred: %v", err)
-}
-```
-
-## DOM Interop Guidelines
-
-Prefer honnef.co/go/js/dom/v2 for browser DOM and Web APIs:
-
-```go
-import "honnef.co/go/js/dom/v2"
-
-// Preferred: Type-safe DOM access
-doc := dom.GetWindow().Document()
-element := doc.GetElementByID("myElement")
-element.SetTextContent("Hello, World!")
-
-// Use syscall/js only when necessary
-import "syscall/js"
-
-// Only when API unavailable in dom/v2
-js.Global().Call("someSpecialAPI", args...)
-```
-
-## React Compatibility Notes
-
-The compat/react bridge exposes a small API surface tailored for safe JS interop from Go.
-
-- Initialization
-  - Call InitializeBridge() before using Render/Update/Unmount/Register/Resolve.
-  - GetBridge() returns a bridge or ErrBridgeNotInitialized (sentinel) if not initialized.
-  - InitializeBridge can be called multiple times safely; it reinitializes the bridge if needed (useful in tests).
-- Sentinel errors for precise matching via errors.Is:
-  - ErrBridgeNotInitialized when the global bridge hasn’t been initialized.
-  - ErrComponentIDRequired, ErrComponentNameRequired, ErrPropsFuncRequired returned by Bind() for invalid args.
-- Props validation and conversion
-  - Render/Update validate props to reject unsupported values (e.g., channels, structs, maps with non-string keys).
-  - Allowed types include primitives, maps[string]any, slices/arrays, pointers (recursively validated), and js.Value/js.Func passthrough.
-  - Props are converted with MapToJSObject to native JS objects/arrays (no JSON marshalling), preserving js.Value and js.Func by reference.
-
-Example:
-```go
-package main
-
-import (
-    "errors"
-    "syscall/js"
-    react "github.com/ozanturksever/uiwgo/compat/react"
-)
-
-func main() {
-    // Ensure bridge is initialized
-    if _, err := react.GetBridge(); err != nil {
-        if errors.Is(err, react.ErrBridgeNotInitialized) {
-            _ = react.InitializeBridge()
-        }
-    }
-
-    // js.Func and js.Value are passed through to JS intact
-    cb := js.FuncOf(func(this js.Value, args []js.Value) any { return nil })
-    node := js.Global().Get("Object").New()
-
-    // Render with props validated and converted (no JSON marshalling)
-    _, _ = react.Render("Button", react.Props{
-        "label":   "Click",
-        "onClick": cb,   // js.Func preserved
-        "node":    node, // js.Value preserved
-    }, nil)
-}
-```
-
-## Development Workflow
-
-### Adding New Examples
-1. Create folder under `examples/`
-2. Add `main.go` with your application
-3. **Mandatory**: Add browser tests in `main_test.go`
-4. Use the devserver pattern for testing
-5. Follow existing examples for structure
-
-### Testing Workflow
-```bash
-# Develop with live reload
-make run my_example
-
-# Test during development
-make test-example my_example
-
-# Run specific test
-make test-example my_example RUN=TestSpecificFunction
-
-# Full validation
-make test-all
-```
-
-### Build and Deploy
-```bash
-# Build for production
-make build my_example
-
-# Output: examples/my_example/main.wasm
-# Serve with your preferred web server
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Empty page**: Check browser console for WASM loading errors
-2. **Changes not reflecting**: Ensure dev server is running with live reload
-3. **Port in use**: Run `make kill` to free port 8080
-4. **Build errors**: Verify Go WebAssembly support with `GOOS=js GOARCH=wasm go version`
-5. **Test failures**: Run individual tests first to isolate issues
-
-### Debug Tips
-
-1. **Use logutil for debugging**: Works in both browser and standard Go
-2. **Check browser DevTools**: Network, Console, and Sources tabs
-3. **Verify WASM loading**: Look for `main.wasm` in Network tab
-4. **Test incrementally**: Start with simple components and build up
-5. **Use visible browser config**: `testhelpers.VisibleConfig()` for debugging tests
-
-## Integration Examples
-
-### Complete Application Structure with Actions
-```go
-package main
-
-import (
-    "github.com/maragudk/gomponents"
-    "github.com/maragudk/gomponents/html as h"
-    "github.com/ozanturksever/uiwgo/action"
-    "github.com/ozanturksever/uiwgo/comps"
-    "github.com/ozanturksever/uiwgo/reactivity"
-    "github.com/ozanturksever/uiwgo/logutil"
-)
-
-// Define application-level actions
-var (
-    AppInitialized    = action.DefineAction[AppConfig]("app.initialized")
-    UserLoggedIn      = action.DefineAction[User]("user.logged_in")
-    UserLoggedOut     = action.DefineAction[struct{}]("user.logged_out")
-    NavigationChanged = action.DefineAction[string]("navigation.changed")
-    NotificationAdded = action.DefineAction[Notification]("notification.added")
-)
-
-type App struct {
-    currentView   *reactivity.Signal[string]
-    user          *reactivity.Signal[*User]
-    notifications *reactivity.Signal[[]Notification]
-    bus           action.Bus
-}
-
-func NewApp() *App {
-    bus := action.New()
-    
-    app := &App{
-        currentView:   reactivity.NewSignal("home"),
-        user:          reactivity.NewSignal((*User)(nil)),
-        notifications: reactivity.NewSignal([]Notification{}),
-        bus:           bus,
-    }
-    
-    // Set up application-level action handlers
-    action.OnAction(bus, AppInitialized, func(ctx action.Context, config AppConfig) {
-        logutil.Logf("App initialized with config: %+v (TraceID: %s)", config, ctx.TraceID)
-        app.currentView.Set(config.InitialView)
-    })
-    
-    action.OnAction(bus, UserLoggedIn, func(ctx action.Context, user User) {
-        app.user.Set(&user)
-        logutil.Logf("User logged in: %s (TraceID: %s)", user.Name, ctx.TraceID)
-        action.Dispatch(bus, NavigationChanged, "dashboard")
-    })
-    
-    action.OnAction(bus, UserLoggedOut, func(ctx action.Context, _ struct{}) {
-        app.user.Set(nil)
-        logutil.Log("User logged out")
-        action.Dispatch(bus, NavigationChanged, "home")
-    })
-    
-    action.OnAction(bus, NavigationChanged, func(ctx action.Context, view string) {
-        app.currentView.Set(view)
-        logutil.Logf("Navigation changed to: %s", view)
-    })
-    
-    action.OnAction(bus, NotificationAdded, func(ctx action.Context, notification Notification) {
-        current := app.notifications.Get()
-        app.notifications.Set(append(current, notification))
-    })
-    
-    // Set up error handling
-    bus.OnError(func(ctx action.Context, err error, recovered any) {
-        logutil.Logf("Application error: %v (TraceID: %s)", err, ctx.TraceID)
-        action.Dispatch(bus, NotificationAdded, Notification{
-            Type:    "error",
-            Message: fmt.Sprintf("Error: %v", err),
-        })
-    })
-    
-    return app
-}
-
-func (app *App) Render() gomponents.Node {
-    return h.Div(
-        g.ID("app"),
-        app.renderHeader(),
-        app.renderMain(),
-        app.renderFooter(),
-    )
-}
-
-
-
-func main() {
-    app := NewApp()
-    comps.Mount("app", app.Render())
-    
-    // Keep the program running
-    select {}
-}
-```
-
-## Action System Performance Considerations
-
-### WebAssembly Limitations
-The action system is optimized for WebAssembly environments where advanced performance features (object pooling, reactive batching, microtask scheduler) are not available. Focus on application-level patterns:
-
-```go
-// Use distinct until changed to prevent unnecessary updates
-action.OnAction(bus, DataUpdated, handler, action.SubDistinctUntilChanged(nil))
-
-// Use filters to reduce handler executions
-action.OnAction(bus, UserAction, handler, action.SubFilter(func(user User) bool {
-    return user.IsActive
+// Click event: handler receives the element itself
+h.Button(dom.OnClickInline(func(el dom.Element) {
+	// ... logic
 }))
 
-// Use async dispatch for non-critical operations
-action.Dispatch(bus, AnalyticsEvent, event, action.WithAsync())
+// Input event: handler receives element, get value from it
+h.Input(dom.OnInputInline(func(el dom.Element) {
+    value := el.Value() // el.Value() is a shorthand
+    textSignal.Set(value)
+}))
 
-// Batch related actions when possible
-reactivity.Batch(func() {
-    action.Dispatch(bus, DataLoaded, data)
-    action.Dispatch(bus, LoadingFinished, struct{}{})
-})
+// Debounced input: useful for search fields
+h.Input(dom.OnInputDebouncedInline(func(el dom.Element) {
+    searchQuery.Set(el.Value())
+}, 250)) // delay in ms
+
+// Keyboard events for "Enter" or "Escape"
+h.Input(dom.OnEnterInline(func(el dom.Element) {
+	// E.g., submit a form or add a todo item
+}))
+
+// Form submission (automatically prevents default)
+h.Form(dom.OnSubmitInline(func(el dom.Element, formData map[string]string) {
+    logutil.Log("Form submitted with data:", formData)
+}))
 ```
 
-### Memory Management
+## 4. Major Features & Patterns
+
+### 4.1. Resources: Reactive Async Operations
+
+Resources are the primary way to handle data fetching. They track the `(data, loading, error)` state of an asynchronous operation that is driven by a `source` signal. When the source signal changes, the fetcher function is re-executed.
+
+- **`reactivity.CreateResource[S, T](source Signal[S], fetcher func(S) (T, error)) Resource[T]`**
+
+A `Resource[T]` provides three reactive methods:
+- `resource.Data() T`: The latest successful data.
+- `resource.Loading() bool`: True while fetching.
+- `resource.Error() error`: The last error encountered.
+
 ```go
-// Dispose subscriptions when components unmount
-// OnAction handles this automatically, but for manual subscriptions:
-subscription := bus.Subscribe("action.type", handler)
-comps.OnUnmount(func() {
-    subscription.Dispose()
-})
+type Post struct { ID int; Title string }
 
-// Use action.AutoSubscribe for automatic lifecycle management
-action.AutoSubscribe(func() action.Disposable {
-    return bus.Subscribe("action.type", handler)
-})
+func fetchPost(id int) (Post, error) {
+    // In a real app, you'd use js.Global().Call("fetch", ...)
+    // This is a simplified example.
+    if id <= 0 {
+        return Post{}, fmt.Errorf("invalid post ID")
+    }
+    return Post{ID: id, Title: fmt.Sprintf("Post %d", id)}, nil
+}
+
+func PostComponent(initialPostID int) g.Node {
+    // 1. A signal to drive the resource. When this changes, the resource refetches.
+    postID := reactivity.CreateSignal(initialPostID)
+
+    // 2. The resource itself. It connects the source signal to the async fetcher.
+    postResource := reactivity.CreateResource(postID, fetchPost)
+
+    return h.Div(
+        h.H2(g.Text("Post Viewer")),
+        // This button updates the source signal, triggering a refetch.
+        h.Button(
+            dom.OnClickInline(func(el dom.Element) {
+                postID.Set(postID.Get() + 1)
+            }),
+            g.Text("Next Post"),
+        ),
+        // 3. Conditionally render UI based on the resource's state.
+        // The .Data(), .Loading(), and .Error() calls are all reactive.
+        comps.Case(
+            h.When(postResource.Loading, h.P(g.Text("Loading post..."))),
+            h.When(func() bool { return postResource.Error() != nil }, h.P(g.Text(postResource.Error().Error()))),
+            h.When(true, // Default case
+                h.Article(
+                    h.H1(g.Text(postResource.Data().Title)),
+                    h.P(g.Textf("ID: %d", postResource.Data().ID)),
+                ),
+            ),
+        ),
+    )
+}
 ```
 
-This guide provides comprehensive coverage of UIwGo's capabilities and patterns. Use it as a reference for building reactive web applications with Go and WebAssembly.
+### 4.2. Stores: Nested Reactive State
+
+Stores provide fine-grained reactivity for nested objects or slices. This is perfect for complex application state where you want to avoid re-rendering large components when only a small piece of data changes.
+
+- **`reactivity.CreateStore[T](initialValue T) (Store[T], func(...any))`**: Returns a store and a `setState` function.
+
+To read from the store reactively, you **must** use `store.Select(path...).Get()`. To update, you **must** use `setState(path..., value)`.
+
+```go
+type Todo struct {
+    Text      string
+    Completed bool
+}
+
+type AppState struct {
+    Todos []Todo
+    Filter string
+}
+
+// 1. Create the store and setState function
+appStore, setAppState := reactivity.CreateStore(AppState{
+    Todos: []Todo{
+        {Text: "Learn UIwGo", Completed: true},
+        {Text: "Build an app", Completed: false},
+    },
+    Filter: "All",
+})
+
+// 2. To read reactively, use Select()
+completedSignal := reactivity.Adapt[bool](appStore.Select("Todos", 1, "Completed"))
+
+reactivity.CreateEffect(func() {
+    // This effect ONLY depends on the 'Completed' field of the second todo.
+    logutil.Log("Second todo completed status:", completedSignal.Get())
+})
+
+// 3. To write, use the setState function with a path.
+// This update will only trigger the effect above.
+setAppState("Todos", 1, "Completed", true)
+
+// Example: Get the length of the Todos slice reactively
+todosLenSignal := appStore.SelectLen("Todos")
+reactivity.CreateEffect(func() {
+    logutil.Log("Number of todos:", todosLenSignal.Get())
+})
+
+// Example: Update the filter string
+setAppState("Filter", "Active")
+```
+
+### 4.3. Application Manager & Routing (`appmanager` & `router` packages)
+
+The `AppManager` is the standard way to bootstrap a UIwGo application. It handles initialization, mounting the root component, and integrating the router.
+
+The `router` uses `RouteDefinition`s with `:param` syntax for parameters.
+
+```go
+// Define components for different pages
+func HomePage(props ...any) any {
+    return h.Div(h.H1(g.Text("Welcome Home")))
+}
+func UserComponent(props ...any) any {
+    // Props contain router context
+    routeCtx := props[0].(*router.RouteContext)
+    id := routeCtx.Params["id"]
+    return h.Div(h.H1(g.Textf("Viewing User %s", id)))
+}
+
+// main.go
+func main() {
+    ctx := context.Background()
+
+    // 1. Define routes using the correct :param syntax
+    appRoutes := []*router.RouteDefinition{
+        router.Route("/", HomePage),
+        router.Route("/users/:id", UserComponent),
+    }
+
+    // 2. Define the root component, including the router outlet
+    rootComponent := func() g.Node {
+        return h.Body(
+            h.Nav(
+                // The router provides the `A` component for navigation
+                router.A(h.Href("/"), g.Text("Home")),
+                router.A(h.Href("/users/123"), g.Text("User 123")),
+            ),
+            h.Main(
+                // This is where the matched route component will be rendered
+                g.ID("router-outlet"),
+            ),
+        )
+    }
+
+    // 3. Configure and initialize the AppManager
+    manager := appmanager.NewAppManager(&appmanager.AppConfig{
+        Routes: appRoutes,
+    })
+
+    if err := manager.Initialize(ctx); err != nil {
+        logutil.Log("Failed to initialize app manager:", err)
+        return
+    }
+
+    // 4. Mount the root component to the DOM
+    if err := manager.Mount(rootComponent); err != nil {
+        logutil.Log("Failed to mount app:", err)
+        return
+    }
+
+    select {} // Keep the app running
+}
+```
+
+### 4.4. React Compatibility (`compat/react` package)
+
+UIwGo can mount and manage React components (e.g., from `shadcn/ui`), providing access to a rich ecosystem of pre-built UI.
+
+- **`react.NewReactBridge()`**: Creates a new bridge instance.
+- **`react.GetBridge()`**: Retrieves a shared global bridge instance (after initialization).
+- **`bridge.Render(componentName string, props Props, options *RenderOptions)`**: Renders a React component.
+
+```go
+// main.go
+import (
+    "github.com/ozanturksever/uiwgo/compat/react"
+    "github.com/ozanturksever/uiwgo/comps"
+    "github.com/ozanturksever/uiwgo/dom"
+    "github.com/ozanturksever/uiwgo/logutil"
+    g "github.com/maragudk/gomponents"
+    h "github.com/maragudk/gomponents/html"
+    "syscall/js"
+)
+
+func ShadcnDemo() g.Node {
+    // Get the shared React bridge. Ensure `react.InitializeBridge()` has been called once at startup.
+    bridge, err := react.GetBridge()
+    if err != nil {
+        return h.Div(g.Textf("Failed to get React bridge: %v", err))
+    }
+
+    // Use OnInitInline to render the React component when the container div is mounted
+    renderReactButton := dom.OnInitInline(func(el dom.Element) {
+        props := react.Props{
+            "variant": "destructive",
+            "children": "Click me (from React)",
+            "onClick": js.FuncOf(func(this js.Value, args []js.Value) any {
+                logutil.Log("React button clicked!")
+                return nil
+            }),
+        }
+        // Render into the element that triggered the init event
+        _, err := bridge.Render("Button", props, &react.RenderOptions{
+            ContainerID: el.ID(),
+        })
+        if err != nil {
+            logutil.Log("Failed to render React component:", err)
+        }
+    })
+
+    return h.Div(
+        // Container for the React component with an ID and the init handler
+        h.Div(g.ID("react-root"), renderReactButton),
+        // A standard Go button
+        h.Button(
+            g.Text("Click me (from Go)"),
+            dom.OnClickInline(func (el dom.Element) {
+                logutil.Log("Go button clicked!")
+            }),
+        ),
+    )
+}
+```
+
+## 5. Advanced: The Action System (`action` package)
+
+For complex applications, the `action` package provides a powerful, decoupled event bus system for managing state, commands, and queries. It is a mature and available feature.
+
+### 5.1. Core Concepts
+
+- **Bus**: The central message bus. You can use a `action.Global()` singleton or create local buses with `action.New()`.
+- **Action**: A message dispatched on the bus, typically with a `Type` and `Payload`.
+- **Dispatch**: Sends an action to all interested subscribers.
+- **Subscribe**: Listens for actions of a specific type.
+- **Query/Ask**: A request/response pattern for fetching data through the bus.
+
+### 5.2. Basic Usage: Dispatch and Subscribe
+
+```go
+bus := action.Global()
+
+// Define action types
+const (
+    UserLoggedInAction = "user:logged-in"
+    UpdateThemeAction  = "theme:update"
+)
+
+// Subscriber component/service
+func SetupThemeListener() {
+    bus.Subscribe(UpdateThemeAction, func(act action.Action[string]) error {
+        logutil.Logf("Theme update received. New theme: %s", act.Payload)
+        // ... apply theme
+        return nil
+    })
+}
+
+// Dispatcher component/service
+func UserLoginComponent() g.Node {
+    return h.Button(
+        g.Text("Log In"),
+        dom.OnClickInline(func(el dom.Element) {
+            // Dispatch a simple action with a string type
+            bus.Dispatch(UserLoggedInAction)
+
+            // Dispatch an action with a payload
+            bus.Dispatch(action.Action[string]{
+                Type:    UpdateThemeAction,
+                Payload: "dark",
+            })
+        }),
+    )
+}
+```
+
+### 5.3. Query/Ask Pattern
+
+The query pattern allows one part of an application to request data from another without a direct dependency.
+
+```go
+bus := action.Global()
+
+// Define query type
+const GetUserQuery = "query:user"
+
+// The service that has the data handles the query
+func SetupUserQueryHandler() {
+    type User struct { Name string; Email string }
+
+    bus.HandleQuery(GetUserQuery, func(q action.Action[string]) (any, error) {
+        userID := q.Payload
+        if userID == "1" {
+            return User{Name: "John Doe", Email: "john@example.com"}, nil
+        }
+        return nil, fmt.Errorf("user not found")
+    })
+}
+
+// The component that needs the data asks for it
+func UserProfile() g.Node {
+    userSignal := reactivity.CreateSignal("Loading user...")
+
+    dom.OnInitInline(func(el dom.Element) {
+        go func() {
+            // Ask for user data via the bus
+            res, err := bus.Ask(GetUserQuery, action.Action[string]{Payload: "1"})
+            if err != nil {
+                userSignal.Set(err.Error())
+                return
+            }
+            if user, ok := res.(User); ok {
+                userSignal.Set(fmt.Sprintf("User: %s", user.Name))
+            }
+        }()
+    })
+
+    return h.Div(
+        h.P(g.Text(userSignal.Get())),
+    )
+}
+```
+
+### 5.4. What to Generate
+
+Generate code that uses `Signals`, `Memos`, `Effects`, `Resources`, and `Stores` for local and component-level state. For cross-cutting concerns, global state changes, or decoupled communication, use the `action` package.
