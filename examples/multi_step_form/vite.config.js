@@ -1,0 +1,15 @@
+import viteCfgFactory, { parseCliArgs } from "../../vite.config.js";
+import { resolve } from "path";
+
+const { prod } = parseCliArgs();
+
+export default viteCfgFactory(
+    resolve(import.meta.dirname, "index.html"),
+    "dist",
+    [{
+        input: resolve(import.meta.dirname, ".") + "/**",
+        output: "/"
+    }],
+    [`GOOS=js GOARCH=wasm go build ${prod ? '-ldflags="-s -w"' : ''} -o examples/multi_step_form/main.wasm examples/multi_step_form/main.go`],
+    "multi_step_form"
+);

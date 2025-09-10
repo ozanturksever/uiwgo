@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Step Form - UIwGo Example</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            line-height: 1.6;
+        }
+
+        .multi-step-form {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .form-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .form-header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            padding: 2rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .step {
+            flex: 1;
+            text-align: center;
+            padding: 1rem;
+            position: relative;
+        }
+
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -50%;
+            width: 100%;
+            height: 2px;
+            background: #e9ecef;
+            z-index: 1;
+        }
+
+        .step.active::after {
+            background: #667eea;
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #e9ecef;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin: 0 auto 0.5rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .step.active .step-number {
+            background: #667eea;
+            color: white;
+        }
+
+        .step.completed .step-number {
+            background: #28a745;
+            color: white;
+        }
+
+        .step-title {
+            font-size: 0.9rem;
+            color: #6c757d;
+            font-weight: 500;
+        }
+
+        .step.active .step-title {
+            color: #667eea;
+        }
+
+        .step.completed .step-title {
+            color: #28a745;
+        }
+
+        .form-content {
+            padding: 2rem;
+            min-height: 400px;
+        }
+
+        .form-step {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-step h2 {
+            color: #333;
+            margin-bottom: 0.5rem;
+            font-size: 1.5rem;
+        }
+
+        .form-step p {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group input.error,
+        .form-group select.error,
+        .form-group textarea.error {
+            border-color: #dc3545;
+        }
+
+        .error-message {
+            color: #dc3545;
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .review-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .review-section h3 {
+            color: #333;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .review-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .review-item:last-child {
+            border-bottom: none;
+        }
+
+        .review-label {
+            font-weight: 500;
+            color: #666;
+        }
+
+        .review-value {
+            color: #333;
+        }
+
+        .form-navigation {
+            display: flex;
+            justify-content: space-between;
+            padding: 2rem;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .nav-button {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .nav-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .nav-button.prev {
+            background: #6c757d;
+            color: white;
+        }
+
+        .nav-button.prev:hover:not(:disabled) {
+            background: #5a6268;
+        }
+
+        .nav-button.next {
+            background: #667eea;
+            color: white;
+        }
+
+        .nav-button.next:hover:not(:disabled) {
+            background: #5a67d8;
+        }
+
+        .nav-button.submit {
+            background: #28a745;
+            color: white;
+        }
+
+        .nav-button.submit:hover:not(:disabled) {
+            background: #218838;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .success-message {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .success-message h2 {
+            color: #28a745;
+            margin-bottom: 1rem;
+        }
+
+        .success-message p {
+            color: #666;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .form-header {
+                padding: 1.5rem;
+            }
+
+            .form-header h1 {
+                font-size: 1.5rem;
+            }
+
+            .step-indicator {
+                padding: 1rem;
+            }
+
+            .step {
+                padding: 0.5rem;
+            }
+
+            .step-title {
+                font-size: 0.8rem;
+            }
+
+            .form-content {
+                padding: 1.5rem;
+            }
+
+            .form-row {
+                flex-direction: column;
+            }
+
+            .form-navigation {
+                padding: 1.5rem;
+            }
+
+            .nav-button {
+                padding: 0.5rem 1.5rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <script src="wasm_exec.js"></script>
+    <script>
+        const go = new Go();
+        WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then((result) => {
+            go.run(result.instance);
+        });
+    </script>
+</body>
+</html>
