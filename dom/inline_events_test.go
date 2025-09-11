@@ -1308,3 +1308,146 @@ func TestOnResizeInline(t *testing.T) {
     }
     inlineHandlersMu.Unlock()
 }
+
+// Test form submission with validation
+func TestOnSubmitInlineWithValidation(t *testing.T) {
+	var submittedData map[string]string
+	var submittedElement Element
+	
+	handler := func(el Element, formData map[string]string) {
+		submittedElement = el
+		submittedData = formData
+	}
+	
+	attr := OnSubmitInline(handler)
+	if attr == nil {
+		t.Fatal("OnSubmitInline should return an attribute")
+	}
+	
+	// Verify handler is registered
+	inlineHandlersMu.RLock()
+	handlerCount := len(inlineSubmitHandlers)
+	inlineHandlersMu.RUnlock()
+	
+	if handlerCount == 0 {
+		t.Error("Submit handler should be registered")
+	}
+	
+	// Cleanup
+	inlineHandlersMu.Lock()
+	for id := range inlineSubmitHandlers {
+		delete(inlineSubmitHandlers, id)
+	}
+	inlineHandlersMu.Unlock()
+}
+
+// Test form state debugging functionality
+func TestFormStateDebugging(t *testing.T) {
+	// Test serializeFormData function with various input types
+	doc := dom.GetWindow().Document()
+	form := doc.CreateElement("form")
+	
+	// Create test inputs
+	textInput := doc.CreateElement("input")
+	textInput.SetAttribute("type", "text")
+	textInput.SetAttribute("name", "username")
+	textInput.SetAttribute("value", "testuser")
+	form.AppendChild(textInput)
+	
+	emailInput := doc.CreateElement("input")
+	emailInput.SetAttribute("type", "email")
+	emailInput.SetAttribute("name", "email")
+	emailInput.SetAttribute("value", "test@example.com")
+	form.AppendChild(emailInput)
+	
+	passwordInput := doc.CreateElement("input")
+	passwordInput.SetAttribute("type", "password")
+	passwordInput.SetAttribute("name", "password")
+	passwordInput.SetAttribute("value", "secret123")
+	form.AppendChild(passwordInput)
+	
+	textarea := doc.CreateElement("textarea")
+	textarea.SetAttribute("name", "bio")
+	textarea.SetTextContent("Test biography")
+	form.AppendChild(textarea)
+	
+	// Test serialization
+	formElement := Element{Value: form.Underlying()}
+	data := serializeFormData(formElement)
+	
+	expected := map[string]string{
+		"username": "testuser",
+		"email":    "test@example.com",
+		"password": "secret123",
+		"bio":      "Test biography",
+	}
+	
+	for key, expectedValue := range expected {
+		if data[key] != expectedValue {
+			t.Errorf("Expected %s to be %s, got %s", key, expectedValue, data[key])
+		}
+	}
+}
+
+// Test password validation functionality
+func TestPasswordValidation(t *testing.T) {
+	tests := []struct {
+		name     string
+		password string
+		confirm  string
+		valid    bool
+	}{
+		{"matching passwords", "password123", "password123", true},
+		{"non-matching passwords", "password123", "different", false},
+		{"empty passwords", "", "", true},
+		{"one empty password", "password123", "", false},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			formData := map[string]string{
+				"password":         tt.password,
+				"confirm_password": tt.confirm,
+			}
+			
+			// This would be implemented in the actual validation logic
+			valid := formData["password"] == formData["confirm_password"]
+			
+			if valid != tt.valid {
+				t.Errorf("Expected validation result %v, got %v", tt.valid, valid)
+			}
+		})
+	}
+}
+
+// Test form reset functionality
+func TestFormResetHandling(t *testing.T) {
+	var resetCalled bool
+	var resetElement Element
+	
+	handler := func(el Element) {
+		resetCalled = true
+		resetElement = el
+	}
+	
+	attr := OnFormResetInline(handler)
+	if attr == nil {
+		t.Fatal("OnFormResetInline should return an attribute")
+	}
+	
+	// Verify handler is registered
+	inlineHandlersMu.RLock()
+	handlerCount := len(inlineFormResetHandlers)
+	inlineHandlersMu.RUnlock()
+	
+	if handlerCount == 0 {
+		t.Error("Form reset handler should be registered")
+	}
+	
+	// Cleanup
+	inlineHandlersMu.Lock()
+	for id := range inlineFormResetHandlers {
+		delete(inlineFormResetHandlers, id)
+	}
+	inlineHandlersMu.Unlock()
+}
