@@ -10,7 +10,7 @@ import (
 	"github.com/ozanturksever/uiwgo/comps"
 	"github.com/ozanturksever/uiwgo/dom"
 	"github.com/ozanturksever/uiwgo/reactivity"
-	"github.com/ozanturksever/uiwgo/wasm"
+
 	g "maragu.dev/gomponents"
 	h "maragu.dev/gomponents/html"
 )
@@ -55,14 +55,14 @@ type ProductCatalog struct {
 
 func NewProductCatalog() *ProductCatalog {
 	return &ProductCatalog{
-		products:         reactivity.NewSignal([]Product{}),
-		searchTerm:       reactivity.NewSignal(""),
-		selectedCategory: reactivity.NewSignal(""),
-		viewMode:         reactivity.NewSignal(ViewModeGrid),
-		sortBy:           reactivity.NewSignal(SortByName),
-		sortAsc:          reactivity.NewSignal(true),
-		showOutOfStock:   reactivity.NewSignal(true),
-		loading:          reactivity.NewSignal(false),
+		products:         reactivity.CreateSignal([]Product{}),
+		searchTerm:       reactivity.CreateSignal(""),
+		selectedCategory: reactivity.CreateSignal(""),
+		viewMode:         reactivity.CreateSignal(ViewModeGrid),
+		sortBy:           reactivity.CreateSignal(SortByName),
+		sortAsc:          reactivity.CreateSignal(true),
+		showOutOfStock:   reactivity.CreateSignal(true),
+		loading:          reactivity.CreateSignal(false),
 	}
 }
 
@@ -83,8 +83,13 @@ func (pc *ProductCatalog) loadSampleData() {
 }
 
 func (pc *ProductCatalog) render() g.Node {
+	// Load sample data on mount
+	comps.OnMount(func() {
+		pc.loadSampleData()
+	})
+
 	// Computed filtered and sorted products
-	filteredProducts := reactivity.NewMemo(func() []Product {
+	filteredProducts := reactivity.CreateMemo(func() []Product {
 		products := pc.products.Get()
 		search := strings.ToLower(pc.searchTerm.Get())
 		category := pc.selectedCategory.Get()
@@ -140,7 +145,7 @@ func (pc *ProductCatalog) render() g.Node {
 	})
 
 	// Get unique categories
-	categories := reactivity.NewMemo(func() []string {
+	categories := reactivity.CreateMemo(func() []string {
 		products := pc.products.Get()
 		catMap := make(map[string]bool)
 		for _, p := range products {
@@ -155,144 +160,179 @@ func (pc *ProductCatalog) render() g.Node {
 		return cats
 	})
 
-	return g.Div(
+	return h.Div(
 		h.Class("product-catalog"),
 
 		// Header with filters and controls
-		g.Div(
+		h.Div(
 			h.Class("catalog-header"),
 			h.Style("padding: 2rem; background: #f8f9fa; margin-bottom: 2rem;"),
-			g.H1(g.Text("Product Catalog")),
+			h.H1(g.Text("Product Catalog")),
 
 			// Search bar
-			g.Div(
+			h.Div(
 				h.Class("search-bar"),
 				h.Style("margin: 1rem 0;"),
-				g.Input(
+				h.Input(
+					h.ID("search-input"),
 					h.Type("text"),
 					h.Placeholder("Search products..."),
 					h.Value(pc.searchTerm.Get()),
 					h.Style("padding: 0.5rem; width: 300px; border: 1px solid #ddd; border-radius: 4px;"),
-					dom.OnInput(func(value string) {
-						pc.searchTerm.Set(value)
-					}),
 				),
+				comps.OnMount(func() {
+					if searchInput := dom.GetElementByID("search-input"); searchInput != nil {
+						dom.BindInputToSignal(searchInput, pc.searchTerm)
+					}
+				}),
 			),
 
 			// Filters row
-			g.Div(
+			h.Div(
 				h.Class("filters-row"),
 				h.Style("display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;"),
 
 				// Category filter
-				g.Div(
-					g.Label(
+			h.Div(
+					h.Label(
 						h.Style("margin-right: 0.5rem;"),
 						g.Text("Category: "),
 					),
-					g.Select(
+					h.Select(
+						h.ID("category-select"),
 						h.Value(pc.selectedCategory.Get()),
 						h.Style("padding: 0.25rem;"),
-						dom.OnChange(func(value string) {
-							pc.selectedCategory.Set(value)
-						}),
-						g.Option(h.Value(""), g.Text("All Categories")),
+						h.Option(h.Value(""), g.Text("All Categories")),
 						comps.For(comps.ForProps[string]{
 							Items: categories,
 							Key:   func(cat string) string { return cat },
 							Children: func(cat string, index int) g.Node {
-								return g.Option(
+								return h.Option(
 									h.Value(cat),
 									g.Text(cat),
 								)
 							},
 						}),
 					),
-				),
+					comps.OnMount(func() {
+						if categorySelect := dom.GetElementByID("category-select"); categorySelect != nil {
+							dom.BindChangeToSignal(categorySelect, pc.selectedCategory)
+						}
+					}),
+			),
 
-				// Sort controls
-				g.Div(
-					g.Label(
+		// Sort controls
+		h.Div(
+					h.Label(
 						h.Style("margin-right: 0.5rem;"),
 						g.Text("Sort by: "),
 					),
-					g.Select(
+					h.Select(
+						h.ID("sort-select"),
 						h.Value(string(pc.sortBy.Get())),
 						h.Style("padding: 0.25rem;"),
-						dom.OnChange(func(value string) {
-							pc.sortBy.Set(SortBy(value))
-						}),
-						g.Option(h.Value(string(SortByName)), g.Text("Name")),
-						g.Option(h.Value(string(SortByPrice)), g.Text("Price")),
-						g.Option(h.Value(string(SortByRating)), g.Text("Rating")),
-						g.Option(h.Value(string(SortByCategory)), g.Text("Category")),
+						h.Option(h.Value(string(SortByName)), g.Text("Name")),
+						h.Option(h.Value(string(SortByPrice)), g.Text("Price")),
+						h.Option(h.Value(string(SortByRating)), g.Text("Rating")),
+						h.Option(h.Value(string(SortByCategory)), g.Text("Category")),
 					),
+					comps.OnMount(func() {
+					if sortSelect := dom.GetElementByID("sort-select"); sortSelect != nil {
+						dom.BindChange(sortSelect, func(event dom.Event) {
+							if target := event.Target(); target != nil {
+								value := target.Underlying().Get("value").String()
+								pc.sortBy.Set(SortBy(value))
+							}
+						})
+					}
+				}),
 				),
 
-				g.Button(
+				h.Button(
+					h.ID("sort-direction-btn"),
 					h.Style("padding: 0.25rem 0.5rem; margin-left: 0.5rem;"),
-					g.Text(func() string {
+					comps.BindText(func() string {
 						if pc.sortAsc.Get() {
 							return "↑ Asc"
 						}
 						return "↓ Desc"
-					}()),
-					dom.OnClickInline(func(el dom.Element) {
-						pc.sortAsc.Set(!pc.sortAsc.Get())
+					}),
+				),
+				comps.OnMount(func() {
+					if sortBtn := dom.GetElementByID("sort-direction-btn"); sortBtn != nil {
+						dom.BindClickToCallback(sortBtn, func() {
+							pc.sortAsc.Set(!pc.sortAsc.Get())
+						})
+					}
+				}),
+
+				// View mode toggle
+				h.Div(
+					h.Class("view-toggle"),
+					h.Style("margin-left: 1rem;"),
+					h.Button(
+						h.ID("grid-view-btn"),
+						h.Style(func() string {
+					style := "padding: 0.25rem 0.5rem; margin-right: 0.25rem;"
+					if pc.viewMode.Get() == ViewModeGrid {
+						style += " background: #007bff; color: white;"
+					}
+					return style
+				}()),
+						g.Text("Grid"),
+					),
+					h.Button(
+						h.ID("list-view-btn"),
+						h.Style(func() string {
+					style := "padding: 0.25rem 0.5rem;"
+					if pc.viewMode.Get() == ViewModeList {
+						style += " background: #007bff; color: white;"
+					}
+					return style
+				}()),
+						g.Text("List"),
+					),
+					comps.OnMount(func() {
+						if gridBtn := dom.GetElementByID("grid-view-btn"); gridBtn != nil {
+							dom.BindClickToCallback(gridBtn, func() {
+								pc.viewMode.Set(ViewModeGrid)
+							})
+						}
+						if listBtn := dom.GetElementByID("list-view-btn"); listBtn != nil {
+							dom.BindClickToCallback(listBtn, func() {
+								pc.viewMode.Set(ViewModeList)
+							})
+						}
 					}),
 				),
 
-				// View mode toggle
-				g.Div(
-					h.Class("view-toggle"),
-					h.Style("margin-left: 1rem;"),
-					g.Button(
-						h.Style(func() string {
-							style := "padding: 0.25rem 0.5rem; margin-right: 0.25rem;"
-							if pc.viewMode.Get() == ViewModeGrid {
-								style += " background: #007bff; color: white;"
-							}
-							return style
-						}()),
-						g.Text("Grid"),
-						dom.OnClickInline(func(el dom.Element) {
-							pc.viewMode.Set(ViewModeGrid)
-						}),
-					),
-					g.Button(
-						h.Style(func() string {
-							style := "padding: 0.25rem 0.5rem;"
-							if pc.viewMode.Get() == ViewModeList {
-								style += " background: #007bff; color: white;"
-							}
-							return style
-						}()),
-						g.Text("List"),
-						dom.OnClickInline(func(el dom.Element) {
-							pc.viewMode.Set(ViewModeList)
-						}),
-					),
-				),
-
 				// Show out of stock toggle
-				g.Label(
+				h.Label(
 					h.Style("margin-left: 1rem;"),
-					g.Input(
-						h.Type("checkbox"),
-						h.Checked(pc.showOutOfStock.Get()),
-						dom.OnChange(func() {
-							pc.showOutOfStock.Set(!pc.showOutOfStock.Get())
-						}),
-					),
+					h.Input(
+				h.ID("show-out-of-stock-checkbox"),
+				h.Type("checkbox"),
+				g.If(pc.showOutOfStock.Get(), h.Checked()),
+			),
 					g.Text(" Show out of stock"),
 				),
+				comps.OnMount(func() {
+					if checkbox := dom.GetElementByID("show-out-of-stock-checkbox"); checkbox != nil {
+						dom.BindChange(checkbox, func(event dom.Event) {
+							if target := event.Target(); target != nil {
+								checked := target.Underlying().Get("checked").Bool()
+								pc.showOutOfStock.Set(checked)
+							}
+						})
+					}
+				}),
 			),
 		),
 
 		// Loading state
 		comps.Show(comps.ShowProps{
 			When: pc.loading,
-			Children: g.Div(
+			Children: h.Div(
 				h.Class("loading-state"),
 				h.Style("text-align: center; padding: 2rem; font-size: 1.2rem;"),
 				g.Text("Loading products..."),
@@ -301,7 +341,7 @@ func (pc *ProductCatalog) render() g.Node {
 
 		// Products display
 		comps.Show(comps.ShowProps{
-			When: reactivity.NewMemo(func() bool {
+			When: reactivity.CreateMemo(func() bool {
 				return !pc.loading.Get()
 			}),
 			Children: comps.Switch(comps.SwitchProps{
@@ -321,28 +361,28 @@ func (pc *ProductCatalog) render() g.Node {
 
 		// Empty state
 		comps.Show(comps.ShowProps{
-			When: reactivity.NewMemo(func() bool {
+			When: reactivity.CreateMemo(func() bool {
 				return !pc.loading.Get() && len(filteredProducts.Get()) == 0
 			}),
-			Children: g.Div(
+			Children: h.Div(
 				h.Class("empty-state"),
 				h.Style("text-align: center; padding: 3rem; color: #666;"),
-				g.H3(g.Text("No products found")),
-				g.P(g.Text("Try adjusting your filters or search terms.")),
+				h.H3(g.Text("No products found")),
+				h.P(g.Text("Try adjusting your filters or search terms.")),
 			),
 		}),
 	)
 }
 
 func (pc *ProductCatalog) renderProductGrid(products reactivity.Signal[[]Product]) g.Node {
-	return g.Div(
+	return h.Div(
 		h.Class("product-grid"),
-		h.Style("display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.5rem; padding: 2rem;"),
+		h.Style("display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; padding: 1rem;"),
 		comps.For(comps.ForProps[Product]{
 			Items: products,
 			Key:   func(p Product) string { return p.ID },
 			Children: func(p Product, index int) g.Node {
-				return g.Div(
+				return h.Div(
 					h.Class("product-card"),
 					h.Style(func() string {
 						style := "border: 1px solid #ddd; border-radius: 8px; padding: 1rem; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
@@ -352,37 +392,37 @@ func (pc *ProductCatalog) renderProductGrid(products reactivity.Signal[[]Product
 						return style
 					}()),
 
-					g.Img(
+					h.Img(
 						h.Src(p.ImageURL),
 						h.Alt(p.Name),
 						h.Class("product-image"),
 						h.Style("width: 100%; height: 200px; object-fit: cover; border-radius: 4px; margin-bottom: 1rem;"),
 					),
 
-					g.Div(
+					h.Div(
 						h.Class("product-info"),
-						g.H3(
+						h.H3(
 							h.Style("margin: 0 0 0.5rem 0; font-size: 1.1rem;"),
 							g.Text(p.Name),
 						),
-						g.P(
+						h.P(
 							h.Class("category"),
 							h.Style("color: #666; font-size: 0.9rem; margin: 0 0 0.5rem 0;"),
 							g.Text(p.Category),
 						),
-						g.P(
+						h.P(
 							h.Class("price"),
 							h.Style("font-size: 1.2rem; font-weight: bold; color: #007bff; margin: 0 0 0.5rem 0;"),
 							g.Text(fmt.Sprintf("$%.2f", p.Price)),
 						),
-						g.Div(
+						h.Div(
 							h.Class("rating"),
 							h.Style("color: #ffa500; margin-bottom: 0.5rem;"),
 							g.Text(fmt.Sprintf("★ %.1f", p.Rating)),
 						),
 						comps.Show(comps.ShowProps{
-							When: reactivity.NewSignal(!p.InStock),
-							Children: g.Span(
+							When: reactivity.CreateSignal(!p.InStock),
+							Children: h.Span(
 								h.Class("stock-status"),
 								h.Style("background: #dc3545; color: white; padding: 0.25rem 0.5rem; border-radius: 3px; font-size: 0.8rem;"),
 								g.Text("Out of Stock"),
@@ -396,14 +436,14 @@ func (pc *ProductCatalog) renderProductGrid(products reactivity.Signal[[]Product
 }
 
 func (pc *ProductCatalog) renderProductList(products reactivity.Signal[[]Product]) g.Node {
-	return g.Div(
+	return h.Div(
 		h.Class("product-list"),
 		h.Style("padding: 2rem;"),
 		comps.For(comps.ForProps[Product]{
 			Items: products,
 			Key:   func(p Product) string { return p.ID },
 			Children: func(p Product, index int) g.Node {
-				return g.Div(
+				return h.Div(
 					h.Class("product-row"),
 					h.Style(func() string {
 						style := "display: flex; gap: 1rem; padding: 1rem; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 1rem; background: white;"
@@ -413,46 +453,46 @@ func (pc *ProductCatalog) renderProductList(products reactivity.Signal[[]Product
 						return style
 					}()),
 
-					g.Img(
+					h.Img(
 						h.Src(p.ImageURL),
 						h.Alt(p.Name),
 						h.Class("product-thumbnail"),
 						h.Style("width: 100px; height: 100px; object-fit: cover; border-radius: 4px; flex-shrink: 0;"),
 					),
 
-					g.Div(
+					h.Div(
 						h.Class("product-details"),
 						h.Style("flex: 1;"),
-						g.H3(
+						h.H3(
 							h.Style("margin: 0 0 0.5rem 0; font-size: 1.2rem;"),
 							g.Text(p.Name),
 						),
-						g.P(
+						h.P(
 							h.Class("description"),
 							h.Style("color: #666; margin: 0 0 1rem 0; line-height: 1.4;"),
 							g.Text(p.Description),
 						),
-						g.Div(
+						h.Div(
 							h.Class("product-meta"),
 							h.Style("display: flex; gap: 1rem; align-items: center;"),
-							g.Span(
+							h.Span(
 								h.Class("category"),
 								h.Style("background: #f8f9fa; padding: 0.25rem 0.5rem; border-radius: 3px; font-size: 0.9rem;"),
 								g.Text(p.Category),
 							),
-							g.Span(
+							h.Span(
 								h.Class("price"),
 								h.Style("font-size: 1.3rem; font-weight: bold; color: #007bff;"),
 								g.Text(fmt.Sprintf("$%.2f", p.Price)),
 							),
-							g.Span(
+							h.Span(
 								h.Class("rating"),
 								h.Style("color: #ffa500;"),
 								g.Text(fmt.Sprintf("★ %.1f", p.Rating)),
 							),
 							comps.Show(comps.ShowProps{
-								When: reactivity.NewSignal(!p.InStock),
-								Children: g.Span(
+							When: reactivity.CreateSignal(!p.InStock),
+								Children: h.Span(
 									h.Class("stock-status"),
 									h.Style("background: #dc3545; color: white; padding: 0.25rem 0.5rem; border-radius: 3px; font-size: 0.8rem;"),
 									g.Text("Out of Stock"),
@@ -467,16 +507,12 @@ func (pc *ProductCatalog) renderProductList(products reactivity.Signal[[]Product
 }
 
 func main() {
-	wasm.Initialize()
-
-	catalog := NewProductCatalog()
-
-	// Load sample data on startup
-	reactivity.NewEffect(func() {
-		catalog.loadSampleData()
+	// Mount the app and get a disposer function
+	disposer := comps.Mount("app", func() g.Node {
+		return NewProductCatalog().render()
 	})
+	_ = disposer // We don't use it in this example since the app runs indefinitely
 
-	dom.Mount("#app", catalog.render())
-
-	wasm.KeepAlive()
+	// Prevent exit
+	select {}
 }

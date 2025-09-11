@@ -190,32 +190,6 @@ func (td *TaskDashboard) render() Node {
 		return filtered
 	})
 
-	// Setup DOM event handlers after mount
-	comps.OnMount(func() {
-		// View tab click handlers
-		views := []DashboardView{ViewBoard, ViewList, ViewCalendar, ViewAnalytics}
-		for _, view := range views {
-			if btn := dom.GetElementByID(fmt.Sprintf("view-tab-%s", view)); btn != nil {
-				capturedView := view // Capture for closure
-				dom.BindClickToCallback(btn, func() {
-					td.currentView.Set(capturedView)
-				})
-			}
-		}
-
-		// Search input handler
-		if searchInput := dom.GetElementByID("search-input"); searchInput != nil {
-			dom.BindInputToSignal(searchInput, td.searchTerm)
-		}
-
-		// Show completed checkbox handler
-		if checkbox := dom.GetElementByID("show-completed-checkbox"); checkbox != nil {
-			dom.BindClickToCallback(checkbox, func() {
-				td.showCompleted.Set(!td.showCompleted.Get())
-			})
-		}
-	})
-
 	return Div(
 		Class("task-dashboard"),
 
@@ -238,11 +212,14 @@ func (td *TaskDashboard) render() Node {
 						})
 
 						return Button(
-						ID(fmt.Sprintf("view-tab-%s", view)),
-						Class("view-tab"),
-						If(isActive.Get(), Class("active")),
-						Text(strings.Title(string(view))),
-					)
+							ID(fmt.Sprintf("view-tab-%s", view)),
+							Class("view-tab"),
+							If(isActive.Get(), Class("active")),
+							Text(strings.Title(string(view))),
+							dom.OnClickInline(func(el dom.Element) {
+								td.currentView.Set(view)
+							}),
+						)
 					},
 				}),
 			),
@@ -255,6 +232,9 @@ func (td *TaskDashboard) render() Node {
 					Type("text"),
 					Attr("placeholder", "Search tasks..."),
 					Attr("value", td.searchTerm.Get()),
+					dom.OnInputInline(func(el dom.Element) {
+						td.searchTerm.Set(el.Underlying().Get("value").String())
+					}),
 				),
 
 				Label(
@@ -262,6 +242,9 @@ func (td *TaskDashboard) render() Node {
 						ID("show-completed-checkbox"),
 						Type("checkbox"),
 						If(td.showCompleted.Get(), Attr("checked", "")),
+						dom.OnClickInline(func(el dom.Element) {
+							td.showCompleted.Set(el.Underlying().Get("checked").Bool())
+						}),
 					),
 					Text("Show completed"),
 				),
@@ -275,19 +258,19 @@ func (td *TaskDashboard) render() Node {
 				When: td.currentView,
 				Children: []Node{
 					comps.Match(comps.MatchProps{
-						When: ViewBoard,
+						When:     ViewBoard,
 						Children: td.renderKanbanBoard(filteredTasks),
 					}),
 					comps.Match(comps.MatchProps{
-						When: ViewList,
+						When:     ViewList,
 						Children: td.renderTaskList(filteredTasks),
 					}),
 					comps.Match(comps.MatchProps{
-						When: ViewCalendar,
+						When:     ViewCalendar,
 						Children: td.renderCalendarView(filteredTasks),
 					}),
 					comps.Match(comps.MatchProps{
-						When: ViewAnalytics,
+						When:     ViewAnalytics,
 						Children: td.renderAnalyticsView(filteredTasks),
 					}),
 				},
@@ -311,12 +294,12 @@ func (td *TaskDashboard) renderKanbanBoard(tasks reactivity.Signal[[]Task]) Node
 	return Div(
 		Class("kanban-board"),
 		comps.For(comps.ForProps[TaskStatus]{
-				Items: reactivity.CreateSignal(statuses),
+			Items: reactivity.CreateSignal(statuses),
 			Key:   func(status TaskStatus) string { return string(status) },
 			Children: func(status TaskStatus, index int) Node {
-					columnTasks := reactivity.CreateMemo(func() []Task {
-						return tasksByStatus.Get()[status]
-					})
+				columnTasks := reactivity.CreateMemo(func() []Task {
+					return tasksByStatus.Get()[status]
+				})
 
 				return Div(
 					Class("kanban-column"),
@@ -325,7 +308,9 @@ func (td *TaskDashboard) renderKanbanBoard(tasks reactivity.Signal[[]Task]) Node
 						Text(strings.Title(strings.ReplaceAll(string(status), "_", " "))),
 						Span(
 							Class("task-count"),
-							Text(fmt.Sprintf("(%d)", len(columnTasks.Get()))),
+							comps.BindText(func() string {
+								return fmt.Sprintf("(%d)", len(columnTasks.Get()))
+							}),
 						),
 					),
 
@@ -387,18 +372,18 @@ func (td *TaskDashboard) renderTaskCard(task Task) Node {
 			comps.Show(comps.ShowProps{
 				When: reactivity.CreateSignal(task.Assignee != ""),
 				Children: Span(
-				Class("assignee"),
-				Text(task.Assignee),
-			),
-		}),
+					Class("assignee"),
+					Text(task.Assignee),
+				),
+			}),
 
-		comps.Show(comps.ShowProps{
-			When: reactivity.CreateSignal(!task.DueDate.IsZero()),
-			Children: Span(
-				Class("due-date"),
-				Text(task.DueDate.Format("Jan 2")),
-			),
-		}),
+			comps.Show(comps.ShowProps{
+				When: reactivity.CreateSignal(!task.DueDate.IsZero()),
+				Children: Span(
+					Class("due-date"),
+					Text(task.DueDate.Format("Jan 2")),
+				),
+			}),
 		),
 	)
 }
@@ -419,7 +404,7 @@ func (td *TaskDashboard) renderTaskList(tasks reactivity.Signal[[]Task]) Node {
 						Class("task-content"),
 						H4(Text(task.Title)),
 						comps.Show(comps.ShowProps{
-						When: reactivity.CreateSignal(task.Description != ""),
+							When:     reactivity.CreateSignal(task.Description != ""),
 							Children: P(Text(task.Description)),
 						}),
 					),
@@ -427,20 +412,20 @@ func (td *TaskDashboard) renderTaskList(tasks reactivity.Signal[[]Task]) Node {
 					Div(
 						Class("task-info"),
 						Span(
-						Class("status"),
-						Text(strings.Title(strings.ReplaceAll(string(task.Status), "_", " "))),
-					),
-					Span(
-						Class("priority"),
-						Text(strings.Title(string(task.Priority))),
-					),
-					comps.Show(comps.ShowProps{
-					When: reactivity.CreateSignal(task.Assignee != ""),
-						Children: Span(
-							Class("assignee"),
-							Text(task.Assignee),
+							Class("status"),
+							Text(strings.Title(strings.ReplaceAll(string(task.Status), "_", " "))),
 						),
-					}),
+						Span(
+							Class("priority"),
+							Text(strings.Title(string(task.Priority))),
+						),
+						comps.Show(comps.ShowProps{
+							When: reactivity.CreateSignal(task.Assignee != ""),
+							Children: Span(
+								Class("assignee"),
+								Text(task.Assignee),
+							),
+						}),
 					),
 				)
 			},
@@ -492,37 +477,49 @@ func (td *TaskDashboard) renderAnalyticsView(tasks reactivity.Signal[[]Task]) No
 			Div(
 				Class("stat-card"),
 				H4(Text("Total Tasks")),
-				P(Text(fmt.Sprintf("%d", analytics.Get()["total"]))),
+				comps.BindText(func() string {
+					return fmt.Sprintf("%d", analytics.Get()["total"])
+				}),
 			),
 
 			Div(
 				Class("stat-card"),
 				H4(Text("Todo")),
-				P(Text(fmt.Sprintf("%d", analytics.Get()["todo"]))),
+				comps.BindText(func() string {
+					return fmt.Sprintf("%d", analytics.Get()["todo"])
+				}),
 			),
 
 			Div(
 				Class("stat-card"),
 				H4(Text("In Progress")),
-				P(Text(fmt.Sprintf("%d", analytics.Get()["in_progress"]))),
+				comps.BindText(func() string {
+					return fmt.Sprintf("%d", analytics.Get()["in_progress"])
+				}),
 			),
 
 			Div(
 				Class("stat-card"),
 				H4(Text("Done")),
-				P(Text(fmt.Sprintf("%d", analytics.Get()["done"]))),
+				comps.BindText(func() string {
+					return fmt.Sprintf("%d", analytics.Get()["done"])
+				}),
 			),
 
 			Div(
 				Class("stat-card"),
 				H4(Text("High Priority")),
-				P(Text(fmt.Sprintf("%d", analytics.Get()["high_priority"]))),
+				comps.BindText(func() string {
+					return fmt.Sprintf("%d", analytics.Get()["high_priority"])
+				}),
 			),
 
 			Div(
 				Class("stat-card"),
 				H4(Text("Medium Priority")),
-				P(Text(fmt.Sprintf("%d", analytics.Get()["medium_priority"]))),
+				comps.BindText(func() string {
+					return fmt.Sprintf("%d", analytics.Get()["medium_priority"])
+				}),
 			),
 		),
 	)

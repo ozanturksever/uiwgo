@@ -1,15 +1,15 @@
-import { defineConfig } from 'vite';
-import { resolve } from 'path';
+import viteCfgFactory, { parseCliArgs } from "../../vite.config.js";
+import { resolve } from "path";
 
-export default defineConfig({
-  root: resolve(__dirname),
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true,
-  },
-  server: {
-    fs: {
-      allow: ['..', '../..']
-    }
-  }
-});
+const { prod } = parseCliArgs();
+
+export default viteCfgFactory(
+    resolve(import.meta.dirname, "index.html"),
+    "dist",
+    [{
+        input: resolve(import.meta.dirname, ".") + "/**",
+        output: "/"
+    }],
+    [`GOOS=js GOARCH=wasm go build ${prod ? '-ldflags="-s -w"' : ''} -o examples/ecommerce_catalog/main.wasm examples/ecommerce_catalog/main.go`],
+    "ecommerce_catalog"
+);
