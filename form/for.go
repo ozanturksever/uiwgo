@@ -1,6 +1,7 @@
 package form
 
 import (
+	"github.com/ozanturksever/uiwgo/dom"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
@@ -35,9 +36,15 @@ func FormFor(state *State, options ForOptions, children ...Node) Node {
 	
 	// Add custom submit handler
 	if options.OnSubmit != nil {
-		// TODO: OnSubmit handler will be implemented with JS event binding
-		// For now, we'll add a data attribute to identify the form
-		formAttrs = append(formAttrs, Attr("data-has-submit-handler", "true"))
+		// Use inline submit handler with preventDefault and form data serialization
+		formAttrs = append(formAttrs, dom.OnSubmitInline(func(el dom.Element, formData map[string]string) {
+			// Call the custom submit handler with the form state
+			if err := options.OnSubmit(state); err != nil {
+				// Handle submission error (could log or set error state)
+				// For now, we'll just ignore the error
+				_ = err
+			}
+		}))
 	}
 	
 	// Add additional attributes

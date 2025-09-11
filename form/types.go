@@ -1,6 +1,13 @@
 package form
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+
 	"github.com/ozanturksever/uiwgo/reactivity"
 	. "maragu.dev/gomponents"
 )
@@ -38,6 +45,17 @@ type FieldDef struct {
 	WidgetAttrs []Node
 }
 
+// SubmissionHandler defines a function that handles form submission
+type SubmissionHandler func(ctx context.Context, values map[string]any) error
+
+// SubmissionOptions configures form submission behavior
+type SubmissionOptions struct {
+	URL     string            // URL to submit to (for HTTP submissions)
+	Method  string            // HTTP method (GET, POST, PUT, etc.)
+	Headers map[string]string // Additional headers
+	Handler SubmissionHandler // Custom submission handler
+}
+
 // State represents the current state of a form, including field values and errors.
 type State struct {
 	// schema holds the form schema definition
@@ -51,6 +69,18 @@ type State struct {
 	
 	// globalError holds the reactive signal for form-wide errors
 	globalError reactivity.Signal[error]
+	
+	// crossFieldValidators stores validators that operate across multiple fields
+	crossFieldValidators []CrossFieldValidator
+	
+	// submissionOptions configures how the form is submitted
+	submissionOptions *SubmissionOptions
+	
+	// isSubmitting tracks whether a submission is in progress
+	isSubmitting reactivity.Signal[bool]
+	
+	// submissionError tracks submission-specific errors
+	submissionError reactivity.Signal[error]
 }
 
 // Values returns a map of all current field values.
@@ -181,5 +211,153 @@ func NewFromSchema(schema []FieldDef) *State {
 		state.fieldErrors[field.Name] = reactivity.CreateSignal[error](nil)
 	}
 
+	state.isSubmitting = reactivity.CreateSignal[bool](false)
+	state.submissionError = reactivity.CreateSignal[error](nil)
+	
 	return state
+}
+
+// AddCrossFieldValidator adds a cross-field validator to the form
+func (s *State) AddCrossFieldValidator(validator CrossFieldValidator) {
+	s.crossFieldValidators = append(s.crossFieldValidators, validator)
+}
+
+// SetSubmissionOptions configures how the form should be submitted
+func (s *State) SetSubmissionOptions(options SubmissionOptions) {
+	s.submissionOptions = &options
+}
+
+// IsSubmitting returns whether a submission is currently in progress
+func (s *State) IsSubmitting() bool {
+	return s.isSubmitting.Get()
+}
+
+// GetSubmissionError returns the current submission error
+func (s *State) GetSubmissionError() error {
+	return s.submissionError.Get()
+}
+
+// ValidateWithCrossField performs full validation including cross-field validators
+func (s *State) ValidateWithCrossField() bool {
+	// First run regular field validation
+	isValid := s.Validate()
+	
+	// Then run cross-field validation
+	values := s.Values()
+	for _, validator := range s.crossFieldValidators {
+		if err := validator(values); err != nil {
+			s.SetGlobalError(err)
+			isValid = false
+			break
+		}
+	}
+	
+	return isValid
+}
+
+// Submit validates and submits the form
+func (s *State) Submit(ctx context.Context) error {
+	// Prevent multiple simultaneous submissions
+	if s.IsSubmitting() {
+		return errors.New("form submission already in progress")
+	}
+	
+	// Clear previous submission errors
+	s.submissionError.Set(nil)
+	s.isSubmitting.Set(true)
+	
+	defer func() {
+		s.isSubmitting.Set(false)
+	}()
+	
+	// Validate the form
+	if !s.ValidateWithCrossField() {
+		err := errors.New("form validation failed")
+		s.submissionError.Set(err)
+		return err
+	}
+	
+	// Get form values
+	values := s.Values()
+	
+	// Submit using configured options
+	if s.submissionOptions == nil {
+		err := errors.New("no submission options configured")
+		s.submissionError.Set(err)
+		return err
+	}
+	
+	var err error
+	if s.submissionOptions.Handler != nil {
+		// Use custom handler
+		err = s.submissionOptions.Handler(ctx, values)
+	} else if s.submissionOptions.URL != "" {
+		// Use HTTP submission
+		err = s.submitHTTP(ctx, values)
+	} else {
+		err = errors.New("no submission handler or URL configured")
+	}
+	
+	if err != nil {
+		s.submissionError.Set(err)
+		return err
+	}
+	
+	return nil
+}
+
+// submitHTTP handles HTTP form submission
+func (s *State) submitHTTP(ctx context.Context, values map[string]any) error {
+	// Convert values to JSON
+	jsonData, err := json.Marshal(values)
+	if err != nil {
+		return fmt.Errorf("failed to marshal form data: %w", err)
+	}
+	
+	// Create HTTP request
+	method := s.submissionOptions.Method
+	if method == "" {
+		method = "POST"
+	}
+	
+	req, err := http.NewRequestWithContext(ctx, method, s.submissionOptions.URL, strings.NewReader(string(jsonData)))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+	for key, value := range s.submissionOptions.Headers {
+		req.Header.Set(key, value)
+	}
+	
+	// Send request
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to submit form: %w", err)
+	}
+	defer resp.Body.Close()
+	
+	// Check response status
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("form submission failed with status %d", resp.StatusCode)
+	}
+	
+	return nil
+}
+
+// Reset clears all form values and errors
+func (s *State) Reset() {
+	for _, field := range s.schema {
+		s.SetFieldValue(field.Name, field.InitialValue)
+		s.SetFieldError(field.Name, nil)
+	}
+	s.SetGlobalError(nil)
+	s.submissionError.Set(nil)
+}
+
+// NewState creates a new form state with the given schema
+func NewState(schema []FieldDef) *State {
+	return NewFromSchema(schema)
 }

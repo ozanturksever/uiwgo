@@ -23,6 +23,7 @@ func TextInput(state *form.State, fieldName string, attrs ...Node) Node {
 			Name(fieldName),
 			ID(fieldName),
 			Value(strValue),
+			Class("w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"),
 			dom.OnInputInline(func(el dom.Element) {
 			// Update form state when input changes
 			newValue := el.Underlying().Get("value").String()
@@ -48,6 +49,7 @@ func PasswordInput(state *form.State, fieldName string, attrs ...Node) Node {
 			Name(fieldName),
 			ID(fieldName),
 			Value(strValue),
+			Class("w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"),
 			dom.OnInputInline(func(el dom.Element) {
 				// Update form state when input changes
 				newValue := el.Underlying().Get("value").String()
@@ -73,6 +75,7 @@ func EmailInput(state *form.State, fieldName string, attrs ...Node) Node {
 			Name(fieldName),
 			ID(fieldName),
 			Value(strValue),
+			Class("w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"),
 			dom.OnInputInline(func(el dom.Element) {
 				// Update form state when input changes
 				newValue := el.Underlying().Get("value").String()
@@ -97,6 +100,7 @@ func TextArea(state *form.State, fieldName string, attrs ...Node) Node {
 			Name(fieldName),
 			ID(fieldName),
 			Text(strValue),
+			Class("w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 resize-vertical min-h-[100px]"),
 			dom.OnInputInline(func(el dom.Element) {
 				// Update form state when input changes
 				newValue := el.Underlying().Get("value").String()
