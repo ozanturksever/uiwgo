@@ -1,4 +1,4 @@
-.PHONY: build test serve run clean test-examples test-all test-example install dev-counter dev-todo dev-todo_store dev-component_demo dev-dom_integration dev-resource dev-router_demo dev-router_test
+.PHONY: build test serve run clean test-examples test-all test-example install
 
 MAKEFLAGS += --no-print-directory
 
@@ -36,49 +36,25 @@ serve:
 	go run ./server.go
 
 kill:
-	lsof -ti:$(PORT) | xargs kill -9 || true
+	@lsof -ti:$(PORT) 2>/dev/null | xargs -r kill -9 2>/dev/null || true
 
 run: kill
 	@echo "==> Starting Vite dev server for example: $(EXAMPLE) ..."
-	@npm run dev:$(EXAMPLE)
+	@if [ -f "examples/$(EXAMPLE)/vite.config.js" ]; then \
+		npx vite -c examples/$(EXAMPLE)/vite.config.js; \
+	else \
+		echo "Error: vite.config.js not found for example '$(EXAMPLE)'"; \
+		echo "Available examples: $(EXAMPLES)"; \
+		exit 1; \
+	fi
 
 # Install npm dependencies
 install:
 	@echo "==> Installing npm dependencies..."
 	npm install
 
-# Run Vite dev server for specific examples
-dev-counter:
-	@echo "==> Starting Vite dev server for counter example..."
-	npm run dev:counter
-
-dev-todo:
-	@echo "==> Starting Vite dev server for todo example..."
-	npm run dev:todo
-
-dev-todo_store:
-	@echo "==> Starting Vite dev server for todo_store example..."
-	npm run dev:todo_store
-
-dev-component_demo:
-	@echo "==> Starting Vite dev server for component_demo example..."
-	npm run dev:component_demo
-
-dev-dom_integration:
-	@echo "==> Starting Vite dev server for dom_integration example..."
-	npm run dev:dom_integration
-
-dev-resource:
-	@echo "==> Starting Vite dev server for resource example..."
-	npm run dev:resource
-
-dev-router_demo:
-	@echo "==> Starting Vite dev server for router_demo example..."
-	npm run dev:router_demo
-
-dev-router_test:
-	@echo "==> Starting Vite dev server for router_test example..."
-	npm run dev:router_test
+# Note: Individual dev-* targets are no longer needed.
+# Use 'make run <example>' instead, which auto-discovers examples.
 
 clean:
 	@rm -f examples/*/main.wasm || true
@@ -91,7 +67,7 @@ RUN ?=
 # Minimized environment avoids wasm_exec.js command line/env length limits
 GO_BIN := $(shell command -v go)
 GO_DIR := $(dir $(GO_BIN))
-TEST_ENV := env -i PATH="$(GO_DIR):/usr/bin:/bin" HOME="/tmp" GOOS=js GOARCH=wasm
+TEST_ENV := env -i PATH="$(GO_DIR):/usr/bin:/bin" GOOS=js GOARCH=wasm
 
 # Run tests under js/wasm
 # Usage examples:
@@ -100,7 +76,7 @@ TEST_ENV := env -i PATH="$(GO_DIR):/usr/bin:/bin" HOME="/tmp" GOOS=js GOARCH=was
 #   make test RUN=TestName            # filter tests by name
 #   make test PKG=./reactivity RUN=Signal
 test:
-	@echo "==> Running WASM tests for $(PKG) ..."
+	@echo "==> Running WASM tests for $(PKG) $(GO_DIR)..."
 	@set -e; trap '$(MAKE) clean' EXIT INT TERM; \
 	for pkg in $(PKG); do \
 	  echo "==> Testing $$pkg"; \

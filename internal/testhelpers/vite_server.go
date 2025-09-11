@@ -74,9 +74,9 @@ func (s *ViteServer) Start() error {
 		return fmt.Errorf("failed to find project root: %v", err)
 	}
 
-	// Build the npm command to start Vite for the specific example
-	cmdArgs := []string{"run", fmt.Sprintf("dev:%s", s.exampleName), "--", "--port", strconv.Itoa(s.port), "--host", s.host}
-	s.cmd = exec.CommandContext(ctx, "npm", cmdArgs...)
+	// Build the npx command to start Vite for the specific example
+	cmdArgs := []string{"vite", "--config", fmt.Sprintf("examples/%s/vite.config.js", s.exampleName), "--port", strconv.Itoa(s.port), "--host", s.host}
+	s.cmd = exec.CommandContext(ctx, "npx", cmdArgs...)
 	s.cmd.Dir = projectRoot
 
 	// Set environment to avoid npm warnings
@@ -98,7 +98,7 @@ func (s *ViteServer) Start() error {
 			return fmt.Errorf("failed to get stderr pipe: %v", err)
 		}
 
-		logutil.Logf("[ViteServer] Starting (debug): npm %v (dir=%s) URL=%s\n", cmdArgs, projectRoot, s.url)
+		logutil.Logf("[ViteServer] Starting (debug): npx %v (dir=%s) URL=%s\n", cmdArgs, projectRoot, s.url)
 
 		// Start the command
 		err = s.cmd.Start()
@@ -129,7 +129,7 @@ func (s *ViteServer) Start() error {
 		// Discard stdout/stderr to keep output clean and avoid backpressure
 		s.cmd.Stdout = io.Discard
 		s.cmd.Stderr = io.Discard
-		logutil.Logf("[ViteServer] Starting: npm %v (dir=%s) URL=%s\n", cmdArgs, projectRoot, s.url)
+		logutil.Logf("[ViteServer] Starting: npx %v (dir=%s) URL=%s\n", cmdArgs, projectRoot, s.url)
 		// Start the command
 		err = s.cmd.Start()
 		if err != nil {
