@@ -5,6 +5,11 @@ alwaysApply: true
 
 Following is the guide/rules to run/develop the project
 
+**UI Generation Guide**
+- **MUST READ**: Before generating or modifying any UI-related Go code, you **must** read and adhere to the principles and patterns outlined in the AI Developer's Guide: `@docs/ai-gen-guide.md`.
+- This guide covers the core philosophy, state management with signals, component architecture, and idiomatic UI generation patterns for this framework.
+- Failure to follow this guide will result in non-idiomatic and incorrect code.
+
 JS/DOM Interop Preference
 - Prefer honnef.co/go/js/dom/v2 for browser DOM and Web APIs when relevant.
 - Rationale: it is statically typed and provides better safety and discoverability compared to syscall/js.
