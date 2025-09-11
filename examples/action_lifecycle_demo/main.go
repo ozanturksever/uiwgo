@@ -147,7 +147,6 @@ func ObservabilityDemoComponent(bus action.Bus) g.Node {
 				html.ID("inc-btn"),
 				g.Text("Increment"),
 				g.Attr("style", "margin: 5px; padding: 8px 16px;"),
-				dom.OnClickInline(func(el dom.Element) {}),
 				dom.OnClickInline(func(el dom.Element) {
 					bus.Dispatch(action.Action[string]{
 						Type:    IncrementAction.Name,

@@ -26,6 +26,8 @@ var (
 	switchRegistry        = map[string]switchBinder{}
 	dynamicRegistry       = map[string]dynamicBinder{}
 	currentMountContainer string // tracks the current mount container during binding
+	binderObserver        js.Value
+	binderObserverCb      js.Func
 )
 
 // getCurrentMountContainer returns the current mount container ID
@@ -268,8 +270,151 @@ func BindHTMLAs(tag string, fn func() g.Node, attrs ...g.Node) g.Node {
 	return g.El(tag, nodes...)
 }
 
+func cleanupBinders(node js.Value) {
+	if !node.Truthy() || node.Get("nodeType").Int() != 1 { // ELEMENT_NODE
+		return
+	}
+
+	// Helper to clean up a specific registry
+	cleanupRegistry := func(selector string, registry any, boundAttrName string) {
+		var elements js.Value
+		if node.Call("matches", selector).Bool() {
+			elements = js.Global().Get("Array").New(node)
+		} else {
+			elements = node.Call("querySelectorAll", selector)
+		}
+
+		for i := 0; i < elements.Get("length").Int(); i++ {
+			el := elements.Index(i)
+			attrName := selector[1 : len(selector)-1]
+			id := el.Call("getAttribute", attrName).String()
+			if id == "" {
+				continue
+			}
+			// Remove the bound attribute to allow re-binding
+			if boundAttrName != "" {
+				el.Call("removeAttribute", boundAttrName)
+			}
+
+			// Dispose of the effect, but don't delete from registry
+			switch reg := registry.(type) {
+			case map[string]textBinder:
+				if binder, ok := reg[id]; ok {
+					if binder.effect != nil {
+						binder.effect.Dispose()
+						binder.effect = nil // Set to nil to be safe
+						reg[id] = binder
+					}
+				}
+			case map[string]htmlBinder:
+				if binder, ok := reg[id]; ok {
+					if binder.effect != nil {
+						binder.effect.Dispose()
+						binder.effect = nil
+						reg[id] = binder
+					}
+				}
+			case map[string]showBinder:
+				if binder, ok := reg[id]; ok {
+					if binder.effect != nil {
+						binder.effect.Dispose()
+						binder.effect = nil
+						reg[id] = binder
+					}
+				}
+			case map[string]forBinder:
+				if binder, ok := reg[id]; ok {
+					if binder.effect != nil {
+						binder.effect.Dispose()
+						binder.effect = nil
+						reg[id] = binder
+					}
+				}
+			case map[string]indexBinder:
+				if binder, ok := reg[id]; ok {
+					if binder.effect != nil {
+						binder.effect.Dispose()
+						binder.effect = nil
+						reg[id] = binder
+					}
+				}
+			case map[string]switchBinder:
+				if binder, ok := reg[id]; ok {
+					if binder.effect != nil {
+						binder.effect.Dispose()
+						binder.effect = nil
+						reg[id] = binder
+					}
+				}
+			case map[string]dynamicBinder:
+				if binder, ok := reg[id]; ok {
+					if binder.effect != nil {
+						binder.effect.Dispose()
+						binder.effect = nil
+						reg[id] = binder
+					}
+				}
+			}
+		}
+	}
+
+	cleanupRegistry("[data-uiwgo-txt]", textRegistry, "data-uiwgo-bound-text")
+	cleanupRegistry("[data-uiwgo-html]", htmlRegistry, "data-uiwgo-bound-html")
+	cleanupRegistry("[data-uiwgo-show]", showRegistry, "data-uiwgo-bound-show")
+	cleanupRegistry("[data-uiwgo-for]", forRegistry, "data-uiwgo-bound-for")
+	cleanupRegistry("[data-uiwgo-index]", indexRegistry, "data-uiwgo-bound-index")
+	cleanupRegistry("[data-uiwgo-switch]", switchRegistry, "data-uiwgo-bound-switch")
+	cleanupRegistry("[data-uiwgo-dynamic]", dynamicRegistry, "data-uiwgo-bound-dynamic")
+}
+
 // attachBinders scans the mounted DOM (or a subtree) and attaches reactive behaviors.
 func attachBinders(root js.Value) {
+	// Initialize the mutation observer if it's not already running
+	if !binderObserver.Truthy() {
+		binderObserverCb = js.FuncOf(func(this js.Value, args []js.Value) any {
+			mutations := args[0]
+			for i := 0; i < mutations.Length(); i++ {
+				m := mutations.Index(i)
+				// Handle added nodes
+				addedNodes := m.Get("addedNodes")
+				for j := 0; j < addedNodes.Length(); j++ {
+					node := addedNodes.Index(j)
+					if node.Get("nodeType").Int() == 1 { // ELEMENT_NODE
+						attachBinders(node)
+					}
+				}
+				// Handle removed nodes
+				removedNodes := m.Get("removedNodes")
+				for j := 0; j < removedNodes.Length(); j++ {
+					node := removedNodes.Index(j)
+					cleanupBinders(node)
+				}
+			}
+			return nil
+		})
+
+		observerCtor := js.Global().Get("MutationObserver")
+		if observerCtor.Truthy() {
+			binderObserver = observerCtor.New(binderObserverCb)
+			opts := js.Global().Get("Object").New()
+			opts.Set("childList", true)
+			opts.Set("subtree", true)
+			binderObserver.Call("observe", js.Global().Get("document").Get("body"), opts)
+
+			// Cleanup the observer when the root scope is disposed
+			reactivity.OnCleanup(func() {
+				if binderObserver.Truthy() {
+					binderObserver.Call("disconnect")
+					binderObserver = js.Undefined()
+				}
+				if binderObserverCb.Truthy() {
+					binderObserverCb.Release()
+					binderObserverCb = js.Func{}
+				}
+			})
+		}
+	}
+
 	attachTextBindersIn(root)
 	attachHTMLBindersIn(root)
 	attachShowBindersIn(root)
@@ -535,8 +680,6 @@ func attachShowBindersIn(root js.Value) {
 			effect := reactivity.CreateEffect(func() {
 				if b.when.Get() {
 					el.Set("innerHTML", b.html)
-					// new content may contain binders
-					attachBinders(el)
 				} else {
 					el.Set("innerHTML", "")
 				}
@@ -568,8 +711,6 @@ func attachHTMLBindersIn(root js.Value) {
 				var buf bytes.Buffer
 				_ = binder.fn().Render(&buf)
 				el.Set("innerHTML", buf.String())
-				// bind nested newly-rendered content
-				attachBinders(el)
 			})
 			// Store the effect in the binder for cleanup
 			binder.effect = effect
@@ -709,6 +850,11 @@ func attachDynamicBindersIn(root js.Value) {
 	nodes := root.Call("querySelectorAll", "[data-uiwgo-dynamic]")
 	for i := 0; i < nodes.Get("length").Int(); i++ {
 		node := nodes.Call("item", i)
+		if node.Call("hasAttribute", "data-uiwgo-bound-dynamic").Bool() {
+			continue
+		}
+		node.Call("setAttribute", "data-uiwgo-bound-dynamic", "1")
+
 		id := node.Call("getAttribute", "data-uiwgo-dynamic").String()
 		binder, exists := dynamicRegistry[id]
 		if !exists {
@@ -814,9 +960,6 @@ func reconcileForList(id string) {
 		container.Call("appendChild", record.element)
 	}
 
-	// Re-attach binders after DOM manipulation
-	attachBinders(container)
-
 	// Update registry
 	binder.childRecords = newRecords
 	forRegistry[id] = binder
@@ -880,8 +1023,6 @@ func reconcileSwitchBranch(id string) {
 				// Clone template content
 				content := template.Get("content").Call("cloneNode", true)
 				binder.container.Call("appendChild", content)
-				// Attach binders to new content
-				attachBinders(binder.container)
 				return
 			}
 			break
@@ -893,8 +1034,6 @@ func reconcileSwitchBranch(id string) {
 		var buf bytes.Buffer
 		binder.fallback.Render(&buf)
 		binder.container.Set("innerHTML", buf.String())
-		// Attach binders to fallback content
-		attachBinders(binder.container)
 	}
 
 	// Update registry
@@ -957,14 +1096,6 @@ func reconcileDynamicComponent(binder *dynamicBinder) {
 			child := tempDiv.Get("firstChild")
 			binder.container.Call("appendChild", child)
 		}
-
-		// Attach binders to the new content (excluding dynamic to prevent recursion)
-		attachTextBindersIn(binder.container)
-		attachHTMLBindersIn(binder.container)
-		attachShowBindersIn(binder.container)
-		attachForBindersIn(binder.container)
-		attachIndexBindersIn(binder.container)
-		attachSwitchBindersIn(binder.container)
 	}
 }
 
@@ -1188,19 +1319,6 @@ func createItemElement(childrenFn any, item any, index int, mountContainer strin
 		element = wrapper
 	}
 
-	// Attach binders to the new element within the scope
-	// Note: Only attach if not already attached to prevent duplication
-	if !element.Call("hasAttribute", "data-uiwgo-attached").Bool() {
-		element.Call("setAttribute", "data-uiwgo-attached", "1")
-		// Skip attachTextBindersIn to prevent duplicate text elements
-		attachHTMLBindersIn(element)
-		attachShowBindersIn(element)
-		attachForBindersIn(element)
-		attachIndexBindersIn(element)
-		attachSwitchBindersIn(element)
-		attachDynamicBindersIn(element)
-	}
-
 	// Restore previous scope and container context
 	reactivity.SetCurrentCleanupScope(prevScope)
 	setCurrentMountContainer(prevContainer)
@@ -1294,19 +1412,6 @@ func createIndexItemElement(childrenFn any, getItem func() any, index int, mount
 		element = wrapper.Get("firstElementChild")
 	} else {
 		element = wrapper
-	}
-
-	// Attach binders to the new element within the scope
-	// Note: Only attach if not already attached to prevent duplication
-	if !element.Call("hasAttribute", "data-uiwgo-attached").Bool() {
-		element.Call("setAttribute", "data-uiwgo-attached", "1")
-		// Skip attachTextBindersIn to prevent duplicate text elements
-		attachHTMLBindersIn(element)
-		attachShowBindersIn(element)
-		attachForBindersIn(element)
-		// Skip attachIndexBindersIn to prevent recursive attachment
-		attachSwitchBindersIn(element)
-		attachDynamicBindersIn(element)
 	}
 
 	// Restore previous scope and container context
