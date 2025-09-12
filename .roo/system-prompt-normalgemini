@@ -1790,5 +1790,6 @@ Examples (replace <example> with a folder under examples/)
 - Test everything: make test-all
 
 Documentation Lookup
-- Use Context7 to fetch the latest documentation when it is available.
-- For Go packages, use Go Docs (pkg.go.dev) to get the latest package documentation.
+- For high-level information about the project structure, and core libraries like `gomponents` and `dom/v2`, refer to the AI Repo Info doc: `docs/ai-repo-info.md`.
+- Use Context7 to fetch the latest documentation for other libraries when it is available.
+- For Go packages not covered in the local docs, use Go Docs (pkg.go.dev) to get the latest package documentation.
