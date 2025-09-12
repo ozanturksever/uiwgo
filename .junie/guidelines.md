@@ -1,1 +1,0 @@
-/Users/ozant/devel/oiwgo-7-jb/.trae/rules/project_rules.md
