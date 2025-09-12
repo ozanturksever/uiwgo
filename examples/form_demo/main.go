@@ -3,6 +3,7 @@
 package main
 
 import (
+	"errors"
 	"github.com/ozanturksever/logutil"
 	"github.com/ozanturksever/uiwgo/comps"
 	"github.com/ozanturksever/uiwgo/form"
@@ -13,6 +14,39 @@ import (
 )
 
 func main() {
+	// Create form state first so we can reference it in validators
+	var formState *form.State
+	
+	// Create a per-field validator for password matching
+	passwordsMustMatch := func(value any) error {
+		if formState == nil {
+			return nil // Skip validation if form state not ready
+		}
+		
+		// Get the current values from the form state
+		values := formState.Values()
+		password, passwordExists := values["password"]
+		confirm, confirmExists := values["confirm_password"]
+		
+		if !passwordExists || !confirmExists {
+			return nil // Skip validation if fields don't exist
+		}
+		
+		// Convert to strings for comparison
+		passwordStr, passwordOk := password.(string)
+		confirmStr, confirmOk := confirm.(string)
+		
+		if !passwordOk || !confirmOk {
+			return nil // Skip validation if not strings
+		}
+		
+		if passwordStr != confirmStr {
+			return errors.New("Passwords must match")
+		}
+		
+		return nil
+	}
+
 	// Define form schema with comprehensive field types
 	schema := []form.FieldDef{
 		{
@@ -41,6 +75,13 @@ func main() {
 			Label:        "Password",
 			InitialValue: "",
 			Validators:   []form.Validator{validators.Required("Password is required"), validators.MinLength(8, "Password must be at least 8 characters")},
+			Widget:       widgets.PasswordInput,
+		},
+		{
+			Name:         "confirm_password",
+			Label:        "Confirm Password",
+			InitialValue: "",
+			Validators:   []form.Validator{validators.Required("Please confirm your password"), passwordsMustMatch},
 			Widget:       widgets.PasswordInput,
 		},
 		{
@@ -115,10 +156,14 @@ func main() {
 	}
 
 	// Create form state
-	formState := form.NewFromSchema(schema)
+	formState = form.NewFromSchema(schema)
 
 	// Handle form submission
 	handleSubmit := func(state *form.State) error {
+		if !state.Validate() {
+			logutil.Log("Validation failed")
+			return errors.New("validation failed")
+		}
 		values := state.Values()
 		logutil.Log("Form submitted with values:", values)
 		return nil
@@ -148,6 +193,7 @@ func main() {
 					Div(
 						Class("px-6 py-8"),
 						form.SimpleForm(formState, handleSubmit,
+							ID("registration-form"),
 							Div(
 								Class("space-y-6"),
 								// Personal Information Section
@@ -181,6 +227,10 @@ func main() {
 										Div(
 											Class("space-y-1"),
 											form.Field(formState, "password", form.FieldOptions{ShowLabel: true, ShowError: true}),
+										),
+										Div(
+											Class("space-y-1"),
+											form.Field(formState, "confirm_password", form.FieldOptions{ShowLabel: true, ShowError: true}),
 										),
 									),
 								),
@@ -238,6 +288,7 @@ func main() {
 							Div(
 								Class("pt-6 border-t border-gray-200"),
 								Button(
+									ID("submit-btn"),
 									Type("submit"),
 									Class("w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-6 rounded-lg font-semibold text-lg hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transform transition-all duration-200 hover:scale-105 shadow-lg"),
 									Text("Create Account"),

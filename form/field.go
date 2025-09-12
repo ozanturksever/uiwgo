@@ -1,6 +1,7 @@
 package form
 
 import (
+	"github.com/ozanturksever/uiwgo/comps"
 	. "maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
@@ -69,13 +70,14 @@ func Field(state *State, fieldName string, options FieldOptions) Node {
 			Class("field-error"),
 		}, options.ErrorAttrs...)
 		
-		// Create error element that reactively shows/hides based on field error
-		var errorContent []Node
-		if state.GetFieldError(fieldName) != nil {
-			errorContent = append(errorContent, Text(state.GetFieldError(fieldName).Error()))
-		}
+		// Create reactive error element that updates when field error changes
 		errorElement := Div(
-			append(errorAttrs, errorContent...)...,
+			append(errorAttrs, comps.BindText(func() string {
+				if err := state.GetFieldError(fieldName); err != nil {
+					return err.Error()
+				}
+				return ""
+			}))...,
 		)
 		
 		elements = append(elements, errorElement)
@@ -145,11 +147,12 @@ func ErrorOnlyField(state *State, fieldName string, attrs ...Node) Node {
 		Class("field-error"),
 	}, attrs...)
 	
-	var errorContent []Node
-	if state.GetFieldError(fieldName) != nil {
-		errorContent = append(errorContent, Text(state.GetFieldError(fieldName).Error()))
-	}
 	return Div(
-		append(errorAttrs, errorContent...)...,
+		append(errorAttrs, comps.BindText(func() string {
+			if err := state.GetFieldError(fieldName); err != nil {
+				return err.Error()
+			}
+			return ""
+		}))...,
 	)
 }

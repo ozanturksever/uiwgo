@@ -28,6 +28,8 @@ func TextInput(state *form.State, fieldName string, attrs ...Node) Node {
 			// Update form state when input changes
 			newValue := el.Underlying().Get("value").String()
 			state.SetFieldValue(fieldName, newValue)
+			// Trigger validation for this field
+			state.ValidateField(fieldName)
 		}),
 		}, attrs...)...,
 	)
@@ -54,6 +56,8 @@ func PasswordInput(state *form.State, fieldName string, attrs ...Node) Node {
 				// Update form state when input changes
 				newValue := el.Underlying().Get("value").String()
 				state.SetFieldValue(fieldName, newValue)
+				// Trigger validation for this field
+				state.ValidateField(fieldName)
 			}),
 		}, attrs...)...,
 	)
@@ -77,35 +81,39 @@ func EmailInput(state *form.State, fieldName string, attrs ...Node) Node {
 			Value(strValue),
 			Class("w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200"),
 			dom.OnInputInline(func(el dom.Element) {
-				// Update form state when input changes
-				newValue := el.Underlying().Get("value").String()
-				state.SetFieldValue(fieldName, newValue)
-			}),
+			// Update form state when input changes
+			newValue := el.Underlying().Get("value").String()
+			state.SetFieldValue(fieldName, newValue)
+			// Trigger validation for this field
+			state.ValidateField(fieldName)
+		}),
 		}, attrs...)...,
 	)
-}
-
-// TextArea creates a textarea widget bound to a form field
-func TextArea(state *form.State, fieldName string, attrs ...Node) Node {
-	value := state.GetFieldValue(fieldName)
-	strValue := ""
-	if value != nil {
-		if s, ok := value.(string); ok {
-			strValue = s
-		}
 	}
 	
-	return Textarea(
-		append([]Node{
-			Name(fieldName),
-			ID(fieldName),
-			Text(strValue),
-			Class("w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 resize-vertical min-h-[100px]"),
-			dom.OnInputInline(func(el dom.Element) {
-				// Update form state when input changes
-				newValue := el.Underlying().Get("value").String()
-				state.SetFieldValue(fieldName, newValue)
-			}),
+	// TextArea creates a textarea widget bound to a form field
+	func TextArea(state *form.State, fieldName string, attrs ...Node) Node {
+		value := state.GetFieldValue(fieldName)
+		strValue := ""
+		if value != nil {
+			if s, ok := value.(string); ok {
+				strValue = s
+			}
+		}
+		
+		return Textarea(
+			append([]Node{
+				Name(fieldName),
+				ID(fieldName),
+				Text(strValue),
+				Class("w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 resize-vertical min-h-[100px]"),
+				dom.OnInputInline(func(el dom.Element) {
+					// Update form state when input changes
+					newValue := el.Underlying().Get("value").String()
+					state.SetFieldValue(fieldName, newValue)
+					// Trigger validation for this field
+					state.ValidateField(fieldName)
+				}),
 		}, attrs...)...,
 	)
 }
