@@ -19,39 +19,39 @@ import (
 // Inline event registry and utilities
 
 var (
-	inlineIDCounter      uint64
-	inlineClickHandlers  = map[string]func(Element){}
-	inlineClickOnceHandlers = map[string]func(Element){}
-	inlineInputHandlers  = map[string]func(Element){}
-	inlineChangeHandlers = map[string]func(Element){}
-	inlineKeydownHandlers = map[string]func(Element){}
-	inlineKeyExpectations = map[string]string{} // id -> expected key (optional)
-	inlineSubmitHandlers = map[string]func(Element, map[string]string){}
-	inlineFormResetHandlers = map[string]func(Element){}
-	inlineFormChangeHandlers = map[string]func(Element, map[string]string){}
-	inlineBlurHandlers   = map[string]func(Element){}
-	inlineFocusHandlers  = map[string]func(Element){}
-	inlineFocusWithinHandlers = map[string]func(Element, bool){} // element, isFocusEntering
-	inlineValidateHandlers = map[string]func(Element, string) bool{}
-	inlineBlurValidateHandlers = map[string]func(Element, string) bool{}
+	inlineIDCounter              uint64
+	inlineClickHandlers          = map[string]func(Element){}
+	inlineClickOnceHandlers      = map[string]func(Element){}
+	inlineInputHandlers          = map[string]func(Element){}
+	inlineChangeHandlers         = map[string]func(Element){}
+	inlineKeydownHandlers        = map[string]func(Element){}
+	inlineKeyExpectations        = map[string]string{} // id -> expected key (optional)
+	inlineSubmitHandlers         = map[string]func(Element, map[string]string){}
+	inlineFormResetHandlers      = map[string]func(Element){}
+	inlineFormChangeHandlers     = map[string]func(Element, map[string]string){}
+	inlineBlurHandlers           = map[string]func(Element){}
+	inlineFocusHandlers          = map[string]func(Element){}
+	inlineFocusWithinHandlers    = map[string]func(Element, bool){} // element, isFocusEntering
+	inlineValidateHandlers       = map[string]func(Element, string) bool{}
+	inlineBlurValidateHandlers   = map[string]func(Element, string) bool{}
 	inlineDebouncedInputHandlers = map[string]func(Element){}
-	inlineSearchHandlers = map[string]func(Element, string){}
-	inlineDebounceTimers = map[string]js.Value{} // stores setTimeout IDs
-	inlineTabHandlers = map[string]func(Element){}
-	inlineShiftTabHandlers = map[string]func(Element){}
-	inlineArrowKeyHandlers = map[string]func(Element, string){} // direction: "up", "down", "left", "right"
-	inlineDragStartHandlers = map[string]func(Element, js.Value){} // element, dataTransfer
-	inlineDropHandlers = map[string]func(Element, js.Value){} // element, dataTransfer
-	inlineDragOverHandlers = map[string]func(Element, js.Value){} // element, dataTransfer
-	inlineOutsideClickHandlers = map[string]func(Element){} // element
-	inlineEscapeCloseHandlers = map[string]func(Element){} // element
-	inlineFileSelectHandlers = map[string]func(Element, []js.Value){} // element, files
-	inlineFileDropHandlers = map[string]func(Element, []js.Value){} // element, files
-	inlineInitHandlers = map[string]func(Element){}
-	inlineDestroyHandlers = map[string]func(Element){}
-	inlineVisibleHandlers = map[string]func(Element){}
-	inlineResizeHandlers = map[string]func(Element){}
-	inlineHandlersMu     sync.RWMutex
+	inlineSearchHandlers         = map[string]func(Element, string){}
+	inlineDebounceTimers         = map[string]js.Value{} // stores setTimeout IDs
+	inlineTabHandlers            = map[string]func(Element){}
+	inlineShiftTabHandlers       = map[string]func(Element){}
+	inlineArrowKeyHandlers       = map[string]func(Element, string){}     // direction: "up", "down", "left", "right"
+	inlineDragStartHandlers      = map[string]func(Element, js.Value){}   // element, dataTransfer
+	inlineDropHandlers           = map[string]func(Element, js.Value){}   // element, dataTransfer
+	inlineDragOverHandlers       = map[string]func(Element, js.Value){}   // element, dataTransfer
+	inlineOutsideClickHandlers   = map[string]func(Element){}             // element
+	inlineEscapeCloseHandlers    = map[string]func(Element){}             // element
+	inlineFileSelectHandlers     = map[string]func(Element, []js.Value){} // element, files
+	inlineFileDropHandlers       = map[string]func(Element, []js.Value){} // element, files
+	inlineInitHandlers           = map[string]func(Element){}
+	inlineDestroyHandlers        = map[string]func(Element){}
+	inlineVisibleHandlers        = map[string]func(Element){}
+	inlineResizeHandlers         = map[string]func(Element){}
+	inlineHandlersMu             sync.RWMutex
 )
 
 func nextInlineID(prefix string) string {
@@ -150,14 +150,14 @@ func OnFormChangeInline(handler func(el Element, formData map[string]string)) g.
 type ValidationPattern string
 
 const (
-	ValidationEmail    ValidationPattern = "email"
-	ValidationURL      ValidationPattern = "url"
-	ValidationPhone    ValidationPattern = "phone"
-	ValidationRequired ValidationPattern = "required"
+	ValidationEmail     ValidationPattern = "email"
+	ValidationURL       ValidationPattern = "url"
+	ValidationPhone     ValidationPattern = "phone"
+	ValidationRequired  ValidationPattern = "required"
 	ValidationMinLength ValidationPattern = "minlength"
 	ValidationMaxLength ValidationPattern = "maxlength"
-	ValidationRegex    ValidationPattern = "pattern"
-	ValidationNumber   ValidationPattern = "number"
+	ValidationRegex     ValidationPattern = "pattern"
+	ValidationNumber    ValidationPattern = "number"
 )
 
 // OnValidateInline binds a validation handler with built-in patterns
@@ -493,15 +493,15 @@ func AttachInlineDelegates(root js.Value) {
 			if matched.IsUndefined() || matched.IsNull() {
 				return nil
 			}
-   attrName := marker[1 : len(marker)-1]
-   id := matched.Call("getAttribute", attrName).String()
-   if id == "" {
-   	return nil
-   }
+			attrName := marker[1 : len(marker)-1]
+			id := matched.Call("getAttribute", attrName).String()
+			if id == "" {
+				return nil
+			}
 
-   inlineHandlersMu.RLock()
-   h, ok := lookup(id)
-   inlineHandlersMu.RUnlock()
+			inlineHandlersMu.RLock()
+			h, ok := lookup(id)
+			inlineHandlersMu.RUnlock()
 			if !ok {
 				return nil
 			}
@@ -570,22 +570,38 @@ func AttachInlineDelegates(root js.Value) {
 				rawEvent := args[0]
 				key := rawEvent.Get("key").String()
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-uiwgo-onkeydown").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 
 				inlineHandlersMu.RLock()
 				expected := inlineKeyExpectations[id]
 				h := inlineKeydownHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
-				if expected != "" && key != expected { return nil }
+				if h == nil {
+					return nil
+				}
+				if expected != "" && key != expected {
+					return nil
+				}
 
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline keydown: %v", r) } }()
+				if el == nil {
+					return nil
+				}
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline keydown: %v", r)
+					}
+				}()
 				h(el)
 				return nil
 			})
@@ -595,7 +611,7 @@ func AttachInlineDelegates(root js.Value) {
 	}
 
 	// Additional keydown delegates for specific keys (Enter/Escape) with dedicated markers
- enterInstalled := false
+	enterInstalled := false
 	var enterFn js.Func
 	var enterFnUp js.Func
 	var enterIDs []string
@@ -605,46 +621,82 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			enterIDs = collect("data-uiwgo-onenter")
 			enterFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				key := rawEvent.Get("key").String()
-				if key != "Enter" { return nil }
+				if key != "Enter" {
+					return nil
+				}
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-uiwgo-onenter").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineKeydownHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline onenter: %v", r) } }()
+				if el == nil {
+					return nil
+				}
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline onenter: %v", r)
+					}
+				}()
 				h(el)
 				return nil
 			})
 			root.Call("addEventListener", "keydown", enterFn)
 			// Also listen on keyup for robustness across drivers
 			enterFnUp = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				key := rawEvent.Get("key").String()
-				if key != "Enter" { return nil }
+				if key != "Enter" {
+					return nil
+				}
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-uiwgo-onenter").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineKeydownHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline onenter (keyup): %v", r) } }()
+				if el == nil {
+					return nil
+				}
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline onenter (keyup): %v", r)
+					}
+				}()
 				h(el)
 				return nil
 			})
@@ -653,7 +705,7 @@ func AttachInlineDelegates(root js.Value) {
 		}
 	}
 
- escapeInstalled := false
+	escapeInstalled := false
 	var escapeFn js.Func
 	var escapeFnUp js.Func
 	var escapeIDs []string
@@ -663,46 +715,82 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			escapeIDs = collect("data-uiwgo-onescape")
 			escapeFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				key := rawEvent.Get("key").String()
-				if key != "Escape" { return nil }
+				if key != "Escape" {
+					return nil
+				}
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-uiwgo-onescape").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineKeydownHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline onescape: %v", r) } }()
+				if el == nil {
+					return nil
+				}
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline onescape: %v", r)
+					}
+				}()
 				h(el)
 				return nil
 			})
 			root.Call("addEventListener", "keydown", escapeFn)
 			// Also listen on keyup for robustness
 			escapeFnUp = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				key := rawEvent.Get("key").String()
-				if key != "Escape" { return nil }
+				if key != "Escape" {
+					return nil
+				}
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-uiwgo-onescape").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineKeydownHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline onescape (keyup): %v", r) } }()
+				if el == nil {
+					return nil
+				}
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline onescape (keyup): %v", r)
+					}
+				}()
 				h(el)
 				return nil
 			})
@@ -721,22 +809,38 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			submitIDs = collect("data-uiwgo-onsubmit")
 			submitFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				rawEvent.Call("preventDefault") // Prevent default form submission
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-uiwgo-onsubmit").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineSubmitHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline submit: %v", r) } }()
+				if el == nil {
+					return nil
+				}
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline submit: %v", r)
+					}
+				}()
 				formData := serializeFormData(el)
 				h(el, formData)
 				return nil
@@ -756,21 +860,37 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			resetIDs = collect("data-uiwgo-onreset")
 			resetFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-uiwgo-onreset").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineFormResetHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline reset: %v", r) } }()
+				if el == nil {
+					return nil
+				}
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline reset: %v", r)
+					}
+				}()
 				h(el)
 				return nil
 			})
@@ -800,39 +920,67 @@ func AttachInlineDelegates(root js.Value) {
 			focusWithinIDs = collect("data-uiwgo-onfocuswithin")
 			// focusin event (focus entering)
 			focusInFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				target := rawEvent.Get("target")
 				matched := target.Call("closest", marker)
-				if !matched.Truthy() { return nil }
+				if !matched.Truthy() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-uiwgo-onfocuswithin").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineFocusWithinHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline focuswithin (in): %v", r) } }()
+				if el == nil {
+					return nil
+				}
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline focuswithin (in): %v", r)
+					}
+				}()
 				h(el, true) // focus entering
 				return nil
 			})
 			// focusout event (focus leaving)
 			focusOutFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				target := rawEvent.Get("target")
 				matched := target.Call("closest", marker)
-				if !matched.Truthy() { return nil }
+				if !matched.Truthy() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-uiwgo-onfocuswithin").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineFocusWithinHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline focuswithin (out): %v", r) } }()
+				if el == nil {
+					return nil
+				}
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline focuswithin (out): %v", r)
+					}
+				}()
 				h(el, false) // focus leaving
 				return nil
 			})
@@ -852,25 +1000,43 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			formChangeIDs = collect("data-uiwgo-onformchange")
 			formChangeFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				// Find the form that contains this changed element
 				form := target.Call("closest", "form")
-				if form.IsUndefined() || form.IsNull() { return nil }
+				if form.IsUndefined() || form.IsNull() {
+					return nil
+				}
 				// Check if this form has the form change marker
 				matched := form.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-uiwgo-onformchange").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineFormChangeHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline form change: %v", r) } }()
+				if el == nil {
+					return nil
+				}
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline form change: %v", r)
+					}
+				}()
 				formData := serializeFormData(el)
 				h(el, formData)
 				return nil
@@ -890,22 +1056,38 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			validateIDs = collect("data-uiwgo-validate")
 			validateFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-uiwgo-validate").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineValidateHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
+				if el == nil {
+					return nil
+				}
 				value := target.Get("value").String()
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline validate: %v", r) } }()
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline validate: %v", r)
+					}
+				}()
 				isValid := h(el, value)
 				// Set validation state on element
 				if isValid {
@@ -932,22 +1114,38 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			blurValidateIDs = collect("data-uiwgo-blur-validate")
 			blurValidateFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-uiwgo-blur-validate").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineBlurValidateHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
+				if el == nil {
+					return nil
+				}
 				value := target.Get("value").String()
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline blur validate: %v", r) } }()
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline blur validate: %v", r)
+					}
+				}()
 				isValid := h(el, value)
 				// Set validation state on element
 				if isValid {
@@ -974,14 +1172,22 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			debouncedIDs = collect("data-inline-debounced")
 			debouncedFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-inline-debounced").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				delayStr := matched.Call("getAttribute", "data-debounce-delay").String()
 				delay := 300 // default
 				if delayStr != "" {
@@ -992,9 +1198,13 @@ func AttachInlineDelegates(root js.Value) {
 				inlineHandlersMu.RLock()
 				h := inlineDebouncedInputHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
+				if el == nil {
+					return nil
+				}
 				// Clear existing timer
 				inlineHandlersMu.Lock()
 				if timer, exists := inlineDebounceTimers[id]; exists && !timer.IsUndefined() {
@@ -1002,7 +1212,11 @@ func AttachInlineDelegates(root js.Value) {
 				}
 				// Set new timer
 				timer := js.Global().Call("setTimeout", js.FuncOf(func(this js.Value, args []js.Value) any {
-					defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline debounced: %v", r) } }()
+					defer func() {
+						if r := recover(); r != nil {
+							logutil.Logf("panic in inline debounced: %v", r)
+						}
+					}()
 					h(el)
 					inlineHandlersMu.Lock()
 					delete(inlineDebounceTimers, id)
@@ -1028,14 +1242,22 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			searchIDs = collect("data-inline-search")
 			searchFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-inline-search").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				delayStr := matched.Call("getAttribute", "data-search-delay").String()
 				delay := 300 // default
 				if delayStr != "" {
@@ -1046,9 +1268,13 @@ func AttachInlineDelegates(root js.Value) {
 				inlineHandlersMu.RLock()
 				h := inlineSearchHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
+				if el == nil {
+					return nil
+				}
 				query := target.Get("value").String()
 				// Clear existing timer
 				inlineHandlersMu.Lock()
@@ -1057,7 +1283,11 @@ func AttachInlineDelegates(root js.Value) {
 				}
 				// Set new timer
 				timer := js.Global().Call("setTimeout", js.FuncOf(func(this js.Value, args []js.Value) any {
-					defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline search: %v", r) } }()
+					defer func() {
+						if r := recover(); r != nil {
+							logutil.Logf("panic in inline search: %v", r)
+						}
+					}()
 					h(el, query)
 					inlineHandlersMu.Lock()
 					delete(inlineDebounceTimers, id)
@@ -1067,11 +1297,11 @@ func AttachInlineDelegates(root js.Value) {
 				inlineDebounceTimers[id] = timer
 				inlineHandlersMu.Unlock()
 				return nil
-		})
-		root.Call("addEventListener", "input", searchFn)
-		searchInstalled = true
+			})
+			root.Call("addEventListener", "input", searchFn)
+			searchInstalled = true
+		}
 	}
-}
 
 	// Install for Tab navigation
 	tabInstalled := false
@@ -1083,25 +1313,45 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			tabIDs = collect("data-inline-tab")
 			tabFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				key := rawEvent.Get("key").String()
-				if key != "Tab" { return nil }
+				if key != "Tab" {
+					return nil
+				}
 				shiftKey := rawEvent.Get("shiftKey").Bool()
-				if shiftKey { return nil } // Handle only Tab, not Shift+Tab
+				if shiftKey {
+					return nil
+				} // Handle only Tab, not Shift+Tab
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-inline-tab").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineTabHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline tab: %v", r) } }()
+				if el == nil {
+					return nil
+				}
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline tab: %v", r)
+					}
+				}()
 				h(el)
 				return nil
 			})
@@ -1120,25 +1370,45 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			shiftTabIDs = collect("data-inline-shifttab")
 			shiftTabFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				key := rawEvent.Get("key").String()
-				if key != "Tab" { return nil }
+				if key != "Tab" {
+					return nil
+				}
 				shiftKey := rawEvent.Get("shiftKey").Bool()
-				if !shiftKey { return nil } // Handle only Shift+Tab
+				if !shiftKey {
+					return nil
+				} // Handle only Shift+Tab
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-inline-shifttab").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineShiftTabHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline shift+tab: %v", r) } }()
+				if el == nil {
+					return nil
+				}
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline shift+tab: %v", r)
+					}
+				}()
 				h(el)
 				return nil
 			})
@@ -1157,7 +1427,9 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			arrowIDs = collect("data-inline-arrow")
 			arrowFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				key := rawEvent.Get("key").String()
 				var direction string
@@ -1174,18 +1446,32 @@ func AttachInlineDelegates(root js.Value) {
 					return nil // Not an arrow key
 				}
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-inline-arrow").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineArrowKeyHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline arrow: %v", r) } }()
+				if el == nil {
+					return nil
+				}
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline arrow: %v", r)
+					}
+				}()
 				h(el, direction)
 				return nil
 			})
@@ -1204,22 +1490,38 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			dragStartIDs = collect("data-inline-dragstart")
 			dragStartFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-inline-dragstart").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineDragStartHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
+				if el == nil {
+					return nil
+				}
 				dataTransfer := rawEvent.Get("dataTransfer")
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline dragstart: %v", r) } }()
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline dragstart: %v", r)
+					}
+				}()
 				h(el, dataTransfer)
 				return nil
 			})
@@ -1238,22 +1540,38 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			dropIDs = collect("data-inline-drop")
 			dropFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-inline-drop").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineDropHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
+				if el == nil {
+					return nil
+				}
 				dataTransfer := rawEvent.Get("dataTransfer")
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline drop: %v", r) } }()
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline drop: %v", r)
+					}
+				}()
 				h(el, dataTransfer)
 				return nil
 			})
@@ -1272,22 +1590,38 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			dragOverIDs = collect("data-inline-dragover")
 			dragOverFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-inline-dragover").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineDragOverHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
+				if el == nil {
+					return nil
+				}
 				dataTransfer := rawEvent.Get("dataTransfer")
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline dragover: %v", r) } }()
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline dragover: %v", r)
+					}
+				}()
 				h(el, dataTransfer)
 				return nil
 			})
@@ -1306,7 +1640,9 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			outsideClickIDs = collect("data-uiwgo-onoutsideclick")
 			outsideClickFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				target := rawEvent.Get("target")
 				// Check if click is outside any element with outside click handler
@@ -1316,14 +1652,24 @@ func AttachInlineDelegates(root js.Value) {
 					// If target is not contained within this element, trigger outside click
 					if !element.Call("contains", target).Bool() {
 						id := element.Call("getAttribute", "data-uiwgo-onoutsideclick").String()
-						if id == "" { continue }
+						if id == "" {
+							continue
+						}
 						inlineHandlersMu.RLock()
 						h := inlineOutsideClickHandlers[id]
 						inlineHandlersMu.RUnlock()
-						if h == nil { continue }
+						if h == nil {
+							continue
+						}
 						el := domv2.WrapElement(element)
-						if el == nil { continue }
-						defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline outside click: %v", r) } }()
+						if el == nil {
+							continue
+						}
+						defer func() {
+							if r := recover(); r != nil {
+								logutil.Logf("panic in inline outside click: %v", r)
+							}
+						}()
 						h(el)
 					}
 				}
@@ -1344,23 +1690,37 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			escapeCloseIDs = collect("data-uiwgo-onescapeclose")
 			escapeCloseFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				// Check if Escape key was pressed
-				if rawEvent.Get("key").String() != "Escape" { return nil }
+				if rawEvent.Get("key").String() != "Escape" {
+					return nil
+				}
 				// Trigger all escape close handlers
 				elements := root.Call("querySelectorAll", marker)
 				for i := 0; i < elements.Get("length").Int(); i++ {
 					element := elements.Index(i)
 					id := element.Call("getAttribute", "data-uiwgo-onescapeclose").String()
-					if id == "" { continue }
+					if id == "" {
+						continue
+					}
 					inlineHandlersMu.RLock()
 					h := inlineEscapeCloseHandlers[id]
 					inlineHandlersMu.RUnlock()
-					if h == nil { continue }
+					if h == nil {
+						continue
+					}
 					el := domv2.WrapElement(element)
-					if el == nil { continue }
-					defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline escape close: %v", r) } }()
+					if el == nil {
+						continue
+					}
+					defer func() {
+						if r := recover(); r != nil {
+							logutil.Logf("panic in inline escape close: %v", r)
+						}
+					}()
 					h(el)
 				}
 				return nil
@@ -1380,14 +1740,20 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			fileSelectIDs = collect("data-uiwgo-onfileselect")
 			fileSelectFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				target := rawEvent.Get("target")
 				// Check if target has file select handler and files were selected
 				id := target.Call("getAttribute", "data-uiwgo-onfileselect").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				files := target.Get("files")
-				if !files.Truthy() || files.Get("length").Int() == 0 { return nil }
+				if !files.Truthy() || files.Get("length").Int() == 0 {
+					return nil
+				}
 				// Convert FileList to []js.Value
 				fileArray := make([]js.Value, files.Get("length").Int())
 				for i := 0; i < len(fileArray); i++ {
@@ -1396,10 +1762,18 @@ func AttachInlineDelegates(root js.Value) {
 				inlineHandlersMu.RLock()
 				h := inlineFileSelectHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(target)
-				if el == nil { return nil }
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline file select: %v", r) } }()
+				if el == nil {
+					return nil
+				}
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline file select: %v", r)
+					}
+				}()
 				h(el, fileArray)
 				return nil
 			})
@@ -1419,7 +1793,9 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			fileDropIDs = collect("data-uiwgo-onfiledrop")
 			fileDropFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				rawEvent.Call("preventDefault") // Prevent default drop behavior
 				target := rawEvent.Get("target")
@@ -1433,13 +1809,21 @@ func AttachInlineDelegates(root js.Value) {
 					}
 					current = current.Get("parentElement")
 				}
-				if !dropElement.Truthy() { return nil }
+				if !dropElement.Truthy() {
+					return nil
+				}
 				id := dropElement.Call("getAttribute", "data-uiwgo-onfiledrop").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				dataTransfer := rawEvent.Get("dataTransfer")
-				if !dataTransfer.Truthy() { return nil }
+				if !dataTransfer.Truthy() {
+					return nil
+				}
 				files := dataTransfer.Get("files")
-				if !files.Truthy() || files.Get("length").Int() == 0 { return nil }
+				if !files.Truthy() || files.Get("length").Int() == 0 {
+					return nil
+				}
 				// Convert FileList to []js.Value
 				fileArray := make([]js.Value, files.Get("length").Int())
 				for i := 0; i < len(fileArray); i++ {
@@ -1448,17 +1832,27 @@ func AttachInlineDelegates(root js.Value) {
 				inlineHandlersMu.RLock()
 				h := inlineFileDropHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(dropElement)
-				if el == nil { return nil }
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline file drop: %v", r) } }()
+				if el == nil {
+					return nil
+				}
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline file drop: %v", r)
+					}
+				}()
 				h(el, fileArray)
 				return nil
 			})
 			root.Call("addEventListener", "drop", fileDropFn)
 			// Also prevent default dragover to allow drop
 			dragOverPreventFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				target := rawEvent.Get("target")
 				// Check if target or ancestor has file drop handler
@@ -1487,21 +1881,37 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			clickOnceIDs = collect("data-uiwgo-onclick-once")
 			clickOnceFn = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) == 0 { return nil }
+				if len(args) == 0 {
+					return nil
+				}
 				rawEvent := args[0]
 				target := rawEvent.Get("target")
-				if target.IsUndefined() || target.IsNull() { return nil }
+				if target.IsUndefined() || target.IsNull() {
+					return nil
+				}
 				matched := target.Call("closest", marker)
-				if matched.IsUndefined() || matched.IsNull() { return nil }
+				if matched.IsUndefined() || matched.IsNull() {
+					return nil
+				}
 				id := matched.Call("getAttribute", "data-uiwgo-onclick-once").String()
-				if id == "" { return nil }
+				if id == "" {
+					return nil
+				}
 				inlineHandlersMu.RLock()
 				h := inlineClickOnceHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { return nil }
+				if h == nil {
+					return nil
+				}
 				el := domv2.WrapElement(matched)
-				if el == nil { return nil }
-				defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline click-once: %v", r) } }()
+				if el == nil {
+					return nil
+				}
+				defer func() {
+					if r := recover(); r != nil {
+						logutil.Logf("panic in inline click-once: %v", r)
+					}
+				}()
 				h(el)
 				inlineHandlersMu.Lock()
 				delete(inlineClickOnceHandlers, id)
@@ -1523,22 +1933,34 @@ func AttachInlineDelegates(root js.Value) {
 			ln := nodes.Get("length").Int()
 			for i := 0; i < ln; i++ {
 				node := nodes.Call("item", i)
-				if node.Call("hasAttribute", "data-uiwgo-oninit-done").Bool() { continue }
+				if node.Call("hasAttribute", "data-uiwgo-oninit-done").Bool() {
+					continue
+				}
 				id := node.Call("getAttribute", "data-uiwgo-oninit").String()
-				if id == "" { continue }
+				if id == "" {
+					continue
+				}
 				inlineHandlersMu.RLock()
 				h := inlineInitHandlers[id]
 				inlineHandlersMu.RUnlock()
-				if h == nil { continue }
+				if h == nil {
+					continue
+				}
 				var f js.Func
 				f = js.FuncOf(func(this js.Value, args []js.Value) any {
 					el := domv2.WrapElement(node)
-					if el != nil { 
-						defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline oninit: %v", r) } }()
+					if el != nil {
+						defer func() {
+							if r := recover(); r != nil {
+								logutil.Logf("panic in inline oninit: %v", r)
+							}
+						}()
 						h(el)
 					}
 					node.Call("setAttribute", "data-uiwgo-oninit-done", "1")
-					inlineHandlersMu.Lock(); delete(inlineInitHandlers, id); inlineHandlersMu.Unlock()
+					inlineHandlersMu.Lock()
+					delete(inlineInitHandlers, id)
+					inlineHandlersMu.Unlock()
 					f.Release()
 					return nil
 				})
@@ -1560,22 +1982,37 @@ func AttachInlineDelegates(root js.Value) {
 			destroyIDs = collect("data-uiwgo-ondestroy")
 		}
 		destroyCb = js.FuncOf(func(this js.Value, args []js.Value) any {
-			if len(args) == 0 { return nil }
+			if len(args) == 0 {
+				return nil
+			}
 			mutations := args[0]
 			for i := 0; i < mutations.Length(); i++ {
 				m := mutations.Index(i)
 				removed := m.Get("removedNodes")
 				for j := 0; j < removed.Length(); j++ {
 					rn := removed.Index(j)
-					if !rn.Truthy() || rn.Get("nodeType").Int() != 1 { continue }
+					if !rn.Truthy() || rn.Get("nodeType").Int() != 1 {
+						continue
+					}
 					// If removed element itself has ondestroy
 					if rn.Call("hasAttribute", "data-uiwgo-ondestroy").Bool() {
 						id := rn.Call("getAttribute", "data-uiwgo-ondestroy").String()
-						inlineHandlersMu.RLock(); h := inlineDestroyHandlers[id]; inlineHandlersMu.RUnlock()
+						inlineHandlersMu.RLock()
+						h := inlineDestroyHandlers[id]
+						inlineHandlersMu.RUnlock()
 						if h != nil {
 							el := domv2.WrapElement(rn)
-							if el != nil { defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline ondestroy: %v", r) } }(); h(el) }
-							inlineHandlersMu.Lock(); delete(inlineDestroyHandlers, id); inlineHandlersMu.Unlock()
+							if el != nil {
+								defer func() {
+									if r := recover(); r != nil {
+										logutil.Logf("panic in inline ondestroy: %v", r)
+									}
+								}()
+								h(el)
+							}
+							inlineHandlersMu.Lock()
+							delete(inlineDestroyHandlers, id)
+							inlineHandlersMu.Unlock()
 						}
 					}
 					// Also any descendants
@@ -1583,13 +2020,25 @@ func AttachInlineDelegates(root js.Value) {
 					for k := 0; k < desc.Get("length").Int(); k++ {
 						elNode := desc.Index(k)
 						id := elNode.Call("getAttribute", "data-uiwgo-ondestroy").String()
-						inlineHandlersMu.RLock(); h := inlineDestroyHandlers[id]; inlineHandlersMu.RUnlock()
-						if h == nil { continue }
+						inlineHandlersMu.RLock()
+						h := inlineDestroyHandlers[id]
+						inlineHandlersMu.RUnlock()
+						if h == nil {
+							continue
+						}
 						el := domv2.WrapElement(elNode)
-						if el == nil { continue }
-						defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline ondestroy (desc): %v", r) } }()
+						if el == nil {
+							continue
+						}
+						defer func() {
+							if r := recover(); r != nil {
+								logutil.Logf("panic in inline ondestroy (desc): %v", r)
+							}
+						}()
 						h(el)
-						inlineHandlersMu.Lock(); delete(inlineDestroyHandlers, id); inlineHandlersMu.Unlock()
+						inlineHandlersMu.Lock()
+						delete(inlineDestroyHandlers, id)
+						inlineHandlersMu.Unlock()
 					}
 				}
 			}
@@ -1617,23 +2066,39 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			visibleIDs = collect("data-uiwgo-onvisible")
 			ioCb = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) < 1 { return nil }
+				if len(args) < 1 {
+					return nil
+				}
 				entries := args[0]
 				observer := args[1]
 				ln := entries.Length()
 				for i := 0; i < ln; i++ {
 					entry := entries.Index(i)
-					if !entry.Get("isIntersecting").Bool() { continue }
+					if !entry.Get("isIntersecting").Bool() {
+						continue
+					}
 					target := entry.Get("target")
 					id := target.Call("getAttribute", "data-uiwgo-onvisible").String()
-					inlineHandlersMu.RLock(); h := inlineVisibleHandlers[id]; inlineHandlersMu.RUnlock()
-					if h == nil { continue }
+					inlineHandlersMu.RLock()
+					h := inlineVisibleHandlers[id]
+					inlineHandlersMu.RUnlock()
+					if h == nil {
+						continue
+					}
 					el := domv2.WrapElement(target)
-					if el == nil { continue }
-					defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline onvisible: %v", r) } }()
+					if el == nil {
+						continue
+					}
+					defer func() {
+						if r := recover(); r != nil {
+							logutil.Logf("panic in inline onvisible: %v", r)
+						}
+					}()
 					h(el)
 					observer.Call("unobserve", target)
-					inlineHandlersMu.Lock(); delete(inlineVisibleHandlers, id); inlineHandlersMu.Unlock()
+					inlineHandlersMu.Lock()
+					delete(inlineVisibleHandlers, id)
+					inlineHandlersMu.Unlock()
 					target.Call("removeAttribute", "data-uiwgo-onvisible")
 				}
 				return nil
@@ -1662,18 +2127,30 @@ func AttachInlineDelegates(root js.Value) {
 		if nodes.Truthy() && nodes.Get("length").Int() > 0 {
 			resizeIDs = collect("data-uiwgo-onresize")
 			roCb = js.FuncOf(func(this js.Value, args []js.Value) any {
-				if len(args) < 1 { return nil }
+				if len(args) < 1 {
+					return nil
+				}
 				entries := args[0]
 				ln := entries.Length()
 				for i := 0; i < ln; i++ {
 					entry := entries.Index(i)
 					target := entry.Get("target")
 					id := target.Call("getAttribute", "data-uiwgo-onresize").String()
-					inlineHandlersMu.RLock(); h := inlineResizeHandlers[id]; inlineHandlersMu.RUnlock()
-					if h == nil { continue }
+					inlineHandlersMu.RLock()
+					h := inlineResizeHandlers[id]
+					inlineHandlersMu.RUnlock()
+					if h == nil {
+						continue
+					}
 					el := domv2.WrapElement(target)
-					if el == nil { continue }
-					defer func(){ if r := recover(); r != nil { logutil.Logf("panic in inline onresize: %v", r) } }()
+					if el == nil {
+						continue
+					}
+					defer func() {
+						if r := recover(); r != nil {
+							logutil.Logf("panic in inline onresize: %v", r)
+						}
+					}()
 					h(el)
 				}
 				return nil
@@ -1697,21 +2174,27 @@ func AttachInlineDelegates(root js.Value) {
 			root.Call("removeEventListener", "click", clickFn)
 			clickFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range clickIDs { delete(inlineClickHandlers, id) }
+			for _, id := range clickIDs {
+				delete(inlineClickHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if inputInstalled {
 			root.Call("removeEventListener", "input", inputFn)
 			inputFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range inputIDs { delete(inlineInputHandlers, id) }
+			for _, id := range inputIDs {
+				delete(inlineInputHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if changeInstalled {
 			root.Call("removeEventListener", "change", changeFn)
 			changeFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range changeIDs { delete(inlineChangeHandlers, id) }
+			for _, id := range changeIDs {
+				delete(inlineChangeHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if keydownInstalled {
@@ -1752,28 +2235,36 @@ func AttachInlineDelegates(root js.Value) {
 			root.Call("removeEventListener", "submit", submitFn)
 			submitFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range submitIDs { delete(inlineSubmitHandlers, id) }
+			for _, id := range submitIDs {
+				delete(inlineSubmitHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if resetInstalled {
 			root.Call("removeEventListener", "reset", resetFn)
 			resetFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range resetIDs { delete(inlineFormResetHandlers, id) }
+			for _, id := range resetIDs {
+				delete(inlineFormResetHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if blurInstalled {
 			root.Call("removeEventListener", "blur", blurFn)
 			blurFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range blurIDs { delete(inlineBlurHandlers, id) }
+			for _, id := range blurIDs {
+				delete(inlineBlurHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if focusInstalled {
 			root.Call("removeEventListener", "focus", focusFn)
 			focusFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range focusIDs { delete(inlineFocusHandlers, id) }
+			for _, id := range focusIDs {
+				delete(inlineFocusHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if focusWithinInstalled {
@@ -1782,28 +2273,36 @@ func AttachInlineDelegates(root js.Value) {
 			focusInFn.Release()
 			focusOutFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range focusWithinIDs { delete(inlineFocusWithinHandlers, id) }
+			for _, id := range focusWithinIDs {
+				delete(inlineFocusWithinHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if formChangeInstalled {
 			root.Call("removeEventListener", "change", formChangeFn)
 			formChangeFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range formChangeIDs { delete(inlineFormChangeHandlers, id) }
+			for _, id := range formChangeIDs {
+				delete(inlineFormChangeHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if validateInstalled {
 			root.Call("removeEventListener", "input", validateFn)
 			validateFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range validateIDs { delete(inlineValidateHandlers, id) }
+			for _, id := range validateIDs {
+				delete(inlineValidateHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if blurValidateInstalled {
 			root.Call("removeEventListener", "blur", blurValidateFn)
 			blurValidateFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range blurValidateIDs { delete(inlineBlurValidateHandlers, id) }
+			for _, id := range blurValidateIDs {
+				delete(inlineBlurValidateHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if debouncedInstalled {
@@ -1836,63 +2335,81 @@ func AttachInlineDelegates(root js.Value) {
 			root.Call("removeEventListener", "keydown", tabFn)
 			tabFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range tabIDs { delete(inlineTabHandlers, id) }
+			for _, id := range tabIDs {
+				delete(inlineTabHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if shiftTabInstalled {
 			root.Call("removeEventListener", "keydown", shiftTabFn)
 			shiftTabFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range shiftTabIDs { delete(inlineShiftTabHandlers, id) }
+			for _, id := range shiftTabIDs {
+				delete(inlineShiftTabHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if arrowInstalled {
 			root.Call("removeEventListener", "keydown", arrowFn)
 			arrowFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range arrowIDs { delete(inlineArrowKeyHandlers, id) }
+			for _, id := range arrowIDs {
+				delete(inlineArrowKeyHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if dragStartInstalled {
 			root.Call("removeEventListener", "dragstart", dragStartFn)
 			dragStartFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range dragStartIDs { delete(inlineDragStartHandlers, id) }
+			for _, id := range dragStartIDs {
+				delete(inlineDragStartHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if dropInstalled {
 			root.Call("removeEventListener", "drop", dropFn)
 			dropFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range dropIDs { delete(inlineDropHandlers, id) }
+			for _, id := range dropIDs {
+				delete(inlineDropHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if dragOverInstalled {
 			root.Call("removeEventListener", "dragover", dragOverFn)
 			dragOverFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range dragOverIDs { delete(inlineDragOverHandlers, id) }
+			for _, id := range dragOverIDs {
+				delete(inlineDragOverHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if outsideClickInstalled {
 			root.Call("removeEventListener", "click", outsideClickFn)
 			outsideClickFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range outsideClickIDs { delete(inlineOutsideClickHandlers, id) }
+			for _, id := range outsideClickIDs {
+				delete(inlineOutsideClickHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if escapeCloseInstalled {
 			root.Call("removeEventListener", "keydown", escapeCloseFn)
 			escapeCloseFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range escapeCloseIDs { delete(inlineEscapeCloseHandlers, id) }
+			for _, id := range escapeCloseIDs {
+				delete(inlineEscapeCloseHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if fileSelectInstalled {
 			root.Call("removeEventListener", "change", fileSelectFn)
 			fileSelectFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range fileSelectIDs { delete(inlineFileSelectHandlers, id) }
+			for _, id := range fileSelectIDs {
+				delete(inlineFileSelectHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if fileDropInstalled {
@@ -1901,7 +2418,9 @@ func AttachInlineDelegates(root js.Value) {
 			fileDropFn.Release()
 			dragOverPreventFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range fileDropIDs { delete(inlineFileDropHandlers, id) }
+			for _, id := range fileDropIDs {
+				delete(inlineFileDropHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		// Cleanup for Alpine-inspired additions
@@ -1909,31 +2428,45 @@ func AttachInlineDelegates(root js.Value) {
 			root.Call("removeEventListener", "click", clickOnceFn)
 			clickOnceFn.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range clickOnceIDs { delete(inlineClickOnceHandlers, id) }
+			for _, id := range clickOnceIDs {
+				delete(inlineClickOnceHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if initInstalled {
 			// No event listener to remove; OnInit used microtask and cleared its handler
 		}
 		if destroyInstalled {
-			if destroyObserver.Truthy() { destroyObserver.Call("disconnect") }
+			if destroyObserver.Truthy() {
+				destroyObserver.Call("disconnect")
+			}
 			destroyCb.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range destroyIDs { delete(inlineDestroyHandlers, id) }
+			for _, id := range destroyIDs {
+				delete(inlineDestroyHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if visibleInstalled {
-			if io.Truthy() { io.Call("disconnect") }
+			if io.Truthy() {
+				io.Call("disconnect")
+			}
 			ioCb.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range visibleIDs { delete(inlineVisibleHandlers, id) }
+			for _, id := range visibleIDs {
+				delete(inlineVisibleHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 		if resizeInstalled {
-			if ro.Truthy() { ro.Call("disconnect") }
+			if ro.Truthy() {
+				ro.Call("disconnect")
+			}
 			roCb.Release()
 			inlineHandlersMu.Lock()
-			for _, id := range resizeIDs { delete(inlineResizeHandlers, id) }
+			for _, id := range resizeIDs {
+				delete(inlineResizeHandlers, id)
+			}
 			inlineHandlersMu.Unlock()
 		}
 	})
